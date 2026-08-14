@@ -254,12 +254,23 @@ class OidcService
         $header = $this->decodeSegment($idToken, 0);
         $alg = (string) ($header['alg'] ?? '');
 
+
+        $supportedAlgs = $discovery['id_token_signing_alg_values_supported'] ?? [];
+        if (
+            $alg === ''
+            || ! is_array($supportedAlgs)
+            || ! in_array($alg, $supportedAlgs, true)
+        ) {
+            throw new OidcException(
+                'The ID token uses an unsupported signing algorithm.'
+            );
+        
         try {
             if (str_starts_with($alg, 'HS')) {
                 // Symmetric signing: the shared client secret is the key.
                 $claims = JWT::decode($idToken, new Key($this->clientSecret(), $alg));
             } else {
-                $claims = JWT::decode($idToken, JWK::parseKeySet($this->jwks()));
+                $claims = JWT::decode($idToken, JWK::parseKeySet($this->jwks(), $alg));
             }
         } catch (\Throwable $e) {
             throw new OidcException('The ID token failed verification: '.$e->getMessage());
