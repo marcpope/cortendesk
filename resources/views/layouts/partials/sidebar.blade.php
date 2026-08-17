@@ -164,6 +164,13 @@
                     </a>
                 </li>
 
+                <li class="side-nav-item {{ request()->routeIs('client-downloads') ? 'menuitem-active' : '' }}">
+                    <a href="{{ route('client-downloads') }}" class="side-nav-link {{ request()->routeIs('client-downloads') ? 'active' : '' }}">
+                        <i class="ri-download-cloud-line"></i>
+                        <span> Client Downloads </span>
+                    </a>
+                </li>
+
                 @php
                     $rdgenUrl = \App\Models\Setting::get('rdgen_url', config('cortendesk.rdgen_url'));
                 @endphp

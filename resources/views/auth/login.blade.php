@@ -97,6 +97,35 @@
                 </div>
             </form>
             @endunless
+
+            {{-- Custom client installers, under the sign-in prompts: the machine
+                 in front of the technician usually needs the client before
+                 anyone needs the console. Hidden when nothing is published, or
+                 when the operator turns the row off in Settings -> Server.
+                 The full list is always at /downloads. --}}
+            @php
+                $showDownloads = \App\Models\Setting::get(
+                    'downloads_on_login',
+                    config('cortendesk.downloads_on_login') ? '1' : '0'
+                ) === '1';
+                $loginDownloads = $showDownloads
+                    ? \App\Models\ClientDownload::published()->ordered()->get()
+                    : collect();
+            @endphp
+
+            @if ($loginDownloads->isNotEmpty())
+                <div class="rd-auth-or mt-4">
+                    <hr class="flex-grow-1 my-0">
+                    <span>get the client</span>
+                    <hr class="flex-grow-1 my-0">
+                </div>
+
+                <x-client-download-links :downloads="$loginDownloads" compact />
+
+                <div class="text-center mt-2">
+                    <a href="{{ route('downloads.index') }}" class="rd-auth-quiet">All downloads</a>
+                </div>
+            @endif
         </div>
     </div>
 @endsection

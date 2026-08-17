@@ -24,6 +24,7 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - **Two-factor authentication** — TOTP with single-use recovery codes, optionally required for everyone or for administrators only, with an administrator reset and a break-glass command.
 - **Delegated administration** — roles with a permission matrix over each console area, so you can grant someone the users screen without handing them the whole console.
 - **Automation API** — scoped bearer tokens and a REST API for users, devices, groups, address books and audit logs, plus support for the RustDesk client's `--assign` flag for unattended deployment.
+- **Client downloads** — upload the custom installers you built (rdgen or otherwise) and CortenDesk publishes them with the right platform icon, read off the filename and overridable per build. They appear under the sign-in form and on a public `/downloads` page you can send to somebody who has no console account. Files are stored in the `/data` volume (`CORTENDESK_DOWNLOADS_PATH`) and streamed as attachments, never as static paths.
 - **Email** — SMTP settings with a test send, user invitations by email, self-service password reset, and an optional emailed code when signing in from a new browser.
 - **Dashboard** — live stat tiles, active sessions, 14-day connection charts, platform and version breakdowns.
 - **Importer** — one artisan command migrates everything (users with passwords intact, devices, address books, audit history) from a `lejianwen/rustdesk-api` database.
@@ -123,6 +124,11 @@ DB_PASSWORD=********
 CORTENDESK_ID_SERVER=hbbs.example.com:21116
 CORTENDESK_RELAY_SERVER=hbbs.example.com:21117
 CORTENDESK_PUBLIC_KEY=<contents of your id_ed25519.pub>
+
+# Client downloads (defaults to /data/downloads in Docker; keep the size limit
+# below post_max_size / client_max_body_size)
+CORTENDESK_DOWNLOADS_PATH=/data/downloads
+CORTENDESK_DOWNLOADS_MAX_KB=30720
 
 # Native web client (wss endpoints your proxy exposes, see below)
 CORTENDESK_NATIVE_WEBCLIENT=true

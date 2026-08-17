@@ -47,6 +47,23 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Uploaded client installers (System -> Client Downloads).
+         *
+         * Private, and rooted OUTSIDE storage/ by default in Docker: the image
+         * mounts nothing at /app/storage, so anything written there is lost the
+         * next time the container is recreated. docker/entrypoint.sh points
+         * this at /data/downloads, inside the volume that already holds the
+         * database and the server key pair. Files are streamed by
+         * ClientDownloadController, so no public symlink is involved.
+         */
+        'downloads' => [
+            'driver' => 'local',
+            'root' => env('CORTENDESK_DOWNLOADS_PATH', storage_path('app/downloads')),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

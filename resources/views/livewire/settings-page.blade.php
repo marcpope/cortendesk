@@ -102,6 +102,14 @@
                                     <div class="form-text">Opened by the sidebar's <strong>Build Installers</strong> entry — point it at your own rdgen instance. Leave empty to hide the menu entry.</div>
                                 </div>
                                 <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="downloadsOnLogin"
+                                               wire:model="downloadsOnLogin">
+                                        <label class="form-check-label" for="downloadsOnLogin">Show client downloads on the sign-in page</label>
+                                    </div>
+                                    <div class="form-text">Lists the builds published under <a href="{{ route('client-downloads') }}">Client Downloads</a> beneath the sign-in form. The <a href="{{ route('downloads.index') }}" target="_blank" rel="noopener">/downloads</a> page stays reachable either way — unpublish a build to withdraw it.</div>
+                                </div>
+                                <div class="mb-3">
                                     <label class="form-label">Online window (seconds)</label>
                                     <input type="number" class="form-control @error('onlineWindow') is-invalid @enderror"
                                            wire:model="onlineWindow" min="20" max="600" style="max-width: 140px;">

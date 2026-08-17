@@ -193,6 +193,7 @@ html[data-sidenav-size="condensed"]:not([data-layout=topnav]) .rd-sidebar-versio
     17. TABS + CHIPS      .nav-bordered, .rd-chiprow, .rd-scrollbox, master/detail
     18. AUTH              the signed-out card
     19. PHONE             the 390px contract — wrap guards, tap targets, modals
+    20. DOWNLOAD TILES    .rd-dl — the client-installer links (auth + /downloads)
 
    Naming: anything new is prefixed `rd-` so it is obvious what is ours and
    what came from the theme.
@@ -2912,4 +2913,97 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
 .rd-selcol {
     width: 28px;
     padding-right: 0 !important;
+}
+
+/* =========================================================================
+   20. DOWNLOAD TILES
+   .rd-dl — the published client installers, rendered by
+   resources/views/components/client-download-links.blade.php on the sign-in
+   page, the public /downloads page and the console preview card.
+
+   One tile per build: platform icon, label, size, download glyph. Rows rather
+   than a grid, because the label carries the useful part ("Windows (64-bit)")
+   and an icon-only grid would need a tooltip to be usable. Sized to sit inside
+   the 320px-wide auth card without wrapping.
+   ========================================================================= */
+.rd-dl {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rd-dl-tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--rd-border-strong);
+    border-radius: var(--rd-radius-sm);
+    background: var(--rd-surface-2);
+    color: var(--rd-ink);
+    text-decoration: none;
+    transition: background-color .15s ease, border-color .15s ease;
+    /* A phone tap target, and the reason the tile is a row: 44px of height is
+       cheap vertically and impossible in an icon grid. */
+    min-height: 44px;
+}
+
+.rd-dl-tile:hover,
+.rd-dl-tile:focus-visible {
+    background: var(--rd-surface-3);
+    border-color: rgba(var(--rd-accent-rgb), 0.45);
+    color: var(--rd-ink);
+}
+
+.rd-dl-icon {
+    flex: 0 0 auto;
+    line-height: 1;
+}
+
+/* min-width:0 so a long label truncates instead of widening the auth card. */
+.rd-dl-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.rd-dl-label {
+    font-size: .875rem;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rd-dl-meta {
+    font-size: .75rem;
+    color: var(--rd-ink-muted);
+}
+
+.rd-dl-arrow {
+    flex: 0 0 auto;
+    color: var(--rd-ink-dim);
+    font-size: 1rem;
+}
+
+.rd-dl-tile:hover .rd-dl-arrow {
+    color: var(--rd-accent-ink);
+}
+
+/* Compact: the sign-in row and the console preview, where the tiles are a
+   secondary offer under the real content. */
+.rd-dl-compact .rd-dl-tile {
+    padding: 8px 10px;
+    gap: 10px;
+}
+
+/* Platform heading on the public page. */
+.rd-dl-group {
+    margin: 0 0 6px;
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--rd-ink-muted);
 }

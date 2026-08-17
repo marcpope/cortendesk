@@ -86,6 +86,14 @@ else
     echo "[cortendesk] embedded ID server and relay are off (CORTENDESK_EMBEDDED_SERVER)"
 fi
 
+# --- uploaded client installers ----------------------------------------------
+# System -> Client Downloads writes here. Default it into the /data volume:
+# nothing is mounted at /app/storage, so a default under storage/ would silently
+# lose every uploaded build the next time the container is recreated.
+export CORTENDESK_DOWNLOADS_PATH="${CORTENDESK_DOWNLOADS_PATH:-/data/downloads}"
+mkdir -p "$CORTENDESK_DOWNLOADS_PATH"
+chown www-data:www-data "$CORTENDESK_DOWNLOADS_PATH"
+
 # --- APP_KEY: use the env if provided, else generate once into /data --------
 if [ -z "${APP_KEY:-}" ]; then
     if [ ! -f /data/.app_key ]; then

@@ -33,6 +33,9 @@ class SettingsPage extends Component
 
     public string $rdgenUrl = '';
 
+    /** Whether the sign-in page shows the published client-download icons. */
+    public bool $downloadsOnLogin = true;
+
     public int $logRetentionDays = 365;
 
     public bool $requireDeviceApproval = false;
@@ -135,6 +138,7 @@ class SettingsPage extends Component
         $this->publicKey = Setting::get('public_key', config('cortendesk.public_key')) ?? '';
         $this->onlineWindow = (int) (Setting::get('online_window', (string) config('cortendesk.online_window')) ?: 60);
         $this->rdgenUrl = Setting::get('rdgen_url', config('cortendesk.rdgen_url')) ?? '';
+        $this->downloadsOnLogin = Setting::get('downloads_on_login', config('cortendesk.downloads_on_login') ? '1' : '0') === '1';
         $this->logRetentionDays = (int) (Setting::get('log_retention_days', (string) config('cortendesk.log_retention_days')) ?: 0);
         $this->requireDeviceApproval = (bool) Setting::get('require_device_approval', '0');
         $this->twoFactorRequired = Setting::get('two_factor_required', '0') === '1';
@@ -206,7 +210,7 @@ class SettingsPage extends Component
             str_starts_with($root, 'smtp') => 'email',
             $root === 'logRetentionDays' => 'maintenance',
             in_array($root, ['twoFactorRequired', 'twoFactorRequiredAdmins', 'emailLoginVerification', 'emailTrustedDeviceDays'], true) => 'security',
-            in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'relayServers', 'requireDeviceApproval'], true) => 'server',
+            in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'downloadsOnLogin', 'relayServers', 'requireDeviceApproval'], true) => 'server',
             default => null,
         };
     }
@@ -290,6 +294,7 @@ class SettingsPage extends Component
         Setting::put('public_key', trim($this->publicKey));
         Setting::put('online_window', (string) $this->onlineWindow);
         Setting::put('rdgen_url', rtrim($this->rdgenUrl, '/'));
+        Setting::put('downloads_on_login', $this->downloadsOnLogin ? '1' : '0');
         Setting::put('log_retention_days', (string) $this->logRetentionDays);
         Setting::put('require_device_approval', $this->requireDeviceApproval ? '1' : '0');
         Setting::put('two_factor_required', $this->twoFactorRequired ? '1' : '0');

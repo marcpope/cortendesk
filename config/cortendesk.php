@@ -83,6 +83,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Client Downloads
+    |--------------------------------------------------------------------------
+    | Installers uploaded under System -> Client Downloads and offered on the
+    | public /downloads page.
+    |
+    | downloads_max_kb must stay BELOW PHP's post_max_size (docker/php.ini,
+    | 32M) and nginx's client_max_body_size (docker/nginx.conf.template, 32m).
+    | Past those the request dies before Laravel sees it and the operator gets a
+    | broken page instead of a validation error, so the three are raised
+    | together or not at all.
+    |
+    | downloads_on_login controls only the icon row under the sign-in form; the
+    | /downloads page itself is always reachable (unpublish the builds to empty
+    | it).
+    */
+    'downloads_max_kb' => env('CORTENDESK_DOWNLOADS_MAX_KB', 30720),
+    'downloads_on_login' => filter_var(env('CORTENDESK_DOWNLOADS_ON_LOGIN', true), FILTER_VALIDATE_BOOL),
+
+    /*
+    |--------------------------------------------------------------------------
     | OIDC break-glass switch
     |--------------------------------------------------------------------------
     | Set CORTENDESK_OIDC_DISABLED=true to turn single sign-on off from the
