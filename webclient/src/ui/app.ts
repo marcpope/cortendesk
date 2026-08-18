@@ -308,6 +308,52 @@ export class RdApp {
       overlay,
       toast,
     } as Els; // remaining refs filled by render*()
+
+    // Fullscreen UX fixes for top bar (rd-toolbar)
+    let topArrow = document.getElementById('rd-toolbar-arrow') as HTMLButtonElement | null;
+    if (!topArrow && toolbar) {
+        topArrow = document.createElement('button');
+        topArrow.id = 'rd-toolbar-arrow';
+        topArrow.className = 'rd-toggle-arrow';
+        topArrow.type = 'button';
+        topArrow.innerHTML = '▼';
+        root.appendChild(topArrow);
+
+        topArrow.addEventListener('click', () => {
+            const isOpen = toolbar.getAttribute('data-open') === 'true';
+            toolbar.setAttribute('data-open', (!isOpen).toString());
+            topArrow!.innerHTML = isOpen ? '▼' : '▲';
+            topArrow!.style.top = isOpen ? '0px' : `${toolbar.offsetHeight}px`;
+        });
+    }
+
+    // Fullscreen UX fixes for floating bottom command bar (rd-dock)
+    let bottomArrow = document.getElementById('rd-dock-arrow') as HTMLButtonElement | null;
+    if (!bottomArrow && dock) {
+        bottomArrow = document.createElement('button');
+        bottomArrow.id = 'rd-dock-arrow';
+        bottomArrow.className = 'rd-toggle-arrow';
+        bottomArrow.type = 'button';
+        bottomArrow.innerHTML = '▲';
+        root.appendChild(bottomArrow);
+
+        bottomArrow.addEventListener('click', () => {
+            const isOpen = dock.getAttribute('data-open') === 'true';
+            dock.setAttribute('data-open', (!isOpen).toString());
+            bottomArrow!.innerHTML = isOpen ? '▲' : '▼';
+            bottomArrow!.style.bottom = isOpen ? '0px' : `${dock.offsetHeight}px`;
+        });
+    }
+
+    // Reset toolbar toggle data bindings cleanly when full screen mode toggles
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            toolbar?.removeAttribute('data-open');
+            dock?.removeAttribute('data-open');
+            if (topArrow) { topArrow.innerHTML = '▼'; topArrow.style.top = '0px'; }
+            if (bottomArrow) { bottomArrow.innerHTML = '▲'; bottomArrow.style.bottom = '0px'; }
+        }
+    });
   }
 
   // --- top bar -----------------------------------------------------------------

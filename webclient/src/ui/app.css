@@ -1204,22 +1204,89 @@
 }
 
 
-/* --- fullscreen: top bar becomes an auto-hiding overlay ---------------------- */
+/* --- fullscreen: replace top bar and bottom bar with arrow buttons and dim arrows and sidebar ---------------------- */
 
+/* Default hidden states for toolbars under native fullscreen */
 #rd-root:fullscreen #rd-toolbar {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 30;
+  z-index: 35;
   background: rgba(13, 17, 24, 0.92);
   border-bottom-color: rgba(255, 255, 255, 0.08);
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  transform: translateY(-100%);
+  transition: transform 0.25s ease-in-out;
 }
-#rd-root:fullscreen #rd-toolbar:hover,
-#rd-root:fullscreen #rd-toolbar:focus-within {
+
+#rd-root:fullscreen #rd-dock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 35;
+  transform: translateY(100%);
+  transition: transform 0.25s ease-in-out;
+}
+
+/* Pull items into view when parent container has 'data-open="true"' */
+#rd-root:fullscreen #rd-toolbar[data-open="true"] {
+  transform: translateY(0);
+}
+
+#rd-root:fullscreen #rd-dock[data-open="true"] {
+  transform: translateY(0);
+}
+
+/* Transmissive sidebar configuration dimmed down during fullscreen active */
+#rd-root:fullscreen #rd-edge {
+  opacity: 0.30;
+  transition: opacity 0.2s ease-in-out;
+}
+
+#rd-root:fullscreen #rd-edge:hover {
   opacity: 1;
+}
+
+/* Custom injected arrow trigger configurations */
+.rd-toolbar-arrow-trigger {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #141a24;
+  color: #8d97aa;
+  border: 1px solid #2a3444;
+  width: 60px;
+  height: 24px;
+  cursor: pointer;
+  z-index: 36;
+  font-size: 11px;
+  display: none; /* Hidden by default in windowed view */
+  align-items: center;
+  justify-content: center;
+  opacity: 0.30;
+  transition: top 0.25s ease-in-out, bottom 0.25s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.rd-toolbar-arrow-trigger:hover {
+  opacity: 1;
+}
+
+#rd-toolbar-arrow {
+  top: 0;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+#rd-dock-arrow {
+  bottom: 0;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+}
+
+/* Make arrow triggers visible dynamically via fullscreen container */
+#rd-root:fullscreen .rd-toolbar-arrow-trigger {
+  display: flex;
 }
 
 /* --- small screens ------------------------------------------------------------ */
