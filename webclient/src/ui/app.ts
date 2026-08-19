@@ -309,51 +309,123 @@ export class RdApp {
       toast,
     } as Els; // remaining refs filled by render*()
 
-    // Fullscreen UX fixes for top bar (rd-toolbar)
-    let topArrow = document.getElementById('rd-toolbar-arrow') as HTMLButtonElement | null;
-    if (!topArrow && toolbar) {
-        topArrow = document.createElement('button');
-        topArrow.id = 'rd-toolbar-arrow';
-        topArrow.className = 'rd-toggle-arrow';
-        topArrow.type = 'button';
-        topArrow.innerHTML = '▼';
-        root.appendChild(topArrow);
+    // --- INTEGRATION: FULLSCREEN INTERACTIVE ARROW CONTROLS WITH SIDEBAR ADAPTATION ---
+    const rootEl = document.getElementById('rd-root');
+    const dockEl = document.getElementById('rd-dock');
+    const toolbarEl = document.getElementById('rd-toolbar');
+    const edgeEl = document.getElementById('rd-edge');
+    const sideEl = document.getElementById('rd-side'); // Added target layout sidebar
 
-        topArrow.addEventListener('click', () => {
-            const isOpen = toolbar.getAttribute('data-open') === 'true';
-            toolbar.setAttribute('data-open', (!isOpen).toString());
-            topArrow!.innerHTML = isOpen ? '▼' : '▲';
-            topArrow!.style.top = isOpen ? '0px' : `${toolbar.offsetHeight}px`;
-        });
-    }
+    if (rootEl) {
+      // Local tracking variables to maintain layout visibility memory
+      let isBottomOpen = false;
+      let isTopOpen = false;
 
-    // Fullscreen UX fixes for floating bottom command bar (rd-dock)
-    let bottomArrow = document.getElementById('rd-dock-arrow') as HTMLButtonElement | null;
-    if (!bottomArrow && dock) {
+      // Function to dynamically shrink/move #rd-side when bars are toggled in fullscreen
+      const updateSideLayout = () => {
+        if (!sideEl) return;
+
+        if (document.fullscreenElement) {
+          const topOffset = isTopOpen && toolbarEl ? toolbarEl.offsetHeight : 0;
+          const bottomOffset = isBottomOpen && dockEl ? dockEl.offsetHeight : 0;
+
+          sideEl.style.top = `${topOffset}px`;
+          sideEl.style.height = `calc(100vh - ${topOffset}px - ${bottomOffset}px)`;
+        } else {
+          // Reset to default styles when not in fullscreen
+          sideEl.style.top = '';
+          sideEl.style.height = '';
+        }
+      };
+
+      // 1. Initialize and append the Bottom Dock Arrow
+      let bottomArrow = document.getElementById('rd-dock-arrow') as HTMLButtonElement | null;
+      if (dockEl && !bottomArrow) {
         bottomArrow = document.createElement('button');
         bottomArrow.id = 'rd-dock-arrow';
-        bottomArrow.className = 'rd-toggle-arrow';
         bottomArrow.type = 'button';
+        bottomArrow.className = 'rd-arrow-btn';
         bottomArrow.innerHTML = '▲';
-        root.appendChild(bottomArrow);
+        rootEl.appendChild(bottomArrow);
 
         bottomArrow.addEventListener('click', () => {
-            const isOpen = dock.getAttribute('data-open') === 'true';
-            dock.setAttribute('data-open', (!isOpen).toString());
-            bottomArrow!.innerHTML = isOpen ? '▲' : '▼';
-            bottomArrow!.style.bottom = isOpen ? '0px' : `${dock.offsetHeight}px`;
+          isBottomOpen = !isBottomOpen;
+          if (isBottomOpen) {
+            dockEl.style.transform = 'translateY(0)';
+            bottomArrow!.innerHTML = '▼';
+            bottomArrow!.style.bottom = `${dockEl.offsetHeight}px`;
+          } else {
+            dockEl.style.transform = 'translateY(100%)';
+            bottomArrow!.innerHTML = '▲';
+            bottomArrow!.style.bottom = '0px';
+          }
+          updateSideLayout(); // Recalculate #rd-side space
         });
-    }
+      }
 
-    // Reset toolbar toggle data bindings cleanly when full screen mode toggles
-    document.addEventListener('fullscreenchange', () => {
-        if (!document.fullscreenElement) {
-            toolbar?.removeAttribute('data-open');
-            dock?.removeAttribute('data-open');
-            if (topArrow) { topArrow.innerHTML = '▼'; topArrow.style.top = '0px'; }
-            if (bottomArrow) { bottomArrow.innerHTML = '▲'; bottomArrow.style.bottom = '0px'; }
+      // 2. Initialize and append the Top Toolbar Arrow
+      let topArrow = document.getElementById('rd-toolbar-arrow') as HTMLButtonElement | null;
+      if (toolbarEl && !topArrow) {
+        topArrow = document.createElement('button');
+        topArrow.id = 'rd-toolbar-arrow';
+        topArrow.type = 'button';
+        topArrow.className = 'rd-arrow-btn';
+        topArrow.innerHTML = '▼';
+        rootEl.appendChild(topArrow);
+
+        topArrow.addEventListener('click', () => {
+          isTopOpen = !isTopOpen;
+          if (isTopOpen) {
+            toolbarEl.style.transform = 'translateY(0)';
+            topArrow!.innerHTML = '▲';
+            topArrow!.style.top = `${toolbarEl.offsetHeight}px`;
+          } else {
+            toolbarEl.style.transform = 'translateY(-100%)';
+            topArrow!.innerHTML = '▼';
+            topArrow!.style.top = '0px';
+          }
+          updateSideLayout(); // Recalculate #rd-side space
+        });
+      }
+
+      // 3. Setup dynamic hover opacity on the edge sidebar
+      if (edgeEl) {
+        edgeEl.addEventListener('mouseenter', () => { edgeEl.style.opacity = '1'; });
+        edgeEl.addEventListener('mouseleave', () => {
+          if (document.fullscreenElement) edgeEl.style.opacity = '0.30';
+        });
+      }
+
+      // 4. Manage layout transformations on entering/exiting fullscreen mode
+      const onFullscreenChange = () => {
+        const isFS = !!document.fullscreenElement;
+
+        if (isFS) {
+          // Reset visibility tracking states on initial layout expansion
+          isBottomOpen = false;
+          isTopOpen = false;
+
+          document.body.classList.add('rd-fullscreen-active');
+          if (edgeEl) edgeEl.style.opacity = '0.30';
+          if (bottomArrow) { bottomArrow.innerHTML = '▲'; bottomArrow.style.bottom = '0px'; }
+          if (topArrow) { topArrow.innerHTML = '▼'; topArrow.style.top = '0px'; }
+        } else {
+          // Clean custom modifications immediately on windowed mode restore
+          document.body.classList.remove('rd-fullscreen-active');
+
+          if (dockEl) dockEl.style.transform = '';
+          if (toolbarEl) toolbarEl.style.transform = '';
+          if (edgeEl) edgeEl.style.opacity = '';
+          if (bottomArrow) bottomArrow.style.bottom = '';
+          if (topArrow) topArrow.style.top = '';
         }
-    });
+        updateSideLayout(); // Apply fullscreen or windowed default sizing to #rd-side
+      };
+
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      document.addEventListener('fullscreenchange', onFullscreenChange);
+      onFullscreenChange();
+    }
   }
 
   // --- top bar -----------------------------------------------------------------
