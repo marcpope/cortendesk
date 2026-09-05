@@ -5,8 +5,10 @@ namespace App\Http\Controllers\AdminApi;
 use App\Models\ConsoleAudit;
 use App\Models\Device;
 use App\Models\DeviceGroup;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class DeviceGroupsController extends AdminApiController
@@ -57,13 +59,23 @@ class DeviceGroupsController extends AdminApiController
         return $this->ok($this->serialize($deviceGroup->loadCount('devices')), 'Device group updated.');
     }
 
-    public function destroy(DeviceGroup $deviceGroup): JsonResponse
+    public function destroy(Request $request, DeviceGroup $deviceGroup): JsonResponse
     {
         $name = $deviceGroup->name;
-        // Detach devices (keep them), then remove the folder.
-        $deviceGroup->devices()->update(['device_group_id' => null]);
-        $deviceGroup->userGroups()->detach();
-        $deviceGroup->delete();
+        try {
+            DB::transaction(function () use ($request, $deviceGroup): void {
+                // Detach devices (keep them), then remove the folder.
+                Device::bulkUpdateStrategyContext(
+                    Device::query()->where('device_group_id', $deviceGroup->id),
+                    ['device_group_id' => null],
+                    $this->token($request)->allows('strategy', 'rw'),
+                );
+                $deviceGroup->userGroups()->detach();
+                $deviceGroup->delete();
+            });
+        } catch (AuthorizationException) {
+            return $this->fail("Token lacks 'rw' permission on 'strategy'.", 403);
+        }
 
         ConsoleAudit::record('group.delete', 'Deleted device group '.$name.' (API)', 'group', $name);
 
@@ -78,7 +90,15 @@ class DeviceGroupsController extends AdminApiController
             return $this->fail('Device not found.', 404);
         }
 
-        $device->update(['device_group_id' => $deviceGroup->id]);
+        try {
+            $device = Device::updateWithStrategyContext(
+                $device,
+                ['device_group_id' => $deviceGroup->id],
+                $this->token($request)->allows('strategy', 'rw'),
+            );
+        } catch (AuthorizationException) {
+            return $this->fail("Token lacks 'rw' permission on 'strategy'.", 403);
+        }
 
         ConsoleAudit::record('group.update', 'Added device '.$device->rustdesk_id.' to '.$deviceGroup->name.' (API)', 'group', $deviceGroup->name);
 
@@ -94,7 +114,15 @@ class DeviceGroupsController extends AdminApiController
         }
 
         if ($device->device_group_id === $deviceGroup->id) {
-            $device->update(['device_group_id' => null]);
+            try {
+                $device = Device::updateWithStrategyContext(
+                    $device,
+                    ['device_group_id' => null],
+                    $this->token($request)->allows('strategy', 'rw'),
+                );
+            } catch (AuthorizationException) {
+                return $this->fail("Token lacks 'rw' permission on 'strategy'.", 403);
+            }
         }
 
         ConsoleAudit::record('group.update', 'Removed device '.$device->rustdesk_id.' from '.$deviceGroup->name.' (API)', 'group', $deviceGroup->name);

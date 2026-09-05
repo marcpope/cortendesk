@@ -11,6 +11,7 @@ use App\Models\ClientToken;
 use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\LoginLog;
+use App\Models\Strategy;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -120,6 +121,7 @@ class ImportLejianwen extends Command
 
         // delete() instead of truncate() so --wipe stays inside the
         // transaction (and rolls back under --dry-run).
+        Strategy::query()->orderBy('id')->lockForUpdate()->get(['id']);
         Device::withTrashed()->forceDelete();
 
         foreach ([
@@ -435,7 +437,7 @@ class ImportLejianwen extends Command
 
             $device = Device::withTrashed()->firstOrNew(['rustdesk_id' => $rustdeskId]);
             $isNew = ! $device->exists;
-            $device->fill([
+            $attributes = [
                 'uuid' => (string) $row->uuid,
                 'hostname' => trim((string) $row->hostname) ?: null,
                 'os' => trim((string) $row->os) ?: null,
@@ -450,8 +452,8 @@ class ImportLejianwen extends Command
                     ? Carbon::createFromTimestamp((int) $row->last_online_time)
                     : null,
                 'last_online_ip' => trim((string) $row->last_online_ip) ?: null,
-            ]);
-            $device->save();
+            ];
+            $device = Device::updateWithStrategyContext($device, $attributes);
             $this->track('devices', $device, $isNew);
         }
     }

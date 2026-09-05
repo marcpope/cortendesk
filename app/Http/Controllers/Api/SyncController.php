@@ -156,7 +156,10 @@ class SyncController extends Controller
             // update, so later heartbeats cannot rewrite history (issue #46).
             $attributes['registered_ip'] = $request->ip();
 
-            $device = Device::create(['rustdesk_id' => $id] + $attributes);
+            $device = Device::updateWithStrategyContext(
+                new Device(['rustdesk_id' => $id]),
+                $attributes,
+            );
 
             if ($device->isPending()) {
                 app(AppriseNotifications::class)->sendAfterResponse(

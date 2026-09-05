@@ -77,15 +77,17 @@
                                 </div>
                             </td>
                             <td class="text-end rd-rowact">
-                                <a href="javascript:void(0);" class="rd-act me-2" wire:click="showHistory({{ $strategy->id }})">History</a>
+                                <button type="button" class="btn btn-link btn-sm p-0 me-2 rd-act" wire:click="showHistory({{ $strategy->id }})">History</button>
                                 @if ($isAdmin)
-                                    <a href="javascript:void(0);" class="rd-act me-2" wire:click="showCompliance({{ $strategy->id }})">Compliance</a>
+                                    <button type="button" class="btn btn-link btn-sm p-0 me-2 rd-act" wire:click="showCompliance({{ $strategy->id }})">Compliance</button>
                                 @endif
-                                <a href="javascript:void(0);" class="rd-act me-2" wire:click="openAssign({{ $strategy->id }})">Assign</a>
-                                <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $strategy->id }})">Edit</a>
-                                <a href="javascript:void(0);" class="text-danger"
+                                @if ($canAssignFleet)
+                                    <button type="button" class="btn btn-link btn-sm p-0 me-2 rd-act" wire:click="openAssign({{ $strategy->id }})">Assign</button>
+                                @endif
+                                <button type="button" class="btn btn-link btn-sm p-0 me-2 rd-act" wire:click="edit({{ $strategy->id }})">Edit</button>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-danger"
                                    wire:click="deleteStrategy({{ $strategy->id }})"
-                                   wire:confirm="Delete strategy {{ $strategy->name }}? Devices assigned to it fall back to the default strategy, and the options it pushed are reset to the client defaults on the next heartbeat.">Delete</a>
+                                   wire:confirm="Delete strategy {{ $strategy->name }}? Devices assigned to it fall back to the default strategy, and the options it pushed are reset to the client defaults on the next heartbeat.">Delete</button>
                             </td>
                         </tr>
                     @empty
@@ -137,19 +139,21 @@
                                     <i class="ri-folder-line ms-2 me-1"></i>{{ $strategy->device_groups_count }}
                                 </span>
                                 <div class="rd-mini-acts">
-                                    <a href="javascript:void(0);" class="rd-iconbtn" title="History"
-                                       wire:click="showHistory({{ $strategy->id }})"><i class="ri-history-line"></i></a>
+                                    <button type="button" class="rd-iconbtn border-0" title="Revision history" aria-label="Revision history for {{ $strategy->name }}"
+                                       wire:click="showHistory({{ $strategy->id }})"><i class="ri-history-line"></i></button>
                                     @if ($isAdmin)
-                                        <a href="javascript:void(0);" class="rd-iconbtn" title="Compliance"
-                                           wire:click="showCompliance({{ $strategy->id }})"><i class="ri-pulse-line"></i></a>
+                                        <button type="button" class="rd-iconbtn border-0" title="Compliance" aria-label="Compliance for {{ $strategy->name }}"
+                                           wire:click="showCompliance({{ $strategy->id }})"><i class="ri-pulse-line"></i></button>
                                     @endif
-                                    <a href="javascript:void(0);" class="rd-iconbtn" title="Assign"
-                                       wire:click="openAssign({{ $strategy->id }})"><i class="ri-links-line"></i></a>
-                                    <a href="javascript:void(0);" class="rd-iconbtn" title="Edit"
-                                       wire:click="edit({{ $strategy->id }})"><i class="ri-pencil-line"></i></a>
-                                    <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="Delete"
+                                    @if ($canAssignFleet)
+                                        <button type="button" class="rd-iconbtn border-0" title="Assign" aria-label="Assign {{ $strategy->name }}"
+                                           wire:click="openAssign({{ $strategy->id }})"><i class="ri-links-line"></i></button>
+                                    @endif
+                                    <button type="button" class="rd-iconbtn border-0" title="Edit" aria-label="Edit {{ $strategy->name }}"
+                                       wire:click="edit({{ $strategy->id }})"><i class="ri-pencil-line"></i></button>
+                                    <button type="button" class="rd-iconbtn border-0 text-danger" title="Delete" aria-label="Delete {{ $strategy->name }}"
                                        wire:click="deleteStrategy({{ $strategy->id }})"
-                                       wire:confirm="Delete strategy {{ $strategy->name }}? Devices assigned to it fall back to the default strategy."><i class="ri-delete-bin-line"></i></a>
+                                       wire:confirm="Delete strategy {{ $strategy->name }}? Devices assigned to it fall back to the default strategy."><i class="ri-delete-bin-line"></i></button>
                                 </div>
                             </div>
                     </div>
@@ -164,12 +168,12 @@
     </div>
 
     {{-- Create / edit modal --}}
-    @if ($editingId !== null)
+    @if ($editingId !== null && ! $previewing)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
              style="background: rgba(0,0,0,.6);" wire:key="strategy-editor">
             <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
-                    <form wire:submit="save">
+                    <form wire:submit="previewSave">
                         <div class="modal-header">
                             <h5 class="modal-title">{{ $editingId === 0 ? 'Add Strategy' : 'Edit Strategy' }}</h5>
                             <button type="button" class="btn-close" wire:click="closeModal" aria-label="Close"></button>
@@ -187,12 +191,6 @@
                                     <input type="text" id="sl-note" class="form-control @error('formNote') is-invalid @enderror"
                                            wire:model="formNote" maxlength="500">
                                     @error('formNote') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                                <div class="col-12 mb-3">
-                                    <label class="form-label" for="sl-revnote">Change note <span class="text-muted fw-normal">(kept in the revision history)</span></label>
-                                    <input type="text" id="sl-revnote" class="form-control @error('revisionNote') is-invalid @enderror"
-                                           wire:model="revisionNote" maxlength="500" placeholder="What changed and why">
-                                    @error('revisionNote') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>
 
@@ -217,16 +215,6 @@
                                         <label class="form-check-label" for="sl-enforce">Enforce</label>
                                     </div>
                                     <small class="text-muted">Re-push on every heartbeat, so a change made on the device is undone within a minute. Off = push once, then leave the device alone.</small>
-                                </div>
-                            </div>
-
-                            <div class="row g-2 mb-3">
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label" for="sl-timeout">Confirmation timeout (minutes)</label>
-                                    <input type="number" id="sl-timeout" min="1" max="10080" class="form-control @error('formConfirmationTimeout') is-invalid @enderror"
-                                           wire:model="formConfirmationTimeout">
-                                    @error('formConfirmationTimeout') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    <small class="text-muted">How long a device may go without confirming a push before Compliance marks it stale or offline.</small>
                                 </div>
                             </div>
 
@@ -271,8 +259,8 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
                             <button type="submit" class="btn btn-primary">
-                                <span wire:loading.remove wire:target="save">{{ $editingId === 0 ? 'Create Strategy' : 'Save Changes' }}</span>
-                                <span wire:loading wire:target="save">Saving…</span>
+                                <span wire:loading.remove wire:target="previewSave">Review Impact</span>
+                                <span wire:loading wire:target="previewSave">Calculating…</span>
                             </button>
                         </div>
                     </form>
@@ -282,8 +270,74 @@
         <div class="modal-backdrop fade show"></div>
     @endif
 
+    {{-- Policy impact preview --}}
+    @if ($previewing && $editingId !== null)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
+             aria-labelledby="strategy-impact-title" style="background: rgba(0,0,0,.72); z-index: 1080;" wire:key="strategy-impact-preview">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title" id="strategy-impact-title">
+                                {{ $pendingDeleteId ? 'Review strategy deletion' : ($restoreRevisionId ? 'Review revision restore' : 'Review strategy impact') }}
+                            </h5>
+                            <small class="text-muted">Nothing has been changed yet.</small>
+                        </div>
+                        <button type="button" class="btn-close" wire:click="closePreview" aria-label="Back to editor"></button>
+                    </div>
+                    <div class="modal-body">
+                        @error('preview') <div class="alert alert-danger" role="alert">{{ $message }}</div> @enderror
+                        @if ($pendingDeleteId)
+                            <div class="alert alert-danger"><strong>This strategy will be deleted.</strong> Its immutable revision history remains available in storage, while direct assignments are released.</div>
+                        @elseif ($restoreRevisionId)
+                            <div class="alert alert-warning"><strong>This restore creates a new revision.</strong> The historical row itself remains unchanged.</div>
+                        @endif
+                        <div class="alert alert-info"><strong>{{ $impactPreview['affected_count'] ?? 0 }} device(s)</strong> will receive a different effective strategy or policy.</div>
+                        @if (!empty($impactPreview['dangerous']))
+                            <div class="alert alert-warning"><strong>High-impact controls</strong><ul class="mb-0 mt-1">
+                                @foreach ($impactPreview['dangerous'] as $warning)
+                                    <li><code>{{ $warning['key'] }}</code> changes to <strong>{{ $warning['after'] }}</strong>.</li>
+                                @endforeach
+                            </ul></div>
+                        @endif
+                        @if (!empty($impactPreview['resets']))
+                            <div class="alert alert-warning"><strong>{{ count($impactPreview['resets']) }} managed option(s) will reset to the client default:</strong> {{ implode(', ', $impactPreview['resets']) }}</div>
+                        @endif
+                        <h6>Policy diff</h6>
+                        <div class="table-responsive mb-3"><table class="table table-sm mb-0">
+                            <thead><tr><th>Setting</th><th>Before</th><th>After</th></tr></thead><tbody>
+                            @forelse (($impactPreview['option_changes'] ?? []) as $key => $change)
+                                <tr><td><code>{{ $key }}</code></td><td>{{ $change['before'] ?? 'Not managed' }}</td><td>{{ $change['after'] ?? 'Not managed' }}</td></tr>
+                            @empty
+                                <tr><td colspan="3" class="text-muted">No option changes.</td></tr>
+                            @endforelse
+                            @foreach (($impactPreview['metadata_changes'] ?? []) as $key => $change)
+                                <tr><td>{{ str_replace('_', ' ', ucfirst($key)) }}</td><td>{{ is_bool($change['before']) ? ($change['before'] ? 'Yes' : 'No') : ($change['before'] ?? '—') }}</td><td>{{ is_bool($change['after']) ? ($change['after'] ? 'Yes' : 'No') : ($change['after'] ?? '—') }}</td></tr>
+                            @endforeach
+                            </tbody>
+                        </table></div>
+                        @if (!empty($impactPreview['affected_devices']))
+                            <details><summary class="fw-semibold">Affected-device sample (up to 50)</summary><div class="d-flex flex-wrap gap-1 mt-2">
+                                @foreach ($impactPreview['affected_devices'] as $device)
+                                    <span class="badge bg-secondary-subtle text-secondary">{{ $device['rustdesk_id'] }} · {{ $device['label'] }} @if ($device['winning_level']) · {{ str_replace('_', ' ', $device['winning_level']) }} @endif</span>
+                                @endforeach
+                            </div></details>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-auto" wire:click="closePreview">Back</button>
+                        <button type="button" class="btn btn-primary" wire:click="confirmSave">
+                            <span wire:loading.remove wire:target="confirmSave">{{ $pendingDeleteId ? 'Delete strategy' : ($restoreRevisionId ? 'Restore revision' : 'Apply strategy') }}</span>
+                            <span wire:loading wire:target="confirmSave">Applying…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Assignment modal --}}
-    @if ($assigning)
+    @if ($assigning && ! $assignPreviewing)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
              style="background: rgba(0,0,0,.6);" wire:key="strategy-assign">
             <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
@@ -426,15 +480,61 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light" wire:click="closeAssign">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveAssign">
-                            <span wire:loading.remove wire:target="saveAssign">Save Assignment</span>
-                            <span wire:loading wire:target="saveAssign">Saving…</span>
+                        <button type="button" class="btn btn-primary" wire:click="previewAssign">
+                            <span wire:loading.remove wire:target="previewAssign">Review Assignment Impact</span>
+                            <span wire:loading wire:target="previewAssign">Calculating…</span>
                         </button>
                     </div>
                 </div>
             </div>
         </div>
         <div class="modal-backdrop fade show"></div>
+    @endif
+
+    {{-- Assignment impact preview --}}
+    @if ($assignPreviewing && $assigning)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
+             aria-labelledby="assignment-impact-title" style="background: rgba(0,0,0,.72); z-index: 1080;" wire:key="assignment-impact-preview">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title" id="assignment-impact-title">Review assignment impact</h5>
+                            <small class="text-muted">Nothing has been reassigned yet.</small>
+                        </div>
+                        <button type="button" class="btn-close" wire:click="closeAssignPreview" aria-label="Back to assignments"></button>
+                    </div>
+                    <div class="modal-body">
+                        @error('assignment') <div class="alert alert-danger" role="alert">{{ $message }}</div> @enderror
+                        <div class="alert alert-info"><strong>{{ $assignmentImpact['affected_count'] ?? 0 }} device(s)</strong> will resolve to a different strategy.</div>
+                        <div class="row g-2 mb-3">
+                            @foreach (['device' => 'Direct devices', 'user' => 'Users', 'device_group' => 'Device groups'] as $level => $label)
+                                @php($change = $assignmentImpact['assignment_changes'][$level] ?? ['added_count' => 0, 'removed_count' => 0])
+                                <div class="col-12 col-md-4"><div class="card border h-100"><div class="card-body py-2">
+                                    <strong>{{ $label }}</strong><div class="text-success">+ {{ $change['added_count'] }}</div><div class="text-danger">− {{ $change['removed_count'] }}</div>
+                                </div></div></div>
+                            @endforeach
+                        </div>
+                        <div class="table-responsive"><table class="table table-sm align-middle">
+                            <thead><tr><th>Device</th><th>Before</th><th>After</th><th>Winning level</th></tr></thead><tbody>
+                            @forelse (($assignmentImpact['affected_devices'] ?? []) as $device)
+                                <tr><td><strong>{{ $device['rustdesk_id'] }}</strong><small class="text-muted d-block">{{ $device['label'] }}</small></td><td>{{ $device['before_strategy'] }}</td><td>{{ $device['after_strategy'] }}</td><td class="text-capitalize">{{ str_replace('_', ' ', $device['winning_level'] ?? 'none') }}</td></tr>
+                            @empty
+                                <tr><td colspan="4" class="text-center text-muted py-3">No device changes. Only assignment metadata will change.</td></tr>
+                            @endforelse
+                            </tbody>
+                        </table></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-auto" wire:click="closeAssignPreview">Back</button>
+                        <button type="button" class="btn btn-primary" wire:click="confirmAssign">
+                            <span wire:loading.remove wire:target="confirmAssign">Apply assignments</span>
+                            <span wire:loading wire:target="confirmAssign">Applying…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
     {{-- Immutable revision history and comparison --}}
@@ -510,7 +610,6 @@
         </div>
         <div class="modal-backdrop fade show"></div>
     @endif
-
     {{-- Compliance drill-down (admins only) --}}
     @if ($complianceStrategy && $complianceSummary)
         <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="strategy-compliance-title"
@@ -564,5 +663,4 @@
             </div>
         </div>
         <div class="modal-backdrop fade show"></div>
-    @endif
-</div>
+    @endif</div>

@@ -10,6 +10,7 @@ use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\Strategy;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -340,7 +341,7 @@ class DeviceList extends Component
 
         $devices = $this->selectedDevices();
         foreach ($devices as $device) {
-            $device->delete();
+            Device::deleteWithStrategyContext($device);
             ConsoleAudit::record('device.delete', 'Deleted device '.$device->rustdesk_id, 'device', $device->rustdesk_id);
         }
 
@@ -411,19 +412,15 @@ class DeviceList extends Component
 
         $targetId = $group?->id;
         $targetName = $group?->name ?? 'No group';
-        $moved = 0;
-        $unchanged = 0;
-
-        foreach ($devices as $device) {
-            if ((int) $device->device_group_id === (int) $targetId) {
-                $unchanged++;
-
-                continue;
-            }
-
-            $device->update(['device_group_id' => $targetId]);
-            $moved++;
-        }
+        $changedIds = $devices
+            ->filter(fn (Device $device) => (int) $device->device_group_id !== (int) $targetId)
+            ->pluck('id')->all();
+        $moved = Device::bulkUpdateStrategyContext(
+            Device::query()->whereKey($changedIds ?: [0]),
+            ['device_group_id' => $targetId],
+            auth()->user()->consoleAllows('strategy', 'rw'),
+        );
+        $unchanged = $devices->count() - $moved;
 
         if ($moved > 0) {
             ConsoleAudit::record(
@@ -564,7 +561,7 @@ class DeviceList extends Component
         $this->authorizeConsole('device', 'rw');
 
         $device = $this->scopedPendingDevice($id);
-        $device->update(['status' => Device::STATUS_ACTIVE]);
+        $device = Device::updateWithStrategyContext($device, ['status' => Device::STATUS_ACTIVE]);
         ConsoleAudit::record('device.approve', 'Approved device '.$device->rustdesk_id, 'device', $device->rustdesk_id);
     }
 
@@ -574,7 +571,7 @@ class DeviceList extends Component
 
         $device = $this->scopedPendingDevice($id);
         $rustdeskId = $device->rustdesk_id;
-        $device->delete(); // reject = soft-delete (quarantined + removed)
+        Device::deleteWithStrategyContext($device); // reject = soft-delete (quarantined + removed)
         ConsoleAudit::record('device.reject', 'Rejected device '.$rustdeskId, 'device', $rustdeskId);
     }
 
@@ -617,56 +614,39 @@ class DeviceList extends Component
             'user_id' => $data['formUserId'] ?: null,
         ];
 
+        $requestedStrategyId = (int) $data['formStrategyId'];
+        $currentStrategyId = $this->editingId === 0
+            ? 0
+            : (int) ($this->scopedDevice($this->editingId)->assignedStrategyId() ?? 0);
+        if ($requestedStrategyId !== $currentStrategyId) {
+            $this->addError(
+                'formStrategyId',
+                'Change direct strategy assignments from Strategies → Assign so the affected-device impact can be reviewed.',
+            );
+
+            return;
+        }
+
         if ($this->editingId === 0) {
             $this->validate(['formRustdeskId' => 'unique:devices,rustdesk_id']);
-            Device::create($attributes + [
+            Device::updateWithStrategyContext(new Device, $attributes + [
                 'rustdesk_id' => $data['formRustdeskId'],
                 'uuid' => '',
-            ]);
+            ], auth()->user()->consoleAllows('strategy', 'rw'));
             ConsoleAudit::record('device.create', 'Created device '.$data['formRustdeskId'], 'device', $data['formRustdeskId']);
         } else {
             $device = $this->scopedDevice($this->editingId);
-            $device->update($attributes);
+            DB::transaction(function () use (&$device, $attributes): void {
+                $device = Device::updateWithStrategyContext(
+                    $device,
+                    $attributes,
+                    auth()->user()->consoleAllows('strategy', 'rw'),
+                );
+            });
             ConsoleAudit::record('device.update', 'Updated device '.$device->rustdesk_id, 'device', $device->rustdesk_id);
-
-            $this->saveStrategyAssignment($device, (int) $data['formStrategyId']);
         }
 
         $this->editingId = null;
-    }
-
-    /**
-     * Device-level strategy assignment from the editor (PLAN C4). Admin-only,
-     * and a no-op unless it actually changes: assignTo() recomputes the cached
-     * resolution and an unconditional call would audit "changed" for every save.
-     */
-    private function saveStrategyAssignment(Device $device, int $strategyId): void
-    {
-        if (! auth()->user()?->is_admin) {
-            return;
-        }
-
-        $current = (int) $device->assignedStrategyId();
-        if ($current === $strategyId) {
-            return;
-        }
-
-        if ($strategyId !== 0 && ! Strategy::whereKey($strategyId)->exists()) {
-            return; // stale option in a form left open while the strategy was deleted
-        }
-
-        Strategy::assignTo(Strategy::LEVEL_DEVICE, $device->id, $strategyId ?: null);
-
-        $name = $strategyId === 0
-            ? 'none (inherits)'
-            : (string) Strategy::whereKey($strategyId)->value('name');
-
-        ConsoleAudit::record(
-            'strategy.assign',
-            'Device '.$device->rustdesk_id.' strategy set to '.$name,
-            'device',
-            $device->rustdesk_id,
-        );
     }
 
     public function closeModal(): void
@@ -680,7 +660,7 @@ class DeviceList extends Component
 
         $device = $this->scopedDevice($id);
         $rustdeskId = $device->rustdesk_id;
-        $device->delete(); // soft delete → recycle bin
+        Device::deleteWithStrategyContext($device); // soft delete → recycle bin
         ConsoleAudit::record('device.delete', 'Deleted device '.$rustdeskId, 'device', $rustdeskId);
     }
 
@@ -689,7 +669,7 @@ class DeviceList extends Component
         $this->authorizeConsole('device', 'rw');
 
         $device = $this->scopedDevice($id);
-        $device->restore();
+        $device = Device::restoreWithStrategyContext($device);
         ConsoleAudit::record('device.restore', 'Restored device '.$device->rustdesk_id, 'device', $device->rustdesk_id);
     }
 
@@ -699,7 +679,7 @@ class DeviceList extends Component
 
         $device = $this->scopedDevice($id);
         $rustdeskId = $device->rustdesk_id;
-        $device->forceDelete();
+        Device::deleteWithStrategyContext($device, true);
         ConsoleAudit::record('device.destroy', 'Permanently deleted device '.$rustdeskId, 'device', $rustdeskId);
     }
 

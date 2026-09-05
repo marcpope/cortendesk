@@ -537,7 +537,7 @@
                             @if ($editingId !== 0 && auth()->user()?->is_admin && $strategyExplain)
                                 <hr class="my-3">
                                 <label class="form-label" for="dl-strategy">Strategy</label>
-                                <select id="dl-strategy" class="form-select" wire:model="formStrategyId">
+                                <select id="dl-strategy" class="form-select" wire:model="formStrategyId" disabled aria-describedby="dl-strategy-help">
                                     <option value="0">Inherit (owner, group, or default)</option>
                                     @foreach ($strategies as $s)
                                         <option value="{{ $s->id }}">
@@ -545,6 +545,8 @@
                                         </option>
                                     @endforeach
                                 </select>
+                                <div id="dl-strategy-help" class="form-text">Change direct assignments from Strategies → Assign to review the affected-device impact first.</div>
+                                @error('formStrategyId') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                                 <div class="form-text">A strategy set here wins over the owner's, the group's and the default.</div>
 
                                 <div class="mt-2 rd-inset">

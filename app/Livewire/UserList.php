@@ -6,10 +6,8 @@ use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\ConsoleAudit;
 use App\Models\Device;
 use App\Models\Role;
-use App\Models\Strategy;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -354,9 +352,15 @@ class UserList extends Component
         $this->guardTarget($user);
         $username = $user->username;
 
-        // Keep the devices, just detach them from the deleted owner.
-        $user->devices()->update(['user_id' => null]);
-        $user->delete();
+        DB::transaction(function () use ($user): void {
+            // Keep the devices, just detach them from the deleted owner.
+            Device::bulkUpdateStrategyContext(
+                Device::query()->where('user_id', $user->id),
+                ['user_id' => null],
+                auth()->user()->consoleAllows('strategy', 'rw'),
+            );
+            $user->delete();
+        });
 
         ConsoleAudit::record('user.delete', 'Deleted user '.$username, 'user', $username);
     }
@@ -408,19 +412,22 @@ class UserList extends Component
             ->whereIn('id', array_map('intval', $this->assignDeviceIds))
             ->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-        // Devices to gain this owner, and this user's current devices to release
-        // — the release is scoped too, or a delegated actor could orphan devices
-        // they cannot see just by opening the modal and saving.
-        Device::whereIn('id', $ids)->update(['user_id' => $user->id]);
-        $this->assignableDevices()
-            ->where('user_id', $user->id)
-            ->whereNotIn('id', $ids ?: [0])
-            ->update(['user_id' => null]);
-
-        // Both updates above are query-builder writes, so no model event fired
-        // and the cached strategy resolution (PLAN C2) is now stale for every
-        // device that changed hands. Rebuild it.
-        Strategy::recomputeAll();
+        DB::transaction(function () use ($ids, $user): void {
+            // Devices to gain this owner, and this user's current devices to
+            // release. Both paths share the impact-confirmation lock boundary.
+            Device::bulkUpdateStrategyContext(
+                Device::query()->whereIn('id', $ids ?: [0]),
+                ['user_id' => $user->id],
+                auth()->user()->consoleAllows('strategy', 'rw'),
+            );
+            Device::bulkUpdateStrategyContext(
+                $this->assignableDevices()
+                    ->where('user_id', $user->id)
+                    ->whereNotIn('id', $ids ?: [0]),
+                ['user_id' => null],
+                auth()->user()->consoleAllows('strategy', 'rw'),
+            );
+        });
 
         ConsoleAudit::record(
             'user.assign-devices',

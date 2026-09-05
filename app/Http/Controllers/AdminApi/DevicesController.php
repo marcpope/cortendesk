@@ -6,6 +6,7 @@ use App\Models\ConsoleAudit;
 use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -64,7 +65,7 @@ class DevicesController extends AdminApiController
     public function enable(Device $device): JsonResponse
     {
         if ($device->trashed()) {
-            $device->restore();
+            $device = Device::restoreWithStrategyContext($device);
         }
 
         ConsoleAudit::record('device.enable', 'Enabled device '.$device->rustdesk_id.' (API)', 'device', $device->rustdesk_id);
@@ -75,7 +76,7 @@ class DevicesController extends AdminApiController
     /** POST /api/v1/devices/{device}/disable — soft-delete (revocable). */
     public function disable(Device $device): JsonResponse
     {
-        $device->delete();
+        Device::deleteWithStrategyContext($device);
 
         ConsoleAudit::record('device.disable', 'Disabled device '.$device->rustdesk_id.' (API)', 'device', $device->rustdesk_id);
 
@@ -86,7 +87,7 @@ class DevicesController extends AdminApiController
     public function destroy(Device $device): JsonResponse
     {
         $id = $device->rustdesk_id;
-        $device->forceDelete();
+        Device::deleteWithStrategyContext($device, true);
 
         ConsoleAudit::record('device.destroy', 'Destroyed device '.$id.' (API)', 'device', $id);
 
@@ -137,7 +138,15 @@ class DevicesController extends AdminApiController
             return $this->fail('Nothing to assign; provide user_(id|name) or device_group_(id|name).', 422);
         }
 
-        $device->update($changes);
+        try {
+            $device = Device::updateWithStrategyContext(
+                $device,
+                $changes,
+                $this->token($request)->allows('strategy', 'rw'),
+            );
+        } catch (AuthorizationException) {
+            return $this->fail("Token lacks 'rw' permission on 'strategy'.", 403);
+        }
 
         ConsoleAudit::record('device.assign', 'Reassigned device '.$device->rustdesk_id.' (API)', 'device', $device->rustdesk_id);
 

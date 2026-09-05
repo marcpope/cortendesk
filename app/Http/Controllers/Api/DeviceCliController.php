@@ -9,12 +9,13 @@ use App\Models\ApiToken;
 use App\Models\ConsoleAudit;
 use App\Models\Device;
 use App\Models\DeviceGroup;
-use App\Models\Strategy;
 use App\Models\Tag;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 
 /**
  * RustDesk client `--assign` support (PLAN B2).
@@ -99,6 +100,12 @@ class DeviceCliController extends Controller
         if ($request->filled('strategy_name') && ! $this->tokenAllows($request, 'strategy')) {
             return $this->message("Token lacks 'rw' permission on 'strategy'.", 403);
         }
+        if ($request->filled('strategy_name')) {
+            return $this->message(
+                'Direct strategy assignment requires a reviewed impact confirmation in Strategies → Assign.',
+                409,
+            );
+        }
 
         // Resolve the named user / device group up front so a bad name fails the
         // whole request before we mutate anything.
@@ -120,18 +127,6 @@ class DeviceCliController extends Controller
             $groupChange = $group->id;
         }
 
-        // A named strategy becomes a DEVICE-level assignment (the highest
-        // precedence level), which is what `--strategy_name` means at
-        // enrollment: this machine gets this policy regardless of who owns it.
-        $strategyChange = null;
-        if ($request->filled('strategy_name')) {
-            $strategy = Strategy::where('name', $request->input('strategy_name'))->first();
-            if (! $strategy) {
-                return $this->message("Strategy '".$request->input('strategy_name')."' not found.", 404);
-            }
-            $strategyChange = $strategy->id;
-        }
-
         // Resolve the address book (if any) before mutating.
         $book = null;
         if ($request->filled('address_book_name')) {
@@ -150,39 +145,42 @@ class DeviceCliController extends Controller
         if ($isNew) {
             $device = new Device(['rustdesk_id' => $id]);
         }
-        $device->uuid = $uuid;
 
-        // A deploy/assign carrying a Device rw token is an authenticated,
-        // pre-approved registration (PLAN B3): it registers active regardless of
-        // the approval gate, and approves any device the gate had quarantined.
-        $device->status = Device::STATUS_ACTIVE;
-
+        $attributes = [
+            'uuid' => $uuid,
+            // A deploy/assign carrying a Device rw token is an authenticated,
+            // pre-approved registration (PLAN B3).
+            'status' => Device::STATUS_ACTIVE,
+        ];
         if ($userChange !== null) {
-            $device->user_id = $userChange;
+            $attributes['user_id'] = $userChange;
         }
         if ($groupChange !== null) {
-            $device->device_group_id = $groupChange;
+            $attributes['device_group_id'] = $groupChange;
         }
         if ($request->filled('note')) {
-            $device->note = (string) $request->input('note');
+            $attributes['note'] = (string) $request->input('note');
         }
         // Display overrides (NOT identifiers).
         if ($request->filled('device_name')) {
-            $device->hostname = (string) $request->input('device_name');
+            $attributes['hostname'] = (string) $request->input('device_name');
         }
         if ($request->filled('device_username')) {
-            $device->username = (string) $request->input('device_username');
+            $attributes['username'] = (string) $request->input('device_username');
         }
 
-        $device->save();
+        $mayChangeResolvedStrategy = $this->tokenAllows($request, 'strategy');
+        try {
+            $device = DB::transaction(
+                fn (): Device => Device::updateWithStrategyContext($device, $attributes, $mayChangeResolvedStrategy),
+            );
+        } catch (AuthorizationException $exception) {
+            return $this->message($exception->getMessage(), 403);
+        }
 
         // Add / update the address-book entry for this device.
         if ($book !== null) {
             $this->applyAddressBook($request, $book, $device);
-        }
-
-        if ($strategyChange !== null) {
-            Strategy::assignTo(Strategy::LEVEL_DEVICE, (int) $device->id, $strategyChange);
         }
 
         ConsoleAudit::record(

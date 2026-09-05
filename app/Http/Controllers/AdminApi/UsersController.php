@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\AdminApi;
 
 use App\Models\ConsoleAudit;
+use App\Models\Device;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,8 +115,18 @@ class UsersController extends AdminApiController
         }
 
         $username = $user->username;
-        $user->devices()->update(['user_id' => null]);
-        $user->delete();
+        try {
+            DB::transaction(function () use ($request, $user): void {
+                Device::bulkUpdateStrategyContext(
+                    Device::query()->where('user_id', $user->id),
+                    ['user_id' => null],
+                    $this->token($request)->allows('strategy', 'rw'),
+                );
+                $user->delete();
+            });
+        } catch (AuthorizationException) {
+            return $this->fail("Token lacks 'rw' permission on 'strategy'.", 403);
+        }
 
         ConsoleAudit::record('user.delete', 'Deleted user '.$username.' (API)', 'user', $username);
 

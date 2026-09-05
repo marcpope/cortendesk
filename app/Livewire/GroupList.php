@@ -8,6 +8,7 @@ use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\GroupAccess;
 use App\Models\UserGroup;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -171,9 +172,15 @@ class GroupList extends Component
         if ($type === 'devices') {
             $group = DeviceGroup::findOrFail($id);
             $name = $group->name;
-            Device::where('device_group_id', $id)->update(['device_group_id' => null]);
-            GroupAccess::purgeFor(GroupAccess::TARGET_DEVICE_GROUP, $group->id);
-            $group->delete();
+            DB::transaction(function () use ($group, $id): void {
+                Device::bulkUpdateStrategyContext(
+                    Device::query()->where('device_group_id', $id),
+                    ['device_group_id' => null],
+                    auth()->user()->consoleAllows('strategy', 'rw'),
+                );
+                GroupAccess::purgeFor(GroupAccess::TARGET_DEVICE_GROUP, $group->id);
+                $group->delete();
+            });
         } else {
             $group = UserGroup::findOrFail($id);
             $name = $group->name;

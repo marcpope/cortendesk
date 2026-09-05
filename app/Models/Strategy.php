@@ -349,15 +349,22 @@ class Strategy extends Model
      */
     public static function assignTo(string $level, int $targetId, ?int $strategyId): void
     {
-        [$table, $column] = self::pivot($level);
+        DB::transaction(function () use ($level, $targetId, $strategyId): void {
+            [$table, $column] = self::pivot($level);
+            static::query()->orderBy('id')->lockForUpdate()->get(['id']);
+            match ($level) {
+                self::LEVEL_DEVICE => Device::withTrashed()->whereKey($targetId)->lockForUpdate()->firstOrFail(),
+                self::LEVEL_USER => User::query()->whereKey($targetId)->lockForUpdate()->firstOrFail(),
+                self::LEVEL_DEVICE_GROUP => DeviceGroup::query()->whereKey($targetId)->lockForUpdate()->firstOrFail(),
+            };
 
-        DB::table($table)->where($column, $targetId)->delete();
+            DB::table($table)->where($column, $targetId)->delete();
+            if ($strategyId !== null) {
+                DB::table($table)->insert([$column => $targetId, 'strategy_id' => $strategyId]);
+            }
 
-        if ($strategyId !== null) {
-            DB::table($table)->insert([$column => $targetId, 'strategy_id' => $strategyId]);
-        }
-
-        self::recomputeForLevel($level, $targetId);
+            self::recomputeForLevel($level, $targetId);
+        });
     }
 
     /** The strategy id assigned at one level, ignoring precedence. */
