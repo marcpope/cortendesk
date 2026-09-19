@@ -53,6 +53,7 @@ export function buildLoginRequest(opts: {
   version: string;
   supportedDecoding: SupportedDecoding;
   videoAckRequired?: boolean;
+  lockAfterSessionEnd?: boolean;
   // File-transfer connection: LoginRequest carries the file_transfer union and
   // no video options (there is no video stream on this connection type).
   fileTransfer?: { dir: string; showHidden: boolean };
@@ -95,7 +96,12 @@ export function buildLoginRequest(opts: {
             : {
                 ...base,
                 video_ack_required: opts.videoAckRequired ?? true,
-                option: OptionMessage.fromPartial({ supported_decoding: opts.supportedDecoding }),
+                option: OptionMessage.fromPartial({
+                  supported_decoding: opts.supportedDecoding,
+                  ...(opts.lockAfterSessionEnd
+                    ? { lock_after_session_end: OptionMessage_BoolOption.Yes }
+                    : {}),
+                }),
                 union: opts.viewCamera ? { $case: 'view_camera', view_camera: {} } : undefined,
               },
       ),

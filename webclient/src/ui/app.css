@@ -953,6 +953,7 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow: auto;
   background: color-mix(in srgb, var(--rd-bg) 78%, transparent);
   backdrop-filter: blur(6px);
 }
@@ -963,6 +964,8 @@
 .rd-card {
   width: 460px;
   max-width: 100%;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   padding: 40px 44px 36px;
   background: linear-gradient(180deg, #1a2434 0%, #121a27 100%);
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -1140,6 +1143,26 @@
   height: 16px;
   accent-color: var(--rd-accent);
   cursor: pointer;
+}
+
+.rd-os-login {
+  margin-top: 2px;
+}
+.rd-os-login-toggle {
+  min-height: 44px;
+  margin-top: 4px;
+}
+.rd-os-password-field {
+  margin: 4px 0 0;
+}
+.rd-os-password-field .rd-input {
+  height: 52px;
+}
+.rd-os-login-note {
+  margin: 8px 4px 0;
+  color: var(--rd-muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .rd-msg {

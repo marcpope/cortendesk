@@ -9,6 +9,7 @@ use App\Http\Controllers\DiagnosticsController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\OidcController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\WebClientOsLoginController;
 use App\Http\Controllers\WebClientPageController;
 use Illuminate\Support\Facades\Route;
 
@@ -101,6 +102,12 @@ Route::middleware('auth')->group(function () {
 
     // Native in-browser RustDesk client (full-viewport standalone page; assets in public/rdclient/)
     Route::get('/webclient', [WebClientPageController::class, 'show'])->name('webclient');
+    Route::middleware('throttle:6,1')->group(function () {
+        Route::get('/webclient/os-login', [WebClientOsLoginController::class, 'show'])->name('webclient.os-login.show');
+        Route::put('/webclient/os-login', [WebClientOsLoginController::class, 'update'])->name('webclient.os-login.update');
+        Route::post('/webclient/os-login/reveal', [WebClientOsLoginController::class, 'reveal'])->name('webclient.os-login.reveal');
+        Route::delete('/webclient/os-login', [WebClientOsLoginController::class, 'destroy'])->name('webclient.os-login.destroy');
+    });
 
     // Operational logs — the baseline every user has always had.
     Route::middleware('console-can:audit,r')->group(function () {

@@ -36,6 +36,8 @@
             myId: @json($myId),
             myName: @json($myName),
             version: @json(config('cortendesk.api_version')),
+            osLoginUrl: @json(route('webclient.os-login.show')),
+            csrfToken: @json(csrf_token()),
             workerUrl: '/rdclient/session.worker.js?v={{ $rdVer }}'
         };
         // No ?id= given: app.js shows the connect overlay asking for peer id + password.

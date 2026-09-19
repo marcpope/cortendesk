@@ -14,6 +14,8 @@ export type RdGlobalConfig = {
   /** Console version, injected per request — see OVERLAY_VERSION. */
   version?: string;
   workerUrl?: string;
+  osLoginUrl?: string;
+  csrfToken?: string;
 };
 
 export const QUALITY = { best: 4, balanced: 3, speed: 2 } as const; // ImageQuality enum values
@@ -139,6 +141,7 @@ export function buildSessionConfig(
   password: string,
   savedHashHex?: string,
   connType?: SessionConfig['connType'],
+  osPassword?: string,
 ): SessionConfig {
   return {
     peerId,
@@ -150,6 +153,7 @@ export function buildSessionConfig(
     myName: g.myName,
     savedHashHex,
     ...(connType ? { connType } : {}),
+    ...(osPassword ? { osPassword } : {}),
   };
 }
 
