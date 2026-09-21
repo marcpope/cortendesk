@@ -84,8 +84,7 @@
                                 <a href="javascript:void(0);" class="rd-act me-2" wire:click="openAssign({{ $strategy->id }})">Assign</a>
                                 <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $strategy->id }})">Edit</a>
                                 <a href="javascript:void(0);" class="text-danger"
-                                   wire:click="deleteStrategy({{ $strategy->id }})"
-                                   wire:confirm="Delete strategy {{ $strategy->name }}? Devices assigned to it fall back to the default strategy, and the options it pushed are reset to the client defaults on the next heartbeat.">Delete</a>
+                                   wire:click="deleteStrategy({{ $strategy->id }})">Delete</a>
                             </td>
                         </tr>
                     @empty
@@ -148,8 +147,7 @@
                                     <a href="javascript:void(0);" class="rd-iconbtn" title="Edit"
                                        wire:click="edit({{ $strategy->id }})"><i class="ri-pencil-line"></i></a>
                                     <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="Delete"
-                                       wire:click="deleteStrategy({{ $strategy->id }})"
-                                       wire:confirm="Delete strategy {{ $strategy->name }}? Devices assigned to it fall back to the default strategy."><i class="ri-delete-bin-line"></i></a>
+                                       wire:click="deleteStrategy({{ $strategy->id }})"><i class="ri-delete-bin-line"></i></a>
                                 </div>
                             </div>
                     </div>
@@ -271,8 +269,8 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
                             <button type="submit" class="btn btn-primary">
-                                <span wire:loading.remove wire:target="save">{{ $editingId === 0 ? 'Create Strategy' : 'Save Changes' }}</span>
-                                <span wire:loading wire:target="save">Saving…</span>
+                                <span wire:loading.remove wire:target="save">Review Impact</span>
+                                <span wire:loading wire:target="save">Calculating…</span>
                             </button>
                         </div>
                     </form>
@@ -280,6 +278,72 @@
             </div>
         </div>
         <div class="modal-backdrop fade show"></div>
+    @endif
+
+    {{-- Policy impact preview --}}
+    @if ($previewing && $editingId !== null)
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
+             aria-labelledby="strategy-impact-title" style="background: rgba(0,0,0,.72); z-index: 1080;" wire:key="strategy-impact-preview">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title" id="strategy-impact-title">
+                                {{ $pendingDeleteId ? 'Review strategy deletion' : ($restoreRevisionId ? 'Review revision restore' : 'Review strategy impact') }}
+                            </h5>
+                            <small class="text-muted">Nothing has been changed yet.</small>
+                        </div>
+                        <button type="button" class="btn-close" wire:click="closePreview" aria-label="Back to editor"></button>
+                    </div>
+                    <div class="modal-body">
+                        @error('preview') <div class="alert alert-danger" role="alert">{{ $message }}</div> @enderror
+                        @if ($pendingDeleteId)
+                            <div class="alert alert-danger"><strong>This strategy will be deleted.</strong> Direct assignments are released automatically.</div>
+                        @elseif ($restoreRevisionId)
+                            <div class="alert alert-warning"><strong>This restore creates a new revision.</strong> The historical revision remains unchanged.</div>
+                        @endif
+                        <div class="alert alert-info"><strong>{{ $impactPreview['affected_count'] ?? 0 }} device(s)</strong> will receive a different effective strategy or policy.</div>
+                        @if (!empty($impactPreview['dangerous']))
+                            <div class="alert alert-warning"><strong>High-impact controls</strong><ul class="mb-0 mt-1">
+                                @foreach ($impactPreview['dangerous'] as $warning)
+                                    <li><code>{{ $warning['key'] }}</code> changes to <strong>{{ $warning['after'] }}</strong>.</li>
+                                @endforeach
+                            </ul></div>
+                        @endif
+                        @if (!empty($impactPreview['resets']))
+                            <div class="alert alert-warning"><strong>{{ count($impactPreview['resets']) }} managed option(s) will reset to the client default:</strong> {{ implode(', ', $impactPreview['resets']) }}</div>
+                        @endif
+                        <h6>Policy diff</h6>
+                        <div class="table-responsive mb-3"><table class="table table-sm mb-0">
+                            <thead><tr><th>Setting</th><th>Before</th><th>After</th></tr></thead><tbody>
+                            @forelse (($impactPreview['option_changes'] ?? []) as $key => $change)
+                                <tr><td><code>{{ $key }}</code></td><td>{{ $change['before'] ?? 'Not managed' }}</td><td>{{ $change['after'] ?? 'Not managed' }}</td></tr>
+                            @empty
+                                <tr><td colspan="3" class="text-muted">No option changes.</td></tr>
+                            @endforelse
+                            @foreach (($impactPreview['metadata_changes'] ?? []) as $key => $change)
+                                <tr><td>{{ str_replace('_', ' ', ucfirst($key)) }}</td><td>{{ is_bool($change['before']) ? ($change['before'] ? 'Yes' : 'No') : ($change['before'] ?? '—') }}</td><td>{{ is_bool($change['after']) ? ($change['after'] ? 'Yes' : 'No') : ($change['after'] ?? '—') }}</td></tr>
+                            @endforeach
+                            </tbody>
+                        </table></div>
+                        @if (!empty($impactPreview['affected_devices']))
+                            <details><summary class="fw-semibold">Affected-device sample (up to 50)</summary><div class="d-flex flex-wrap gap-1 mt-2">
+                                @foreach ($impactPreview['affected_devices'] as $device)
+                                    <span class="badge bg-secondary-subtle text-secondary">{{ $device['rustdesk_id'] }} · {{ $device['label'] }} @if ($device['winning_level']) · {{ str_replace('_', ' ', $device['winning_level']) }} @endif</span>
+                                @endforeach
+                            </div></details>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-auto" wire:click="closePreview">Back</button>
+                        <button type="button" class="btn btn-primary" wire:click="confirmSave">
+                            <span wire:loading.remove wire:target="confirmSave">{{ $pendingDeleteId ? 'Delete strategy' : ($restoreRevisionId ? 'Restore revision' : 'Apply strategy') }}</span>
+                            <span wire:loading wire:target="confirmSave">Applying…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
     {{-- Assignment modal --}}
@@ -495,7 +559,7 @@
                                             @if ($revision->change_note)<div class="mt-1">{{ $revision->change_note }}</div>@endif
                                         </div>
                                         @if ($historyStrategy->active_revision_id !== $revision->id)
-                                            <button type="button" class="btn btn-sm btn-outline-warning align-self-md-center" wire:click="restoreRevision({{ $revision->id }})" wire:confirm="Restore the options from revision {{ $revision->revision }}? This creates a new revision. Name, enabled and default are not changed.">Restore as new revision</button>
+                                            <button type="button" class="btn btn-sm btn-outline-warning align-self-md-center" wire:click="restoreRevision({{ $revision->id }})">Restore as new revision</button>
                                         @endif
                                     </div>
                                 @endforeach

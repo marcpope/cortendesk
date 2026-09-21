@@ -10,8 +10,10 @@ use App\Models\Strategy;
 use App\Models\StrategyRevision;
 use App\Models\User;
 use App\Services\StrategyCompliance;
+use App\Services\StrategyImpact;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -60,6 +62,29 @@ class StrategyList extends Component
     public ?int $compareFromRevisionId = null;
 
     public ?int $compareToRevisionId = null;
+
+    #[Locked]
+    public bool $previewing = false;
+
+    /** @var array<string,mixed> */
+    #[Locked]
+    public array $impactPreview = [];
+
+    /** @var array<string,mixed> */
+    #[Locked]
+    public array $previewSnapshot = [];
+
+    #[Locked]
+    public ?string $previewFingerprint = null;
+
+    #[Locked]
+    public ?int $previewTargetId = null;
+
+    #[Locked]
+    public ?int $pendingDeleteId = null;
+
+    #[Locked]
+    public ?int $restoreRevisionId = null;
 
     /** Compliance drill-down state: strategy id, or null when closed. */
     public ?int $complianceStrategyId = null;
@@ -230,7 +255,13 @@ class StrategyList extends Component
         }
     }
 
+    /** Existing callers now enter the review flow rather than mutating directly. */
     public function save(): void
+    {
+        $this->previewSave();
+    }
+
+    public function previewSave(): void
     {
         $this->authorizeConsole('strategy', 'rw');
 
@@ -241,65 +272,99 @@ class StrategyList extends Component
             ],
             'formNote' => ['nullable', 'string', 'max:500'],
             'formConfirmationTimeout' => ['required', 'integer', 'min:1', 'max:10080'],
+            'revisionNote' => ['nullable', 'string', 'max:500'],
         ], [], ['formName' => 'name', 'formNote' => 'note']);
 
-        // Range-check the numeric options here rather than letting
-        // sanitizeOptions() drop them silently — a value that vanishes without
-        // a word is how an operator ends up believing a policy is in force.
-        $options = [];
-        foreach ($this->formOptions as $key => $value) {
-            $spec = Strategy::OPTION_KEYS[$key] ?? null;
-            $value = is_string($value) ? trim($value) : '';
-
-            if ($spec === null || $value === '') {
-                continue; // unknown key, or "not managed by this strategy"
-            }
-
-            if ($spec['type'] === 'int' && ! (ctype_digit($value)
-                && (int) $value >= ($spec['min'] ?? 0)
-                && (int) $value <= ($spec['max'] ?? PHP_INT_MAX))) {
-                $this->addError('formOptions.'.$key, 'Enter a whole number between '
-                    .($spec['min'] ?? 0).' and '.($spec['max'] ?? PHP_INT_MAX).'.');
-
-                continue;
-            }
-
-            $options[$key] = $value;
-        }
-
+        $options = $this->validatedOptions();
         if ($this->getErrorBag()->isNotEmpty()) {
             return;
         }
 
-        $this->validate(['revisionNote' => ['nullable', 'string', 'max:500']]);
+        $this->previewSnapshot = [
+            'target_id' => $this->editingId ?: 0,
+            'name' => $this->formName,
+            'note' => $this->formNote !== '' ? $this->formNote : null,
+            'enabled' => $this->formEnabled,
+            'is_default' => $this->formIsDefault,
+            'enforce' => $this->formEnforce,
+            'confirmation_timeout_minutes' => $this->formConfirmationTimeout,
+            'options' => $options,
+            'revision_note' => $this->revisionNote,
+            'operation' => $this->pendingDeleteId !== null ? 'delete' : ($this->restoreRevisionId !== null ? 'restore' : 'save'),
+            'restore_revision_id' => $this->restoreRevisionId,
+        ];
+        $strategy = $this->editingId ? Strategy::findOrFail($this->editingId) : null;
+        $this->impactPreview = StrategyImpact::preview($strategy, $this->previewSnapshot);
+        $this->previewFingerprint = $this->impactPreview['fingerprint'];
+        $this->previewTargetId = $this->editingId ?: 0;
+        $this->previewing = true;
+    }
 
-        [$strategy, $creating] = DB::transaction(function () use ($options): array {
+    public function confirmSave(): void
+    {
+        $this->authorizeConsole('strategy', 'rw');
+
+        if (! $this->previewing || $this->previewFingerprint === null || $this->previewTargetId === null) {
+            $this->addError('preview', 'Review the strategy impact before applying it.');
+
+            return;
+        }
+
+        $snapshot = $this->previewSnapshot;
+        $target = $this->previewTargetId > 0 ? Strategy::findOrFail($this->previewTargetId) : null;
+        // Recheck immediately before the short write transaction. Do not hold
+        // strategy row locks during the fleet scan: on MySQL/MariaDB that would
+        // block registrations and approvals behind an operator's confirmation.
+        $currentImpact = StrategyImpact::preview($target, $snapshot);
+        if (! hash_equals($this->previewFingerprint, $currentImpact['fingerprint'])) {
+            $this->addError('preview', 'The strategy or fleet changed after the preview. Review the impact again.');
+
+            return;
+        }
+
+        if ($this->pendingDeleteId !== null) {
+            if ($target === null || $target->id !== $this->pendingDeleteId) {
+                $this->addError('preview', 'The deletion target changed after the preview. Review the impact again.');
+
+                return;
+            }
+            $strategy = $target;
+            $name = $strategy->name;
+            $strategy->delete();
+            ConsoleAudit::record('strategy.delete', 'Deleted strategy '.$name, 'strategy', $name);
+            $this->closeModal();
+
+            return;
+        }
+
+        [$strategy, $creating] = DB::transaction(function () use ($snapshot): array {
             // A new default can displace another strategy. Serialize strategy
             // writes and revision allocation in one stable lock order.
             Strategy::query()->orderBy('id')->lockForUpdate()->get(['id']);
-            $strategy = $this->editingId
-                ? Strategy::query()->lockForUpdate()->findOrFail($this->editingId)
+            $targetId = (int) ($snapshot['target_id'] ?? 0);
+            $strategy = $targetId > 0
+                ? Strategy::query()->lockForUpdate()->findOrFail($targetId)
                 : new Strategy;
-            $displacedDefault = $this->formIsDefault
+            $displacedDefault = $snapshot['is_default']
                 ? Strategy::query()->whereKeyNot($strategy->id ?: 0)->where('is_default', true)->lockForUpdate()->first()
                 : null;
 
             $strategy->fill([
-                'name' => $this->formName,
-                'note' => $this->formNote !== '' ? $this->formNote : null,
-                'enabled' => $this->formEnabled,
-                'is_default' => $this->formIsDefault,
-                'enforce' => $this->formEnforce,
-                'confirmation_timeout_minutes' => $this->formConfirmationTimeout,
+                'name' => $snapshot['name'],
+                'note' => $snapshot['note'],
+                'enabled' => $snapshot['enabled'],
+                'is_default' => $snapshot['is_default'],
+                'enforce' => $snapshot['enforce'],
+                'confirmation_timeout_minutes' => $snapshot['confirmation_timeout_minutes'],
             ]);
-            $strategy->setOptions($options);
+            $strategy->setOptions($snapshot['options']);
             $creating = ! $strategy->exists;
             $strategy->save();
 
             $revision = StrategyRevision::capture(
                 $strategy,
                 auth()->id(),
-                $this->revisionNote !== '' ? $this->revisionNote : ($creating ? 'Initial revision' : 'Saved from the strategy editor'),
+                $snapshot['revision_note'] !== '' ? $snapshot['revision_note'] : ($creating ? 'Initial revision' : 'Saved from the strategy editor'),
             );
             $strategy->forceFill(['active_revision_id' => $revision->id])->saveQuietly();
 
@@ -316,9 +381,10 @@ class StrategyList extends Component
             return [$strategy, $creating];
         });
 
+        $restoring = $this->restoreRevisionId !== null;
         ConsoleAudit::record(
-            $creating ? 'strategy.create' : 'strategy.update',
-            ($creating ? 'Created' : 'Updated').' strategy '.$strategy->name
+            $restoring ? 'strategy.rollback' : ($creating ? 'strategy.create' : 'strategy.update'),
+            ($restoring ? 'Restored' : ($creating ? 'Created' : 'Updated')).' strategy '.$strategy->name
                 .' ('.count($strategy->optionMap()).' option(s))',
             'strategy',
             $strategy->name,
@@ -331,6 +397,18 @@ class StrategyList extends Component
     {
         $this->editingId = null;
         $this->resetForm();
+    }
+
+    public function closePreview(): void
+    {
+        if ($this->pendingDeleteId !== null) {
+            $this->closeModal();
+
+            return;
+        }
+
+        $this->reset('previewing', 'impactPreview', 'previewSnapshot', 'previewFingerprint', 'previewTargetId');
+        $this->resetValidation('preview');
     }
 
     public function toggleEnabled(int $id): void
@@ -359,11 +437,11 @@ class StrategyList extends Component
     {
         $this->authorizeConsole('strategy', 'rw');
 
-        $strategy = Strategy::findOrFail($id);
-        $name = $strategy->name;
-        $strategy->delete(); // pivots cascade; the model hook re-resolves the fleet
-
-        ConsoleAudit::record('strategy.delete', 'Deleted strategy '.$name, 'strategy', $name);
+        $this->edit($id);
+        $this->pendingDeleteId = $id;
+        $this->formEnabled = false;
+        $this->formIsDefault = false;
+        $this->previewSave();
     }
 
     // -------------------------------------------------------------- history ---
@@ -388,30 +466,24 @@ class StrategyList extends Component
     {
         $this->authorizeConsole('strategy', 'rw');
 
-        $strategy = DB::transaction(function () use ($revisionId): Strategy {
-            $revision = StrategyRevision::query()->findOrFail($revisionId);
-            Strategy::query()->orderBy('id')->lockForUpdate()->get(['id']);
-            $strategy = Strategy::query()->lockForUpdate()->findOrFail($revision->strategy_id);
-            $revision = StrategyRevision::query()->lockForUpdate()->findOrFail($revisionId);
-            $snapshot = is_array($revision->snapshot) ? $revision->snapshot : [];
+        $revision = StrategyRevision::query()->findOrFail($revisionId);
+        $strategy = Strategy::findOrFail($revision->strategy_id);
+        $snapshot = is_array($revision->snapshot) ? $revision->snapshot : [];
 
-            // Restore the policy only. Name, enabled and default are routing
-            // identity, not policy: replaying them from an old snapshot could
-            // rename over another strategy or silently move the fleet default.
-            $strategy->fill([
-                'note' => $snapshot['note'] ?? null,
-                'enforce' => (bool) ($snapshot['enforce'] ?? false),
-            ]);
-            $strategy->setOptions(is_array($snapshot['options'] ?? null) ? $snapshot['options'] : []);
-            $strategy->save();
-
-            $newRevision = StrategyRevision::capture($strategy, auth()->id(), 'Restored revision '.$revision->revision);
-            $strategy->forceFill(['active_revision_id' => $newRevision->id])->saveQuietly();
-
-            return $strategy;
-        });
-
-        ConsoleAudit::record('strategy.rollback', 'Restored an earlier revision of strategy '.$strategy->name, 'strategy', $strategy->name);
+        $this->closeHistory();
+        $this->edit($strategy->id);
+        $this->restoreRevisionId = $revision->id;
+        $this->revisionNote = 'Restored revision '.$revision->revision;
+        // Restoring an old policy never replays routing identity.
+        $this->formNote = (string) ($snapshot['note'] ?? '');
+        $this->formEnforce = (bool) ($snapshot['enforce'] ?? false);
+        $this->formOptions = array_fill_keys(array_keys($this->formOptions), '');
+        foreach ((array) ($snapshot['options'] ?? []) as $key => $value) {
+            if (array_key_exists($key, $this->formOptions)) {
+                $this->formOptions[$key] = (string) $value;
+            }
+        }
+        $this->previewSave();
     }
 
     public function getHistoryStrategyProperty(): ?Strategy
@@ -564,9 +636,36 @@ class StrategyList extends Component
 
     private function resetForm(): void
     {
-        $this->reset('formName', 'formNote', 'formEnabled', 'formIsDefault', 'formEnforce', 'formConfirmationTimeout', 'revisionNote');
+        $this->reset('formName', 'formNote', 'formEnabled', 'formIsDefault', 'formEnforce', 'formConfirmationTimeout', 'revisionNote', 'previewing', 'impactPreview', 'previewSnapshot', 'previewFingerprint', 'previewTargetId', 'pendingDeleteId', 'restoreRevisionId');
         $this->resetValidation();
         $this->formOptions = array_fill_keys(array_keys(Strategy::OPTION_KEYS), '');
+    }
+
+    /** @return array<string,string> */
+    private function validatedOptions(): array
+    {
+        $options = [];
+        foreach ($this->formOptions as $key => $value) {
+            $spec = Strategy::OPTION_KEYS[$key] ?? null;
+            $value = is_string($value) ? trim($value) : '';
+
+            if ($spec === null || $value === '') {
+                continue;
+            }
+
+            if ($spec['type'] === 'int' && ! (ctype_digit($value)
+                && (int) $value >= ($spec['min'] ?? 0)
+                && (int) $value <= ($spec['max'] ?? PHP_INT_MAX))) {
+                $this->addError('formOptions.'.$key, 'Enter a whole number between '
+                    .($spec['min'] ?? 0).' and '.($spec['max'] ?? PHP_INT_MAX).'.');
+
+                continue;
+            }
+
+            $options[$key] = $value;
+        }
+
+        return $options;
     }
 
     /**
