@@ -33,13 +33,13 @@ jobs:
 
       - name: Test changed PHP files with Pint
         shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
-          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" =~ ^0+$ ]]; then
-            BASE_SHA="$(git rev-parse HEAD^)"
-          fi
+          # Fork main can lag the PR base. Compare against the actual upstream
+          # integration line on both fork pushes and pull requests.
+          git fetch --no-tags https://github.com/marcpope/cortendesk.git \
+            main:refs/remotes/upstream/main
+          BASE_SHA="$(git merge-base HEAD refs/remotes/upstream/main)"
           git diff --name-only -z "${BASE_SHA}" "${GITHUB_SHA}" -- '*.php' \
             | xargs -0 -r vendor/bin/pint --test
 
@@ -95,3 +95,7 @@ jobs:
           test "${first_hash}" = "${second_hash}"
           git -C .. diff --check -- public/rdclient
           git -C .. diff --exit-code -- public/rdclient
+          if [[ -n "$(git -C .. status --porcelain --untracked-files=all -- public/rdclient)" ]]; then
+            printf '%s\n' 'Generated assets differ from the committed files or added untracked files.' >&2
+            exit 1
+          fi
