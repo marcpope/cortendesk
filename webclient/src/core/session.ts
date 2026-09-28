@@ -262,6 +262,7 @@ export class Session {
   }
 
   private async dispatch(msg: Message): Promise<void> {
+    if (this.state === 'error' || this.state === 'closed') return;
     const u = msg.union;
     switch (u?.$case) {
       case 'test_delay':
@@ -315,7 +316,10 @@ export class Session {
         const lr = u.login_response.union;
         if (lr?.$case === 'error') {
           if (isManualAccept(lr.error)) this.setState('needAccept', lr.error);
-          else this.sinks.emit({ t: 'loginError', message: lr.error });
+          else {
+            this.setState('error', lr.error);
+            this.sinks.emit({ t: 'loginError', message: lr.error });
+          }
           return;
         }
         if (lr?.$case === 'peer_info') {
@@ -678,6 +682,35 @@ export class Session {
     this.sendMisc({
       $case: 'toggle_virtual_display',
       toggle_virtual_display: ToggleVirtualDisplay.fromPartial({ display, on }),
+    });
+    return true;
+  }
+
+  sendOsPassword(password: string): boolean {
+    if (
+      this.state !== 'streaming'
+      || (this.config.connType && this.config.connType !== 'default')
+      || password.length === 0
+    ) {
+      return false;
+    }
+    this.sendMessage({
+      $case: 'key_event',
+      key_event: KeyEvent.fromPartial({
+        press: true,
+        union: { $case: 'seq', seq: password },
+        modifiers: [],
+        mode: KeyboardMode.Legacy,
+      }),
+    });
+    this.sendMessage({
+      $case: 'key_event',
+      key_event: KeyEvent.fromPartial({
+        press: true,
+        union: { $case: 'control_key', control_key: ControlKey.Return },
+        modifiers: [],
+        mode: KeyboardMode.Legacy,
+      }),
     });
     return true;
   }

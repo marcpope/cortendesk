@@ -84,6 +84,9 @@ import { VoiceCaptureController, browserVoiceCaptureDeps } from '../media/voice-
 import { voiceCallUiModel } from './voice-call-ui';
 import { VoiceCallAttemptOwner } from './voice-call-attempt';
 import { remoteInputAllowed, type RemoteInputChannel } from './view-only-policy';
+import { canUseOsLoginSettings, OsLoginSettingsClient } from './os-login-settings';
+import { OsLoginFlow } from './os-login-flow';
+import { postConnectWithSecretScrub } from './session-secret-handoff';
 
 // Back-compat: everything that used to live here is re-exported for tests and
 // external importers.
@@ -144,6 +147,12 @@ type Els = {
   peerIdInput: HTMLInputElement;
   passwordInput: HTMLInputElement;
   saveCheckbox: HTMLInputElement;
+  osLoginArea: HTMLElement;
+  osLoginCheckbox: HTMLInputElement;
+  osLoginFields: HTMLElement;
+  osLoginAuthFields: HTMLElement;
+  osPasswordInput: HTMLInputElement;
+  osCurrentPasswordInput: HTMLInputElement;
   connectBtn: HTMLButtonElement;
   overlayStatus: HTMLElement;
   overlayStatusText: HTMLElement;
@@ -204,6 +213,10 @@ export class RdApp {
   private blockInputOn = false;
   private blockInputPending = false;
   private lockAfterSessionEnd = false;
+  private osLoginFlow: OsLoginFlow | undefined;
+  private osLoginHydration: Promise<void> = Promise.resolve();
+  private osLoginHydratedPeer = '';
+  private osLoginHasSavedPassword = false;
   private reconnectConfig: SessionConfig | undefined;
   private restartFlow: RestartFlow | undefined;
   private terminalSupported = false;
@@ -269,6 +282,16 @@ export class RdApp {
     this.renderDock();
     this.renderSide();
     this.renderOverlay();
+    const osLoginUrl = this.cfg?.osLoginUrl ?? '';
+    const osLoginCsrf = this.cfg?.csrfToken ?? '';
+    if (canUseOsLoginSettings(osLoginUrl, osLoginCsrf, window.isSecureContext)) {
+      this.osLoginFlow = new OsLoginFlow(
+        new OsLoginSettingsClient(osLoginUrl, osLoginCsrf),
+      );
+      this.el.osLoginArea.hidden = false;
+    } else {
+      this.el.osLoginArea.hidden = true;
+    }
 
     const attr = document
       .querySelector('script[data-rd-worker]')
@@ -284,6 +307,7 @@ export class RdApp {
       this.el.peerIdInput.value = this.fixedPeerId;
       this.el.peerLabel.textContent = this.fixedPeerId;
       this.hydrateSavedPassword(this.fixedPeerId);
+      this.osLoginHydration = this.hydrateOsLogin(this.fixedPeerId);
       this.el.passwordInput.focus();
     } else {
       this.el.fieldId.hidden = false;
@@ -297,12 +321,13 @@ export class RdApp {
     this.el.peerIdInput.addEventListener('change', () => {
       this.el.peerIdInput.value = normalizePeerId(this.el.peerIdInput.value);
       this.hydrateSavedPassword(this.el.peerIdInput.value);
+      this.osLoginHydration = this.hydrateOsLogin(this.el.peerIdInput.value);
     });
 
     // Saved password + fixed peer -> sign straight in. Skipped when ?lo=1
     // (the user logged out on purpose) so the connect screen stays put.
     if (this.fixedPeerId && !loggedOutFromSearch(location.search) && loadSavedHash(this.fixedPeerId)) {
-      this.onConnectClick();
+      void this.osLoginHydration.then(() => this.onConnectClick());
     }
 
     // Surface it before they type a password and press Connect.
@@ -576,6 +601,7 @@ export class RdApp {
 
   private toggleViewOnly(): void {
     this.viewOnly = !this.viewOnly;
+    this.post({ c: 'viewOnly', enabled: this.viewOnly });
     this.el.btnViewOnly.setAttribute('aria-pressed', String(this.viewOnly));
     this.el.btnViewOnly.classList.toggle('rd-on', this.viewOnly);
     // Latched modifiers make no sense with input off; drop them quietly.
@@ -1535,6 +1561,29 @@ export class RdApp {
           <input type="checkbox" id="rd-save-pw">
           <span>Save password on this device</span>
         </label>
+        <div class="rd-os-login" id="rd-os-login-area" hidden>
+          <label class="rd-save rd-os-login-toggle">
+            <input type="checkbox" id="rd-os-login" aria-controls="rd-os-login-fields rd-os-login-auth-fields" aria-expanded="false">
+            <span>Automatically log into the remote OS</span>
+          </label>
+          <div id="rd-os-login-fields" hidden>
+            <label class="rd-field rd-os-password-field">
+              <span class="rd-input">
+                <span class="rd-input-ic">${lock}</span>
+                <input id="rd-os-password" type="password" autocomplete="off" maxlength="1024" aria-label="Remote OS password" aria-describedby="rd-os-login-note" placeholder="Remote OS password">
+              </span>
+            </label>
+          </div>
+          <div id="rd-os-login-auth-fields" hidden>
+            <label class="rd-field rd-os-password-field">
+              <span class="rd-input">
+                <span class="rd-input-ic">${lock}</span>
+                <input id="rd-os-current-password" type="password" autocomplete="current-password" maxlength="1024" aria-label="Current CortenDesk password" aria-describedby="rd-os-login-note" placeholder="Current CortenDesk password">
+              </span>
+            </label>
+            <p class="rd-os-login-note" id="rd-os-login-note">The remote password is encrypted at rest, but anyone with database access and APP_KEY can decrypt it. Your local CortenDesk password is required before each use; SSO-only accounts cannot use stored OS passwords. Auto-login does not change the remote lock-after-session setting.</p>
+          </div>
+        </div>
         <div class="rd-msg" id="rd-msg">
           <div class="rd-overlay-status" id="rd-overlay-status" hidden>
             <span class="rd-spinner" aria-hidden="true"></span><span id="rd-overlay-status-text"></span>
@@ -1550,18 +1599,34 @@ export class RdApp {
     this.el.peerIdInput = q(o, '#rd-peer-id');
     this.el.passwordInput = q(o, '#rd-password');
     this.el.saveCheckbox = q(o, '#rd-save-pw');
+    this.el.osLoginArea = q(o, '#rd-os-login-area');
+    this.el.osLoginCheckbox = q(o, '#rd-os-login');
+    this.el.osLoginFields = q(o, '#rd-os-login-fields');
+    this.el.osLoginAuthFields = q(o, '#rd-os-login-auth-fields');
+    this.el.osPasswordInput = q(o, '#rd-os-password');
+    this.el.osCurrentPasswordInput = q(o, '#rd-os-current-password');
     this.el.connectBtn = q(o, '#rd-connect');
     this.el.overlayStatus = q(o, '#rd-overlay-status');
     this.el.overlayStatusText = q(o, '#rd-overlay-status-text');
     this.el.overlayError = q(o, '#rd-overlay-error');
     this.el.reconnectCancel = q(o, '#rd-restart-cancel');
 
-    this.el.connectBtn.addEventListener('click', () => this.onConnectClick());
+    this.el.connectBtn.addEventListener('click', () => { void this.onConnectClick(); });
     this.el.reconnectCancel.addEventListener('click', () => this.cancelRestartReconnect());
+    this.el.osLoginCheckbox.addEventListener('change', () => {
+      this.updateOsLoginFields();
+      if (this.el.osLoginCheckbox.checked && !this.osLoginHasSavedPassword) {
+        this.el.osPasswordInput.focus();
+      } else {
+        this.el.osCurrentPasswordInput.focus();
+      }
+    });
     const enter = (e: KeyboardEvent): void => {
-      if (e.key === 'Enter') this.onConnectClick();
+      if (e.key === 'Enter') void this.onConnectClick();
     };
     this.el.passwordInput.addEventListener('keydown', enter);
+    this.el.osPasswordInput.addEventListener('keydown', enter);
+    this.el.osCurrentPasswordInput.addEventListener('keydown', enter);
     this.el.peerIdInput.addEventListener('keydown', enter);
   }
 
@@ -1574,6 +1639,44 @@ export class RdApp {
     this.el.saveCheckbox.checked = has;
     this.el.passwordInput.value = '';
     this.el.passwordInput.placeholder = has ? 'Saved password — click to change' : 'Enter password';
+  }
+
+  private updateOsLoginFields(): void {
+    const enabled = this.el.osLoginCheckbox.checked;
+    this.el.osLoginFields.hidden = !enabled;
+    this.el.osLoginAuthFields.hidden = !enabled && !this.osLoginHasSavedPassword;
+    this.el.osLoginCheckbox.setAttribute('aria-expanded', String(enabled));
+  }
+
+  private async hydrateOsLogin(peerId: string): Promise<void> {
+    this.osLoginHydratedPeer = '';
+    this.osLoginHasSavedPassword = false;
+    this.el.osLoginCheckbox.checked = false;
+    this.el.osLoginCheckbox.disabled = !peerId || !this.osLoginFlow;
+    this.el.osPasswordInput.value = '';
+    this.el.osCurrentPasswordInput.value = '';
+    this.el.osPasswordInput.placeholder = 'Remote OS password';
+    this.updateOsLoginFields();
+    if (!peerId || !this.osLoginFlow) return;
+
+    try {
+      const view = await this.osLoginFlow.hydrate(peerId);
+      const currentPeer = normalizePeerId(this.el.peerIdInput.value || this.fixedPeerId);
+      if (!view || currentPeer !== peerId) return;
+      this.osLoginHydratedPeer = peerId;
+      this.osLoginHasSavedPassword = view.hasSavedPassword;
+      this.el.osLoginCheckbox.checked = view.enabled;
+      this.el.osPasswordInput.placeholder = view.hasSavedPassword
+        ? 'Saved OS password — enter to replace'
+        : 'Remote OS password';
+      this.updateOsLoginFields();
+    } catch {
+      // Optional setting failure must not expose response details or block a
+      // normal remote-control connection. Enabling it still retries on Connect.
+    } finally {
+      const currentPeer = normalizePeerId(this.el.peerIdInput.value || this.fixedPeerId);
+      if (currentPeer === peerId) this.el.osLoginCheckbox.disabled = false;
+    }
   }
 
   /**
@@ -1609,7 +1712,7 @@ export class RdApp {
     return password;
   }
 
-  private onConnectClick(): void {
+  private async onConnectClick(): Promise<void> {
     if (this.worker && this.state !== 'error' && this.state !== 'closed') return;
     const peerId = normalizePeerId(this.el.peerIdInput.value || this.fixedPeerId);
     if (!peerId) {
@@ -1629,6 +1732,36 @@ export class RdApp {
     this.setOverlayError(null);
     this.setLoggedOutFlag(false); // connecting again clears the logout marker
 
+    let osPassword: string | undefined;
+    if (this.osLoginFlow) {
+      this.setOverlayBusy(true);
+      this.setOverlayStatusText('Preparing secure OS auto-login settings…');
+      if (this.osLoginHydratedPeer !== peerId) {
+        this.osLoginHydration = this.hydrateOsLogin(peerId);
+      }
+      await this.osLoginHydration;
+      const typedOsPassword = this.el.osPasswordInput.value;
+      const currentPassword = this.el.osCurrentPasswordInput.value;
+      try {
+        osPassword = await this.osLoginFlow.prepare(
+          peerId,
+          this.el.osLoginCheckbox.checked,
+          typedOsPassword,
+          currentPassword,
+        );
+        this.osLoginHasSavedPassword = this.el.osLoginCheckbox.checked;
+        if (osPassword) this.osLoginHydratedPeer = '';
+        this.el.osPasswordInput.value = '';
+        this.el.osCurrentPasswordInput.value = '';
+      } catch {
+        this.el.osPasswordInput.value = '';
+        this.el.osCurrentPasswordInput.value = '';
+        this.setOverlayBusy(false);
+        this.setOverlayError('Could not prepare OS auto-login. Check both passwords and try again.');
+        return;
+      }
+    }
+
     const typed = this.consumePasswordInput();
     const saved = loadSavedHash(peerId);
     // If the user left the field blank and we have a stored hash, reuse it.
@@ -1640,9 +1773,9 @@ export class RdApp {
     let config: SessionConfig;
     if (!typed && saved) {
       this.connectedWithSavedHash = true;
-      config = buildSessionConfig(this.cfg, peerId, '', saved);
+      config = buildSessionConfig(this.cfg, peerId, '', saved, undefined, osPassword);
     } else {
-      config = buildSessionConfig(this.cfg, peerId, typed);
+      config = buildSessionConfig(this.cfg, peerId, typed, undefined, undefined, osPassword);
     }
     this.startSession(config);
   }
@@ -1743,9 +1876,10 @@ export class RdApp {
 
   private startSession(config: SessionConfig): void {
     this.teardown();
-    // Retain only the challenge-independent password hash for reconnects. The
-    // typed plaintext is transferred to the worker and never kept in UI state.
-    this.reconnectConfig = { ...config, password: '' };
+    // Retain only the challenge-independent password hash for reconnects. Plaintext
+    // connection and OS-login passwords are transferred to the worker and never
+    // kept in UI reconnect state.
+    this.reconnectConfig = { ...config, password: '', osPassword: undefined };
     // A fresh connection may be a different peer/credential — retire the panel
     // and everything else that belonged to the previous session.
     this.filePanel?.destroy();
@@ -1793,8 +1927,8 @@ export class RdApp {
     this.worker = worker;
     worker.onmessage = (e: MessageEvent<UiWorkerEvent>) => this.onEvent(e.data);
     worker.onerror = (e: ErrorEvent) => this.setState('error', e.message || 'session worker failed');
-    const cmd: UiCommand = { c: 'connect', config, canvas: offscreen };
-    worker.postMessage(cmd, [offscreen]);
+    const cmd: Extract<UiCommand, { c: 'connect' }> = { c: 'connect', config, canvas: offscreen };
+    postConnectWithSecretScrub(worker, cmd, [offscreen]);
     this.detach = attachInput(canvas, (c) => this.post(c), () => this.currentRect(), {
       isTouchMode: () => this.inputMode === 'touch',
     });
@@ -2617,6 +2751,9 @@ export class RdApp {
     this.el.connectBtn.disabled = busy;
     this.el.peerIdInput.disabled = busy;
     this.el.passwordInput.disabled = busy;
+    this.el.osLoginCheckbox.disabled = busy || !this.osLoginFlow;
+    this.el.osPasswordInput.disabled = busy;
+    this.el.osCurrentPasswordInput.disabled = busy;
     if (busy) this.setOverlayError(null);
     else if (!this.el.overlayStatusText.textContent) this.el.overlayStatus.hidden = true;
     this.el.overlayStatus.classList.toggle('rd-busy', busy);

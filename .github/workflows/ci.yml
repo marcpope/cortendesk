@@ -1,0 +1,101 @@
+name: CortenDesk CI
+
+on:
+  push:
+    branches:
+      - feat/webclient-os-auto-login-v2
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cortendesk-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sqlite3, pdo_sqlite, mbstring, dom, xml
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+        with:
+          composer-options: --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Test changed PHP files with Pint
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Fork main can lag the PR base. Compare against the actual upstream
+          # integration line on both fork pushes and pull requests.
+          git fetch --no-tags https://github.com/marcpope/cortendesk.git \
+            main:refs/remotes/upstream/main
+          BASE_SHA="$(git merge-base HEAD refs/remotes/upstream/main)"
+          git diff --name-only -z "${BASE_SHA}" "${GITHUB_SHA}" -- '*.php' \
+            | xargs -0 -r vendor/bin/pint --test
+
+      - name: Run PHP tests with disposable SQLite
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: php artisan test
+
+  webclient:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: webclient
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+          cache-dependency-path: webclient/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Rebuild committed assets deterministically
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset_hash() {
+            (
+              cd ..
+              git ls-files -z public/rdclient \
+                | LC_ALL=C sort -z \
+                | xargs -0 shasum -a 256 \
+                | shasum -a 256 \
+                | cut -d ' ' -f 1
+            )
+          }
+
+          npm run build
+          first_hash="$(asset_hash)"
+          npm run build
+          second_hash="$(asset_hash)"
+
+          test "${first_hash}" = "${second_hash}"
+          git -C .. diff --check -- public/rdclient
+          git -C .. diff --exit-code -- public/rdclient
+          if [[ -n "$(git -C .. status --porcelain --untracked-files=all -- public/rdclient)" ]]; then
+            printf '%s\n' 'Generated assets differ from the committed files or added untracked files.' >&2
+            exit 1
+          fi
