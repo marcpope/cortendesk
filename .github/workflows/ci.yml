@@ -1,0 +1,124 @@
+name: CortenDesk CI
+
+on:
+  push:
+    branches:
+      - feat/webclient-os-auto-login-v2
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cortendesk-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      php: ${{ steps.detect.outputs.php }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: detect
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" =~ ^0+$ ]]; then
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+
+          if git diff --name-only "${BASE_SHA}" "${GITHUB_SHA}" -- '*.php' | grep -q .; then
+            echo 'php=true' >> "${GITHUB_OUTPUT}"
+          else
+            echo 'php=false' >> "${GITHUB_OUTPUT}"
+          fi
+
+  php:
+    needs: changes
+    if: needs.changes.outputs.php == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, pdo_sqlite, mbstring, dom, xml
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+        with:
+          composer-options: --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Test changed PHP files with Pint
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" =~ ^0+$ ]]; then
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+          git diff --name-only -z "${BASE_SHA}" "${GITHUB_SHA}" -- '*.php' \
+            | xargs -0 -r vendor/bin/pint --test
+
+      - name: Run PHP tests with disposable SQLite
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: php artisan test
+
+  webclient:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: webclient
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+          cache-dependency-path: webclient/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Rebuild committed assets deterministically
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset_hash() {
+            (
+              cd ..
+              git ls-files -z public/rdclient \
+                | LC_ALL=C sort -z \
+                | xargs -0 shasum -a 256 \
+                | shasum -a 256 \
+                | cut -d ' ' -f 1
+            )
+          }
+
+          npm run build
+          first_hash="$(asset_hash)"
+          npm run build
+          second_hash="$(asset_hash)"
+
+          test "${first_hash}" = "${second_hash}"
+          git -C .. diff --check -- public/rdclient
+          git -C .. diff --exit-code -- public/rdclient
