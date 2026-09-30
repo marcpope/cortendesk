@@ -8,7 +8,7 @@
 
 **It replaces the open-source server, and fixes what that server gets wrong.** The bundled `hbbs`/`hbbr` are [CortenDesk Server](https://github.com/marcpope/cortendesk-server), our AGPL fork of `rustdesk-server`. The headline fix: the open-source `hbbs` never completes the signalling key exchange that RustDesk clients 1.4.1 and newer start whenever they are signed in to a console, so **every connection from a signed-in client fails** with `Failed to secure tcp: deadline has elapsed` — which breaks the address book, the main reason to sign in at all. Upstream treats that as out of scope. We implemented the missing half.
 
-Already running your own `hbbs`/`hbbr`? Set `CORTENDESK_EMBEDDED_SERVER=false` and CortenDesk is the console alone, exactly as before.
+**Note: It is no longer recommended to use the official hbbs/hbbr server from Rust Desk due to bugs not fixed. Use the bundled one instead. **
 
 Built on Laravel + Livewire with precompiled assets: **there is no frontend build step**. Clone, configure, migrate, serve.
 
