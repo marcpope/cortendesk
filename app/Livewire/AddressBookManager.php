@@ -259,10 +259,13 @@ class AddressBookManager extends Component
             'bookNote' => 'nullable|string|max:500',
         ], [], ['bookName' => 'name', 'bookNote' => 'note']);
 
+        $oldName = $book->name;
         $book->update([
             'name' => trim($this->bookName),
             'note' => $this->bookNote !== '' ? $this->bookNote : null,
         ]);
+
+        ConsoleAudit::record('address-book.update', $oldName !== $book->name ? 'Renamed address book '.$oldName.' to '.$book->name : 'Updated address book '.$book->name, 'address-book', $book->name);
 
         $this->closeModal();
     }
@@ -311,18 +314,21 @@ class AddressBookManager extends Component
             'tagColor' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ], [], ['tagName' => 'tag name', 'tagColor' => 'color']);
 
-        Tag::create([
+        $tag = Tag::create([
             'address_book_id' => $book->id,
             'name' => trim($this->tagName),
             'color' => self::hexToColor($this->tagColor),
         ]);
+
+        ConsoleAudit::record('address-book.tag-add', 'Added tag '.$tag->name.' to address book '.$book->name, 'address-book', $book->name);
 
         $this->closeModal();
     }
 
     public function deleteTag(int $id): void
     {
-        if (! $this->authorizeBook(AddressBookRule::PERM_FULL)) {
+        $book = $this->authorizeBook(AddressBookRule::PERM_FULL);
+        if (! $book) {
             return;
         }
 
@@ -337,6 +343,8 @@ class AddressBookManager extends Component
         });
 
         $tag->delete();
+
+        ConsoleAudit::record('address-book.tag-delete', 'Removed tag '.$tag->name.' from address book '.$book->name, 'address-book', $book->name);
     }
 
     /* ---------------------------------------------------------------------
@@ -360,6 +368,8 @@ class AddressBookManager extends Component
                 'alias' => $this->entryAlias !== '' ? trim($this->entryAlias) : null,
                 'tag_ids' => $tagIds,
             ]);
+
+            ConsoleAudit::record('address-book.peer-update', 'Updated peer '.$entry->rustdesk_id.' in address book '.$book->name, 'address-book', $book->name);
         } else {
             $this->validate([
                 'entryRustdeskId' => [
@@ -369,11 +379,13 @@ class AddressBookManager extends Component
                 'entryAlias' => 'nullable|string|max:255',
             ], [], ['entryRustdeskId' => 'RustDesk ID', 'entryAlias' => 'alias']);
 
-            $book->entries()->create([
+            $entry = $book->entries()->create([
                 'rustdesk_id' => trim($this->entryRustdeskId),
                 'alias' => $this->entryAlias !== '' ? trim($this->entryAlias) : null,
                 'tag_ids' => $tagIds,
             ]);
+
+            ConsoleAudit::record('address-book.peer-add', 'Added peer '.$entry->rustdesk_id.' to address book '.$book->name, 'address-book', $book->name);
         }
 
         $this->closeModal();
@@ -381,11 +393,15 @@ class AddressBookManager extends Component
 
     public function deleteEntry(int $id): void
     {
-        if (! $this->authorizeBook(AddressBookRule::PERM_READ_WRITE)) {
+        $book = $this->authorizeBook(AddressBookRule::PERM_READ_WRITE);
+        if (! $book) {
             return;
         }
 
-        AddressBookEntry::where('address_book_id', $this->selectedBookId)->findOrFail($id)->delete();
+        $entry = AddressBookEntry::where('address_book_id', $book->id)->findOrFail($id);
+        $entry->delete();
+
+        ConsoleAudit::record('address-book.peer-delete', 'Removed peer '.$entry->rustdesk_id.' from address book '.$book->name, 'address-book', $book->name);
     }
 
     /* ---------------------------------------------------------------------

@@ -14,6 +14,7 @@ use App\Models\UserGroup;
 use App\Services\AppriseNotifications;
 use App\Services\MailSettings;
 use App\Services\OidcService;
+use App\Services\ServerLink;
 use App\Support\LoginEmailVerification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
@@ -47,6 +48,11 @@ class SettingsPage extends Component
     public int $logRetentionDays = 365;
 
     public bool $requireDeviceApproval = false;
+
+    public bool $serverIpMatch = false;
+
+    /** Who may use the ID server (issue #81): ServerLink::MODE_OPEN or MODE_APPROVED. */
+    public string $serverAccessMode = ServerLink::MODE_OPEN;
 
     public bool $twoFactorRequired = false;
 
@@ -188,14 +194,16 @@ class SettingsPage extends Component
         // leak it to a view-only role.
         $this->authorizeConsole('setting', 'r');
 
-        $this->idServer = Setting::get('id_server', config('cortendesk.id_server')) ?? '';
-        $this->relayServer = Setting::get('relay_server', config('cortendesk.relay_server')) ?? '';
-        $this->publicKey = Setting::get('public_key', config('cortendesk.public_key')) ?? '';
+        $this->idServer = Setting::server('id_server');
+        $this->relayServer = Setting::server('relay_server');
+        $this->publicKey = Setting::server('public_key');
         $this->onlineWindow = (int) (Setting::get('online_window', (string) config('cortendesk.online_window')) ?: 60);
         $this->rdgenUrl = Setting::get('rdgen_url', config('cortendesk.rdgen_url')) ?? '';
         $this->downloadsOnLogin = Setting::get('downloads_on_login', config('cortendesk.downloads_on_login') ? '1' : '0') === '1';
         $this->logRetentionDays = (int) (Setting::get('log_retention_days', (string) config('cortendesk.log_retention_days')) ?: 0);
         $this->requireDeviceApproval = (bool) Setting::get('require_device_approval', '0');
+        $this->serverAccessMode = ServerLink::mode();
+        $this->serverIpMatch = ServerLink::ipMatch();
         $this->twoFactorRequired = Setting::get('two_factor_required', '0') === '1';
         $this->twoFactorRequiredAdmins = Setting::get('two_factor_required_admins', '0') === '1';
 
@@ -281,7 +289,7 @@ class SettingsPage extends Component
             str_starts_with($root, 'apprise') => 'notifications',
             $root === 'logRetentionDays' => 'maintenance',
             in_array($root, ['twoFactorRequired', 'twoFactorRequiredAdmins', 'emailLoginVerification', 'emailTrustedDeviceDays'], true) => 'security',
-            in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'downloadsOnLogin', 'relayServers', 'requireDeviceApproval'], true) => 'server',
+            in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'downloadsOnLogin', 'relayServers', 'requireDeviceApproval', 'serverAccessMode', 'serverIpMatch'], true) => 'server',
             default => null,
         };
     }
@@ -298,6 +306,7 @@ class SettingsPage extends Component
                 'onlineWindow' => 'required|integer|min:20|max:600',
                 'rdgenUrl' => 'nullable|url|max:255',
                 'logRetentionDays' => 'required|integer|min:0|max:3650',
+                'serverAccessMode' => 'required|in:'.ServerLink::MODE_OPEN.','.ServerLink::MODE_APPROVED,
                 'relayServers' => 'array',
                 'relayServers.*.address' => 'nullable|string|max:255',
                 'relayServers.*.geo' => 'nullable|string|max:64',
@@ -374,6 +383,14 @@ class SettingsPage extends Component
         Setting::put('downloads_on_login', $this->downloadsOnLogin ? '1' : '0');
         Setting::put('log_retention_days', (string) $this->logRetentionDays);
         Setting::put('require_device_approval', $this->requireDeviceApproval ? '1' : '0');
+        if ($this->serverAccessMode !== ServerLink::mode()) {
+            Setting::put('server_access_mode', $this->serverAccessMode);
+            ConsoleAudit::record('settings.server-access', 'Server access set to '.$this->serverAccessMode, 'settings', null);
+        }
+        if ($this->serverIpMatch !== ServerLink::ipMatch()) {
+            Setting::put('server_ip_match', $this->serverIpMatch ? '1' : '0');
+            ConsoleAudit::record('settings.server-ip-match', 'Signed-out devices '.($this->serverIpMatch ? 'identified' : 'not identified').' by IP address', 'settings', null);
+        }
         Setting::put('two_factor_required', $this->twoFactorRequired ? '1' : '0');
         Setting::put('two_factor_required_admins', $this->twoFactorRequiredAdmins ? '1' : '0');
 
@@ -620,6 +637,7 @@ class SettingsPage extends Component
 
         return view('livewire.settings-page', [
             'apiUrl' => rtrim(config('app.url'), '/'),
+            'serverLink' => ServerLink::status(),
             'userGroups' => UserGroup::query()->orderBy('name')->get(['id', 'name']),
             'oidcCallbackUrl' => route('login.oidc.callback'),
             'mailEnabled' => app(MailSettings::class)->isEnabled(),

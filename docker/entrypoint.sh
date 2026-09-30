@@ -62,6 +62,21 @@ if [ "$EMBEDDED" = 1 ]; then
     # arrive owned by root, and these processes do not run as root.
     chown -R www-data:www-data "$RD_DIR"
 
+    # The link between hbbs and the console (docs/server-link.md): hbbs pulls
+    # the device policy with this secret and the console signs web client
+    # tickets with it. Generated once into /data, like APP_KEY. hbbs reaches
+    # the console over loopback through nginx.
+    if [ -z "${CORTENDESK_SERVER_SECRET:-}" ]; then
+        if [ ! -s /data/.server_secret ]; then
+            php -r 'echo bin2hex(random_bytes(32));' > /data/.server_secret
+            chmod 600 /data/.server_secret
+            echo "[cortendesk] generated the server link secret (persisted in the /data volume)"
+        fi
+        CORTENDESK_SERVER_SECRET="$(cat /data/.server_secret)"
+    fi
+    export CORTENDESK_SERVER_SECRET
+    export CORTENDESK_CONSOLE_URL="${CORTENDESK_CONSOLE_URL:-http://127.0.0.1:8080}"
+
     # What the console tells clients, and what hbbs tells them about the relay.
     # An explicit setting always wins; these only fill in the blanks.
     export CORTENDESK_ID_SERVER="${CORTENDESK_ID_SERVER:-$HOST:21116}"
@@ -93,6 +108,34 @@ fi
 export CORTENDESK_DOWNLOADS_PATH="${CORTENDESK_DOWNLOADS_PATH:-/data/downloads}"
 mkdir -p "$CORTENDESK_DOWNLOADS_PATH"
 chown www-data:www-data "$CORTENDESK_DOWNLOADS_PATH"
+# nginx sends the files (X-Accel-Redirect); see the internal location in
+# nginx.conf.template.
+export CORTENDESK_DOWNLOADS_ACCEL=/_cortendesk_downloads
+
+# Upload ceiling. One variable sizes every layer an installer upload passes
+# through: the app's own limit, PHP and nginx. CORTENDESK_DOWNLOADS_MAX_KB is
+# the older spelling and still honoured when the MB one is unset.
+_is_uint() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
+if [ -n "${CORTENDESK_DOWNLOADS_MAX_MB:-}" ]; then
+    _max_mb="$CORTENDESK_DOWNLOADS_MAX_MB"
+elif _is_uint "${CORTENDESK_DOWNLOADS_MAX_KB:-}"; then
+    _max_mb=$(( (CORTENDESK_DOWNLOADS_MAX_KB + 1023) / 1024 ))
+else
+    _max_mb=512
+fi
+if ! _is_uint "$_max_mb" || [ "$_max_mb" -lt 1 ]; then
+    echo "[cortendesk] WARNING: CORTENDESK_DOWNLOADS_MAX_MB='$_max_mb' is not a whole number of MB; using 512"
+    _max_mb=512
+fi
+export CORTENDESK_DOWNLOADS_MAX_MB="$_max_mb"
+# Headroom over the app limit: Livewire accepts 1 MB more than it so the
+# operator sees CortenDesk's own message, plus the multipart framing.
+export CORTENDESK_UPLOAD_BODY_MB=$((_max_mb + 16))
+cat > /usr/local/etc/php/conf.d/zz-cortendesk-uploads.ini <<EOF
+; Written by entrypoint.sh from CORTENDESK_DOWNLOADS_MAX_MB. Edits are lost.
+upload_max_filesize = ${CORTENDESK_UPLOAD_BODY_MB}M
+post_max_size = ${CORTENDESK_UPLOAD_BODY_MB}M
+EOF
 
 # --- APP_KEY: use the env if provided, else generate once into /data --------
 if [ -z "${APP_KEY:-}" ]; then
@@ -151,7 +194,7 @@ case "$NGINX_RESOLVER" in
     *:*)   NGINX_RESOLVER="[$NGINX_RESOLVER]" ;; # bare IPv6 — only v6 has colons
 esac
 export NGINX_RESOLVER
-envsubst '${RUSTDESK_WS_HOST} ${NGINX_RESOLVER}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+envsubst '${RUSTDESK_WS_HOST} ${NGINX_RESOLVER} ${CORTENDESK_UPLOAD_BODY_MB} ${CORTENDESK_DOWNLOADS_PATH}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
 php artisan config:cache --no-interaction -q
 php artisan route:cache --no-interaction -q

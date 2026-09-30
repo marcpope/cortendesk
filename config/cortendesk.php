@@ -31,6 +31,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Server link
+    |--------------------------------------------------------------------------
+    | Shared secret between this console and CortenDesk Server (hbbs 1.1.0+).
+    | hbbs uses it to fetch the device policy and report LAN addresses; the
+    | console uses it to sign web client tickets. Empty turns the link off.
+    | The Docker image generates one into /data on first boot.
+    | See docs/server-link.md.
+    */
+    'server_secret' => trim((string) env('CORTENDESK_SERVER_SECRET', '')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Web client
     |--------------------------------------------------------------------------
     | Absolute URL of the static V1 web client (served by nginx, not this
@@ -88,17 +100,27 @@ return [
     | Installers uploaded under System -> Client Downloads and offered on the
     | public /downloads page.
     |
-    | downloads_max_kb must stay BELOW PHP's post_max_size (docker/php.ini,
-    | 32M) and nginx's client_max_body_size (docker/nginx.conf.template, 32m).
-    | Past those the request dies before Laravel sees it and the operator gets a
-    | broken page instead of a validation error, so the three are raised
-    | together or not at all.
+    | downloads_max_kb is the largest installer the console accepts. Set it
+    | with CORTENDESK_DOWNLOADS_MAX_MB (default 512); the older
+    | CORTENDESK_DOWNLOADS_MAX_KB still works when the MB one is unset.
+    |
+    | Every layer an upload passes through must allow it. The Docker image
+    | derives nginx client_max_body_size and PHP upload_max_filesize /
+    | post_max_size from the same variable at boot (docker/entrypoint.sh). A
+    | manual install has to raise those three by hand (README, "Manual
+    | installation"); past them the request dies before Laravel sees it and
+    | the operator gets a broken page instead of a validation error.
     |
     | downloads_on_login controls only the icon row under the sign-in form; the
     | /downloads page itself is always reachable (unpublish the builds to empty
     | it).
     */
-    'downloads_max_kb' => env('CORTENDESK_DOWNLOADS_MAX_KB', 30720),
+    'downloads_max_kb' => is_numeric(env('CORTENDESK_DOWNLOADS_MAX_MB'))
+        ? (int) env('CORTENDESK_DOWNLOADS_MAX_MB') * 1024
+        : (int) env('CORTENDESK_DOWNLOADS_MAX_KB', 512 * 1024),
+    // Internal nginx location that serves CORTENDESK_DOWNLOADS_PATH (the Docker
+    // image sets it). Empty: files stream through PHP.
+    'downloads_accel' => env('CORTENDESK_DOWNLOADS_ACCEL', ''),
     'downloads_on_login' => filter_var(env('CORTENDESK_DOWNLOADS_ON_LOGIN', true), FILTER_VALIDATE_BOOL),
 
     /*

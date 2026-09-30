@@ -6,6 +6,7 @@ use App\Models\ConsoleAudit;
 use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\User;
+use App\Services\DeviceAddressBooks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -82,15 +83,31 @@ class DevicesController extends AdminApiController
         return $this->ok(null, 'Device disabled.');
     }
 
-    /** DELETE /api/v1/devices/{device}. */
-    public function destroy(Device $device): JsonResponse
+    /**
+     * DELETE /api/v1/devices/{device}. Permanent. With
+     * remove_from_address_books=true (needs address_book:rw on the token too)
+     * the device's entries leave every address book as well (issue #85).
+     * Off by default so existing callers see no change.
+     */
+    public function destroy(Request $request, Device $device): JsonResponse
     {
+        $fromBooks = $request->boolean('remove_from_address_books');
+        if ($fromBooks && ! $this->token($request)->allows('address_book', 'rw')) {
+            return $this->fail("Token lacks 'rw' permission on 'address_book'.", 403, 403);
+        }
+
         $id = $device->rustdesk_id;
         $device->forceDelete();
 
         ConsoleAudit::record('device.destroy', 'Destroyed device '.$id.' (API)', 'device', $id);
 
-        return $this->ok(null, 'Device deleted.');
+        if (! $fromBooks) {
+            return $this->ok(null, 'Device deleted.');
+        }
+
+        $result = DeviceAddressBooks::remove([$id], null, ' (API)');
+
+        return $this->ok(['address_book_entries_removed' => $result['removed']], 'Device deleted.');
     }
 
     /**

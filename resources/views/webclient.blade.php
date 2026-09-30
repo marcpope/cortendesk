@@ -35,6 +35,7 @@
             wsRelayUrl: @json($wsRelayUrl),
             myId: @json($myId),
             myName: @json($myName),
+            signalToken: @json($signalToken ?? ''),
             version: @json(config('cortendesk.api_version')),
             workerUrl: '/rdclient/session.worker.js?v={{ $rdVer }}'
         };

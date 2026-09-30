@@ -167,6 +167,10 @@ return [
     | to the server if the browser has a HTTPS connection. This will keep
     | the cookie from being sent to you when it can't be done securely.
     |
+    | CortenDesk: left unset, the flag follows each request's scheme
+    | (SessionCookieFollowsScheme), so HTTPS gets Secure cookies and plain
+    | HTTP on the LAN still signs in (#78).
+    |
     */
 
     'secure' => env('SESSION_SECURE_COOKIE'),

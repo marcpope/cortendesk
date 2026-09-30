@@ -166,8 +166,15 @@
                         <button type="button" class="btn btn-sm btn-light" wire:click="openGroupPicker">
                             <i class="ri-folder-transfer-line me-1"></i>Move to Group…
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" wire:click="bulkDelete"
-                                wire:confirm="Move {{ count($selected) }} selected device(s) to the recycle bin?">
+                        <button type="button" class="btn btn-sm btn-light" wire:click="setIncomingOnly(true)"
+                                title="The ID server refuses sessions these devices start">
+                            <i class="ri-login-box-line me-1"></i>Incoming only
+                        </button>
+                        <button type="button" class="btn btn-sm btn-light" wire:click="setIncomingOnly(false)"
+                                title="Let these devices start sessions again">
+                            <i class="ri-arrow-left-right-line me-1"></i>Allow outgoing
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" wire:click="confirmDeleteSelected">
                             <i class="ri-delete-bin-line me-1"></i>Delete
                         </button>
                     @endif
@@ -205,6 +212,7 @@
                     @if ($cols['os'])<x-sortable-th field="os" :sort="$sortField" :dir="$sortDirection">OS</x-sortable-th>@endif
                     @if ($cols['username'])<th>User</th>@endif
                     @if ($cols['ip'])<th>IP</th>@endif
+                    @if ($cols['lan_ip'])<th title="Last seen during a connection">LAN IP</th>@endif
                     @if ($cols['cpu'])<th>CPU</th>@endif
                     @if ($cols['memory'])<th>Memory</th>@endif
                     @if ($cols['uuid'])<th>UUID</th>@endif
@@ -255,7 +263,15 @@
                                 @endif
                             </td>
                         @endif
-                        @if ($cols['alias'])<td>{{ $device->alias ?: '—' }}</td>@endif
+                        @if ($cols['alias'])
+                            <td>
+                                @if ($device->alias && ! $trashed)
+                                    <a href="{{ route('devices.show', $device->id) }}" class="rd-cell-link">{{ $device->alias }}</a>
+                                @else
+                                    {{ $device->alias ?: '—' }}
+                                @endif
+                            </td>
+                        @endif
                         @if ($cols['group'])<td>{{ $device->group?->name ?: '—' }}</td>@endif
                         @if ($cols['owner'])
                             <td>
@@ -272,6 +288,10 @@
                         @if ($cols['os'])<td class="rd-nowrap" title="{{ $device->os }}">{{ $device->os ? \Illuminate\Support\Str::limit($device->osDescription(), 34) : '—' }}</td>@endif
                         @if ($cols['username'])<td>{{ $device->username ?: '—' }}</td>@endif
                         @if ($cols['ip'])<td class="rd-mono fs-13 rd-nowrap">{{ $device->last_online_ip ?: '—' }}</td>@endif
+                        @if ($cols['lan_ip'])
+                            <td class="rd-mono fs-13 rd-nowrap"
+                                title="{{ $device->lan_ip ? 'Seen during a connection '.$device->lan_ip_seen_at?->diffForHumans() : 'Not seen yet. Learned when a session is set up on the same network.' }}">{{ $device->lan_ip ?: '—' }}</td>
+                        @endif
                         @if ($cols['cpu'])
                             <td><span class="fs-13" title="{{ $device->cpu }}">{{ $device->cpu ? \Illuminate\Support\Str::limit($device->cpu, 24) : '—' }}</span></td>
                         @endif
@@ -297,6 +317,9 @@
                             @else
                                 <span class="badge bg-secondary-subtle text-secondary"><i class="rd-dot"></i>Offline</span>
                             @endif
+                            @if ($device->isIncomingOnly())
+                                <span class="badge bg-info-subtle text-info ms-1" title="Can be controlled, cannot start sessions">Incoming only</span>
+                            @endif
                         </td>
                         <td class="text-end rd-rowact">
                             @if ($trashed)
@@ -321,12 +344,11 @@
                                        target="cortendesk-webclient" rel="noopener" class="rd-act me-2"
                                        title="Connect in the browser">Web Client</a>
                                 @endif
+                                <a href="{{ route('devices.show', $device->id) }}" class="rd-act me-2" title="View details"><i class="ri-eye-line"></i></a>
                                 @if (auth()->user()?->consoleAllows('device', 'rw'))
-                                    <a href="{{ route('devices.show', $device->id) }}" class="rd-act me-2" title="View details"><i class="ri-eye-line"></i></a>
                                     <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $device->id }})">Edit</a>
                                     <a href="javascript:void(0);" class="text-danger"
-                                       wire:click="deleteDevice({{ $device->id }})"
-                                       wire:confirm="Move device {{ $device->rustdesk_id }} to the recycle bin?">Delete</a>
+                                       wire:click="confirmDelete({{ $device->id }})">Delete</a>
                                 @endif
                             @endif
                         </td>
@@ -370,7 +392,11 @@
                                     <a href="rustdesk://{{ $device->rustdesk_id }}" class="rd-mini-title text-truncate"
                                        title="Connect with RustDesk">{{ $device->rustdesk_id }}</a>
                                 @endif
-                                <span class="rd-mini-sub text-truncate">{{ $device->alias ?: $device->hostname }}</span>
+                                @if ($trashed)
+                                    <span class="rd-mini-sub text-truncate">{{ $device->alias ?: $device->hostname }}</span>
+                                @else
+                                    <a href="{{ route('devices.show', $device->id) }}" class="rd-mini-sub text-truncate">{{ $device->alias ?: $device->hostname ?: 'Details' }}</a>
+                                @endif
                             </div>
                         </div>
                         @unless ($trashed)
@@ -385,6 +411,9 @@
                             <span class="badge bg-secondary-subtle text-secondary flex-shrink-0">Offline</span>
                         @endif
                     </div>
+                    @if ($device->isIncomingOnly())
+                        <div class="mb-1"><span class="badge bg-info-subtle text-info" title="Can be controlled, cannot start sessions">Incoming only</span></div>
+                    @endif
                     <div class="rd-mini-foot">
                         <span class="rd-mini-sub min-width-0">
                             {{ $device->username }} · v{{ $device->version ?: '?' }} ·
@@ -409,12 +438,11 @@
                                        target="cortendesk-webclient" rel="noopener" class="rd-iconbtn"
                                        title="Connect in the browser"><i class="ri-global-line"></i></a>
                                 @endif
+                                <a href="{{ route('devices.show', $device->id) }}" class="rd-iconbtn" title="View details"><i class="ri-eye-line"></i></a>
                                 @if (auth()->user()?->consoleAllows('device', 'rw'))
-                                    <a href="{{ route('devices.show', $device->id) }}" class="rd-iconbtn" title="View details"><i class="ri-eye-line"></i></a>
                                     <a href="javascript:void(0);" class="rd-iconbtn" title="Edit" wire:click="edit({{ $device->id }})"><i class="ri-pencil-line"></i></a>
                                     <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="Delete"
-                                       wire:click="deleteDevice({{ $device->id }})"
-                                       wire:confirm="Move device {{ $device->rustdesk_id }} to the recycle bin?"><i class="ri-delete-bin-line"></i></a>
+                                       wire:click="confirmDelete({{ $device->id }})"><i class="ri-delete-bin-line"></i></a>
                                 @endif
                             @endif
                         </div>
@@ -482,131 +510,9 @@
         </div>
     @endif
 
-    {{-- Add / Edit modal --}}
-    @if ($editingId !== null)
-        {{-- Scrollable: with the strategy inspector open this form is taller than a
-             390px screen, and an unbounded body puts "Save Changes" out of reach. --}}
-        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.6);" wire:keydown.escape="closeModal">
-            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-                <div class="modal-content">
-                    <form wire:submit="save">
-                        <div class="modal-header">
-                            <h5 class="modal-title">{{ $editingId === 0 ? 'Add Device' : 'Edit Device' }}</h5>
-                            <button type="button" class="btn-close" wire:click="closeModal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">RustDesk ID</label>
-                                <input type="text" class="form-control @error('formRustdeskId') is-invalid @enderror"
-                                       wire:model="formRustdeskId" @disabled($editingId !== 0)>
-                                @error('formRustdeskId') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                @if ($editingId === 0)
-                                    <div class="form-text">Pre-register a device by its RustDesk ID; details fill in when it first reports.</div>
-                                @endif
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Alias</label>
-                                <input type="text" class="form-control" wire:model="formAlias" placeholder="Friendly name">
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Group</label>
-                                    <select class="form-select" wire:model="formGroupId">
-                                        <option value="0">No group</option>
-                                        @foreach ($groups as $g)
-                                            <option value="{{ $g->id }}">{{ $g->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Owner</label>
-                                    <select class="form-select" wire:model="formUserId">
-                                        <option value="0">Unassigned</option>
-                                        @foreach ($users as $u)
-                                            <option value="{{ $u->id }}">{{ $u->username }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="mb-1">
-                                <label class="form-label">Note</label>
-                                <textarea class="form-control" rows="2" wire:model="formNote" maxlength="500"></textarea>
-                            </div>
+    @include('livewire.partials.device-edit-modal')
 
-                            {{-- Effective strategy inspector (PLAN C4) --}}
-                            @if ($editingId !== 0 && auth()->user()?->is_admin && $strategyExplain)
-                                <hr class="my-3">
-                                <label class="form-label" for="dl-strategy">Strategy</label>
-                                <select id="dl-strategy" class="form-select" wire:model="formStrategyId">
-                                    <option value="0">Inherit (owner, group, or default)</option>
-                                    @foreach ($strategies as $s)
-                                        <option value="{{ $s->id }}">
-                                            {{ $s->name }}@unless ($s->enabled) (disabled)@endunless
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <div class="form-text">A strategy set here wins over the owner's, the group's and the default.</div>
-
-                                <div class="mt-2 rd-inset">
-                                    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                                        <span class="fs-13 text-muted">In force now</span>
-                                        @if ($strategyExplain['resolved'])
-                                            <span class="badge bg-success-subtle text-success">{{ $strategyExplain['resolved']->name }}</span>
-                                        @else
-                                            <span class="badge bg-secondary-subtle text-secondary">None</span>
-                                        @endif
-                                    </div>
-                                    <ul class="list-unstyled mb-0 mt-2 fs-13">
-                                        @foreach ($strategyExplain['steps'] as $step)
-                                            <li class="d-flex justify-content-between align-items-start gap-2 py-1 border-top">
-                                                <span class="text-muted">
-                                                    {{ $step['label'] }}@if ($step['target'])<span class="text-body"> · {{ $step['target'] }}</span>@endif
-                                                </span>
-                                                <span class="text-end">
-                                                    @switch ($step['state'])
-                                                        @case ('applied')
-                                                            <span class="fw-semibold">{{ $step['strategy']->name }}</span>
-                                                            <span class="badge bg-success-subtle text-success ms-1">Wins</span>
-                                                            @break
-                                                        @case ('overridden')
-                                                            <span>{{ $step['strategy']->name }}</span>
-                                                            <span class="badge bg-secondary-subtle text-secondary ms-1">Overridden</span>
-                                                            @break
-                                                        @case ('disabled')
-                                                            <span>{{ $step['strategy']->name }}</span>
-                                                            <span class="badge bg-warning-subtle text-warning ms-1">Disabled — skipped</span>
-                                                            @break
-                                                        @case ('unset')
-                                                            <span class="text-muted">Not set</span>
-                                                            @break
-                                                        @default
-                                                            <span class="text-muted">No strategy</span>
-                                                    @endswitch
-                                                </span>
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                    @if ($strategyExplain['acked_at'])
-                                        <div class="fs-13 text-muted mt-2">
-                                            Device last confirmed a policy {{ $strategyExplain['acked_at']->diffForHumans() }}.
-                                        </div>
-                                    @elseif ($strategyExplain['resolved'])
-                                        <div class="fs-13 text-muted mt-2">
-                                            Not confirmed by the device yet — it applies on its next heartbeat.
-                                        </div>
-                                    @endif
-                                </div>
-                            @endif
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">{{ $editingId === 0 ? 'Add Device' : 'Save Changes' }}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    @endif
+    @include('livewire.partials.device-delete-modal')
 
     {{-- "Move to Group" picker (issue #47) --}}
     @if ($groupPickerOpen)

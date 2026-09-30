@@ -39,6 +39,10 @@ services:
       # CORTENDESK_RELAY_SERVER: hbbs.example.com:21117
       # CORTENDESK_PUBLIC_KEY: ""
       #
+      # Largest installer System -> Client Downloads accepts, in MB. nginx and
+      # PHP inside the container are sized from it at boot.
+      # CORTENDESK_DOWNLOADS_MAX_MB: "512"
+      #
       # Web client wss endpoints as seen by BROWSERS. Derived from APP_URL when
       # empty; set them if your TLS proxy serves them somewhere else.
       CORTENDESK_WS_ID_URL: ""

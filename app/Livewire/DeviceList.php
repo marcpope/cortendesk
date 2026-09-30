@@ -3,13 +3,15 @@
 namespace App\Livewire;
 
 use App\Livewire\Concerns\AuthorizesConsole;
+use App\Livewire\Concerns\DeletesDevices;
+use App\Livewire\Concerns\EditsDevices;
 use App\Models\AddressBook;
-use App\Models\AddressBookRule;
 use App\Models\ConsoleAudit;
 use App\Models\Device;
 use App\Models\DeviceGroup;
-use App\Models\Strategy;
 use App\Models\User;
+use App\Services\DeviceAddressBooks;
+use App\Support\Csv;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -17,7 +19,7 @@ use Livewire\WithPagination;
 
 class DeviceList extends Component
 {
-    use AuthorizesConsole, WithPagination;
+    use AuthorizesConsole, DeletesDevices, EditsDevices, WithPagination;
 
     protected string $paginationTheme = 'bootstrap';
 
@@ -35,6 +37,7 @@ class DeviceList extends Component
         'os' => 'OS',
         'username' => 'User',
         'ip' => 'IP',
+        'lan_ip' => 'LAN IP',
         'cpu' => 'CPU',
         'memory' => 'Memory',
         'uuid' => 'UUID',
@@ -123,22 +126,6 @@ class DeviceList extends Component
 
     public int $perPage = 20;
 
-    /** Device id being edited, 0 = creating, null = modal closed. */
-    public ?int $editingId = null;
-
-    public string $formRustdeskId = '';
-
-    public string $formAlias = '';
-
-    public string $formNote = '';
-
-    public int $formGroupId = 0;
-
-    public int $formUserId = 0;
-
-    /** Device-level strategy assignment (PLAN C4). 0 = none — inherit. */
-    public int $formStrategyId = 0;
-
     /**
      * Devices needs "View" to open (PLAN D4). Which devices are then listed is
      * still decided entirely by Device::scopeVisibleTo — a role never widens
@@ -147,6 +134,9 @@ class DeviceList extends Component
     public function mount(): void
     {
         $this->authorizeConsole('device', 'r');
+
+        // Outcome of a delete made on the device detail page, which lands here.
+        $this->bulkResult = (string) session('devices.result', '');
 
         $saved = auth()->user()?->devices_columns;
         $this->columns = is_array($saved)
@@ -334,19 +324,70 @@ class DeviceList extends Component
             ->get();
     }
 
+    /** Bulk "Delete": opens the confirm step (issue #85). */
+    public function confirmDeleteSelected(): void
+    {
+        if ($this->selected !== []) {
+            $this->openDeleteConfirm($this->selected);
+        }
+    }
+
+    /** Row "Delete": opens the confirm step (issue #85). */
+    public function confirmDelete(int $id): void
+    {
+        $this->authorizeConsole('device', 'rw');
+        $this->scopedDevice($id); // 404 outside the actor's fleet
+        $this->openDeleteConfirm([$id]);
+    }
+
+    /** The confirm step's Delete button. */
+    public function performDelete(): void
+    {
+        $message = $this->deleteConfirmed();
+        $this->clearSelection();
+        $this->bulkResult = $message;
+    }
+
+    /** Delete the selection without the confirm step; address books untouched. */
     public function bulkDelete(): void
+    {
+        $this->deleteIds = $this->selected;
+        $this->performDelete();
+    }
+
+    /** Delete one device without the confirm step; address books untouched. */
+    public function deleteDevice(int $id): void
+    {
+        $this->authorizeConsole('device', 'rw');
+        $this->scopedDevice($id); // 404 outside the actor's fleet
+        $this->deleteIds = [$id];
+        $this->performDelete();
+    }
+
+    /**
+     * Mark the selected devices incoming only, or let them start sessions
+     * again (issue #82). The ID server picks it up on its next policy fetch.
+     */
+    public function setIncomingOnly(bool $incomingOnly): void
     {
         $this->authorizeConsole('device', 'rw');
 
-        $devices = $this->selectedDevices();
-        foreach ($devices as $device) {
-            $device->delete();
-            ConsoleAudit::record('device.delete', 'Deleted device '.$device->rustdesk_id, 'device', $device->rustdesk_id);
+        $changed = 0;
+        foreach ($this->selectedDevices() as $device) {
+            if ($device->isIncomingOnly() === $incomingOnly) {
+                continue;
+            }
+            $device->update(['can_initiate' => ! $incomingOnly]);
+            $changed++;
         }
 
-        $count = $devices->count();
+        $label = $incomingOnly ? 'incoming only' : 'allowed to start sessions';
+        if ($changed > 0) {
+            ConsoleAudit::record('device.initiate', 'Set '.$changed.' '.Str::plural('device', $changed).' '.$label, 'device', '');
+        }
+
         $this->clearSelection();
-        $this->bulkResult = $count.' '.Str::plural('device', $count).' moved to the recycle bin.';
+        $this->bulkResult = $changed.' '.Str::plural('device', $changed).' set '.$label.'.';
     }
 
     /** Selected devices constrained to the current rendered page. */
@@ -482,17 +523,7 @@ class DeviceList extends Component
                 continue;
             }
 
-            $book->entries()->create([
-                'rustdesk_id' => $device->rustdesk_id,
-                'alias' => $device->alias ?: null,
-                'hostname' => $device->hostname ?: null,
-                // RustDesk-style name ("Windows", "Mac OS") — what clients
-                // sync into books and match icons against. NOT platform(),
-                // whose lowercase slugs are console-internal.
-                'platform' => $device->rustdeskPlatform(),
-                'username' => $device->username ?: null,
-                'tag_ids' => [],
-            ]);
+            $book->entries()->create(DeviceAddressBooks::entryAttributes($device));
             $existing[] = $device->rustdesk_id;
             $added++;
         }
@@ -510,41 +541,18 @@ class DeviceList extends Component
             .($skipped > 0 ? ' '.$skipped.' already there.' : '');
     }
 
-    /**
-     * Books the current user may add entries to: their personal book plus any
-     * shared book where their tier is read-write or better. permissionFor is
-     * the same source of truth the client AB API enforces — the device screen
-     * gets no wider a reach than the address-book screen would give.
-     */
+    /** Books the current user may add entries to (same rule as the address-book screen). */
     private function writableBooks()
     {
-        $user = auth()->user();
-
-        if (! $this->consoleAllows('address_book', 'rw')) {
-            return collect();
-        }
-
-        return AddressBook::query()
-            ->with('rules')
-            ->orderByDesc('is_personal')
-            ->orderBy('name')
-            ->get()
-            ->filter(fn (AddressBook $b) => $b->permissionFor($user) >= AddressBookRule::PERM_READ_WRITE)
-            ->values();
+        return DeviceAddressBooks::writableBooks(auth()->user());
     }
 
     public function create(): void
     {
         $this->authorizeConsole('device', 'rw');
 
-        $this->reset('formRustdeskId', 'formAlias', 'formNote', 'formGroupId', 'formUserId', 'formStrategyId');
+        $this->reset('formRustdeskId', 'formAlias', 'formNote', 'formGroupId', 'formUserId', 'formStrategyId', 'formCanInitiate');
         $this->editingId = 0;
-    }
-
-    /** Load a device the current user is allowed to see, or fail. */
-    private function scopedDevice(int $id): Device
-    {
-        return Device::withTrashed()->visibleTo(auth()->user())->findOrFail($id);
     }
 
     /**
@@ -576,112 +584,6 @@ class DeviceList extends Component
         $rustdeskId = $device->rustdesk_id;
         $device->delete(); // reject = soft-delete (quarantined + removed)
         ConsoleAudit::record('device.reject', 'Rejected device '.$rustdeskId, 'device', $rustdeskId);
-    }
-
-    public function edit(int $id): void
-    {
-        $this->authorizeConsole('device', 'rw');
-
-        $device = $this->scopedDevice($id);
-        $this->editingId = $device->id;
-        $this->formRustdeskId = $device->rustdesk_id;
-        $this->formAlias = (string) $device->alias;
-        $this->formNote = (string) $device->note;
-        $this->formGroupId = (int) $device->device_group_id;
-        $this->formUserId = (int) $device->user_id;
-        // Only admins may see or set strategies; for everyone else the field
-        // stays 0 and save() ignores it, so it cannot be posted from a form
-        // that never rendered it.
-        $this->formStrategyId = auth()->user()?->is_admin
-            ? (int) $device->assignedStrategyId()
-            : 0;
-    }
-
-    public function save(): void
-    {
-        $this->authorizeConsole('device', 'rw');
-
-        $data = $this->validate([
-            'formRustdeskId' => 'required|string|max:100',
-            'formAlias' => 'nullable|string|max:255',
-            'formNote' => 'nullable|string|max:500',
-            'formGroupId' => 'integer',
-            'formUserId' => 'integer',
-            'formStrategyId' => 'integer',
-        ]);
-
-        $attributes = [
-            'alias' => $data['formAlias'] ?: null,
-            'note' => $data['formNote'] ?: null,
-            'device_group_id' => $data['formGroupId'] ?: null,
-            'user_id' => $data['formUserId'] ?: null,
-        ];
-
-        if ($this->editingId === 0) {
-            $this->validate(['formRustdeskId' => 'unique:devices,rustdesk_id']);
-            Device::create($attributes + [
-                'rustdesk_id' => $data['formRustdeskId'],
-                'uuid' => '',
-            ]);
-            ConsoleAudit::record('device.create', 'Created device '.$data['formRustdeskId'], 'device', $data['formRustdeskId']);
-        } else {
-            $device = $this->scopedDevice($this->editingId);
-            $device->update($attributes);
-            ConsoleAudit::record('device.update', 'Updated device '.$device->rustdesk_id, 'device', $device->rustdesk_id);
-
-            $this->saveStrategyAssignment($device, (int) $data['formStrategyId']);
-        }
-
-        $this->editingId = null;
-    }
-
-    /**
-     * Device-level strategy assignment from the editor (PLAN C4). Admin-only,
-     * and a no-op unless it actually changes: assignTo() recomputes the cached
-     * resolution and an unconditional call would audit "changed" for every save.
-     */
-    private function saveStrategyAssignment(Device $device, int $strategyId): void
-    {
-        if (! auth()->user()?->is_admin) {
-            return;
-        }
-
-        $current = (int) $device->assignedStrategyId();
-        if ($current === $strategyId) {
-            return;
-        }
-
-        if ($strategyId !== 0 && ! Strategy::whereKey($strategyId)->exists()) {
-            return; // stale option in a form left open while the strategy was deleted
-        }
-
-        Strategy::assignTo(Strategy::LEVEL_DEVICE, $device->id, $strategyId ?: null);
-
-        $name = $strategyId === 0
-            ? 'none (inherits)'
-            : (string) Strategy::whereKey($strategyId)->value('name');
-
-        ConsoleAudit::record(
-            'strategy.assign',
-            'Device '.$device->rustdesk_id.' strategy set to '.$name,
-            'device',
-            $device->rustdesk_id,
-        );
-    }
-
-    public function closeModal(): void
-    {
-        $this->editingId = null;
-    }
-
-    public function deleteDevice(int $id): void
-    {
-        $this->authorizeConsole('device', 'rw');
-
-        $device = $this->scopedDevice($id);
-        $rustdeskId = $device->rustdesk_id;
-        $device->delete(); // soft delete → recycle bin
-        ConsoleAudit::record('device.delete', 'Deleted device '.$rustdeskId, 'device', $rustdeskId);
     }
 
     public function restoreDevice(int $id): void
@@ -725,7 +627,7 @@ class DeviceList extends Component
 
         $groups = $this->accessibleDeviceGroups();
 
-        return view('livewire.device-list', [
+        return view('livewire.device-list', $this->editorViewData() + [
             'devices' => $devices,
             'cols' => $cols,
             // Select + ID + Status + Action + the visible optional columns.
@@ -733,23 +635,12 @@ class DeviceList extends Component
             'books' => $this->abPickerOpen ? $this->writableBooks() : collect(),
             'groups' => $groups,
             'users' => User::orderBy('username')->get(['id', 'username']),
-            'strategies' => $this->editorStrategies(),
-            'strategyExplain' => $this->editorStrategyExplain(),
+            'deleteState' => $this->deleteConfirmState(),
             'totalCount' => Device::visibleTo($user)->count(),
             'onlineCount' => Device::visibleTo($user)->online()->count(),
             'trashedCount' => Device::visibleTo($user)->onlyTrashed()->count(),
             'pendingCount' => $pendingCount,
         ]);
-    }
-
-    /** Device groups this actor may see and therefore may choose as move targets. */
-    private function accessibleDeviceGroups()
-    {
-        $user = auth()->user();
-
-        return DeviceGroup::orderBy('name')
-            ->when(! $user->seesAllDevices(), fn ($q) => $q->whereIn('id', $user->accessibleDeviceGroupIds() ?: [0]))
-            ->get();
     }
 
     /**
@@ -849,14 +740,15 @@ class DeviceList extends Component
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, [
+            fputcsv($out, Csv::row([
                 'row_id', 'id', 'cpu', 'hostname', 'memory', 'os', 'username', 'uuid',
                 'version', 'last_online_time', 'last_online_ip', 'group_id', 'alias',
                 'created_at', 'updated_at',
                 'group_name', 'owner', 'status', 'note', 'registered_ip',
-            ]);
+                'incoming_only', 'lan_ip', 'lan_ip_seen_at',
+            ]));
             foreach ($rows as $d) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $d->id,
                     $d->rustdesk_id,
                     $d->cpu,
@@ -877,36 +769,13 @@ class DeviceList extends Component
                     $d->trashed() ? 'disabled' : ($d->isPending() ? 'pending' : 'active'),
                     $d->note,
                     $d->registered_ip,
-                ]);
+                    $d->isIncomingOnly() ? 1 : 0,
+                    $d->lan_ip,
+                    $d->lan_ip_seen_at?->toDateTimeString(),
+                ]));
             }
             fclose($out);
         }, 'devices.csv');
-    }
-
-    /**
-     * Strategies offered by the editor's assignment select. Empty unless an
-     * admin has the editor open on an existing device, so the device list keeps
-     * costing exactly what it cost before strategies existed.
-     */
-    private function editorStrategies()
-    {
-        if (! auth()->user()?->is_admin || ! $this->editingId) {
-            return collect();
-        }
-
-        return Strategy::orderBy('name')->get(['id', 'name', 'enabled', 'is_default']);
-    }
-
-    /** "Effective strategy" inspector data for the editor (PLAN C4). */
-    private function editorStrategyExplain(): ?array
-    {
-        if (! auth()->user()?->is_admin || ! $this->editingId) {
-            return null;
-        }
-
-        $device = Device::withTrashed()->visibleTo(auth()->user())->find($this->editingId);
-
-        return $device === null ? null : Strategy::explainFor($device);
     }
 
     /** Render the "Pending" approval queue (gate-quarantined devices). */

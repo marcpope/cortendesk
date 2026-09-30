@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RequireEmailAddress;
 use App\Http\Middleware\RequireMailHealthy;
 use App\Http\Middleware\RequireTwoFactor;
+use App\Http\Middleware\SessionCookieFollowsScheme;
 use App\Http\Middleware\ThrottleHealthProbe;
 use App\Http\Middleware\TrustConfiguredProxies;
 use App\Models\TrustedDevice;
@@ -17,6 +18,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -41,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'console-can' => ConsoleCan::class,
             'health-probe' => ThrottleHealthProbe::class,
         ]);
+        $middleware->prependToGroup('web', SessionCookieFollowsScheme::class);
         $middleware->appendToGroup('web', EnsureUserIsActive::class);
         // 2FA enrollment enforcement runs after the active-user check.
         $middleware->appendToGroup('web', RequireTwoFactor::class);
@@ -73,4 +76,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        // HTTPS-only cookies over plain HTTP: the browser drops the session
+        // cookie, so every form POST fails CSRF with a bare 419. Send the user
+        // back to the login page, which says why (#78).
+        $exceptions->render(function (HttpException $e, Request $request) {
+            if ($e->getStatusCode() === 419 && SessionCookieFollowsScheme::blocksSignIn($request) && ! $request->expectsJson()) {
+                return redirect()->route('login');
+            }
+        });
     })->create();

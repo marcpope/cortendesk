@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\SessionCookieFollowsScheme;
 use App\Mail\LoginVerificationCode;
 use App\Models\AlarmLog;
 use App\Models\LoginLog;
@@ -58,9 +59,11 @@ class AuthController extends Controller
 
     public function __construct(private readonly OidcService $oidc) {}
 
-    public function showLogin(): View
+    public function showLogin(Request $request): View
     {
-        return view('auth.login');
+        return view('auth.login', [
+            'httpsOnly' => SessionCookieFollowsScheme::blocksSignIn($request),
+        ]);
     }
 
     public function login(Request $request): RedirectResponse

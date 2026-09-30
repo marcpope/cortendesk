@@ -12,6 +12,8 @@ export function buildPunchHoleRequest(o: {
   licenceKey: string;
   version: string;
   connType?: ConnType;
+  /** Console-signed ticket; lets the ID server admit this client in approved-only mode. */
+  token?: string;
 }): Uint8Array {
   return RendezvousMessage.encode({
     union: {
@@ -23,6 +25,7 @@ export function buildPunchHoleRequest(o: {
         nat_type: NatType.SYMMETRIC,
         force_relay: true,
         version: o.version,
+        token: o.token ?? '',
       }),
     },
   }).finish();
@@ -32,7 +35,7 @@ export type RendezvousFailure = 'ID_NOT_EXIST' | 'OFFLINE' | 'LICENSE_MISMATCH' 
 
 export type RendezvousParsed =
   | { kind: 'relayResponse'; uuid: string; relayServer: string; pk?: Uint8Array }
-  | { kind: 'punchHoleResponse'; failure?: RendezvousFailure }
+  | { kind: 'punchHoleResponse'; failure?: RendezvousFailure; message?: string }
   | { kind: 'onlineResponse'; states: Uint8Array }
   | { kind: 'other'; $case: string };
 
@@ -68,7 +71,7 @@ export function parseRendezvous(bytes: Uint8Array): RendezvousParsed {
       // failure enum defaults to ID_NOT_EXIST(0); a non-empty socket_addr is the
       // success signal (matches the official client's is_empty() check).
       if (pr.socket_addr.length > 0) return { kind: 'punchHoleResponse' };
-      if (pr.other_failure !== '') return { kind: 'punchHoleResponse', failure: 'OTHER' };
+      if (pr.other_failure !== '') return { kind: 'punchHoleResponse', failure: 'OTHER', message: pr.other_failure };
       return { kind: 'punchHoleResponse', failure: mapFailure(pr.failure) };
     }
     case 'online_response':

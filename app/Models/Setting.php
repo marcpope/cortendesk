@@ -32,6 +32,24 @@ class Setting extends Model
     }
 
     /**
+     * A server value (id_server, relay_server, public_key): the saved setting,
+     * else the env-backed config. Every reader resolves it this way, the
+     * Settings page included. The web client read config alone, so a key
+     * pasted on Settings never reached it and, with CORTENDESK_PUBLIC_KEY
+     * unset, every session died with LICENSE_MISMATCH (#75).
+     *
+     * A blank saved value counts as unset. Saving Settings stores every field,
+     * so an install saved with empty server fields before the image supplied
+     * them would otherwise hand the web client an empty key.
+     */
+    public static function server(string $name): string
+    {
+        $saved = trim((string) static::get($name));
+
+        return $saved !== '' ? $saved : trim((string) config('cortendesk.'.$name));
+    }
+
+    /**
      * The configured relay pool as an ordered list of ['address' => …, 'geo' => …].
      *
      * Relay membership/selection is owned by the rendezvous server (hbbs), not the

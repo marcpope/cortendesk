@@ -6,7 +6,7 @@
             <div class="rd-toolbar-search">
                 <div class="input-group">
                     <span class="input-group-text"><i class="ri-search-line"></i></span>
-                    <input type="search" class="form-control" placeholder="Search device ID, from, IP…"
+                    <input type="search" class="form-control" placeholder="Search device ID, from, IP, note…"
                            wire:model.live.debounce.300ms="search">
                 </div>
             </div>
@@ -36,6 +36,7 @@
                     <th>Type</th>
                     <th>IP</th>
                     <th>Duration</th>
+                    <th>Note</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -68,10 +69,20 @@
                                 <span class="badge bg-success-subtle text-success"><i class="rd-dot"></i>Active</span>
                             @endif
                         </td>
+                        <td class="rd-conn-note">
+                            @if ($conn->note)
+                                <span class="rd-cell-sub text-truncate" title="{{ $conn->note }}">{{ $conn->note }}</span>
+                                @if ($conn->noteUser)
+                                    <span class="rd-cell-sub">{{ $conn->noteUser->username }}</span>
+                                @endif
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="rd-empty-cell">
+                        <td colspan="7" class="rd-empty-cell">
                             <div class="rd-empty">
                                 <div class="rd-empty-icon"><i class="ri-remote-control-line"></i></div>
                                 <p class="rd-empty-title">No connections match your filters.</p>
@@ -116,6 +127,10 @@
                             {{ $conn->ip ?: '—' }} · {{ $conn->created_at?->diffForHumans(short: true) }}
                         </span>
                     </div>
+                    @if ($conn->note)
+                        {{-- One line: .rd-conn-note-full keeps newlines, so template whitespace would show. --}}
+                        <div class="rd-mini-sub rd-conn-note-full"><i class="ri-sticky-note-line"></i> {{ $conn->note }}@if ($conn->noteUser) · {{ $conn->noteUser->username }}@endif</div>
+                    @endif
                 </div>
             @empty
                 <div class="rd-empty">

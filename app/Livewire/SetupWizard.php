@@ -64,9 +64,9 @@ class SetupWizard extends Component
     public function render()
     {
         return view('livewire.setup-wizard', [
-            'idServer' => Setting::get('id_server', config('cortendesk.id_server')) ?? '',
-            'relayServer' => Setting::get('relay_server', config('cortendesk.relay_server')) ?? '',
-            'publicKey' => Setting::get('public_key', config('cortendesk.public_key')) ?? '',
+            'idServer' => Setting::server('id_server'),
+            'relayServer' => Setting::server('relay_server'),
+            'publicKey' => Setting::server('public_key'),
             'apiUrl' => rtrim((string) config('app.url'), '/'),
             'approvalEnabled' => Setting::get('require_device_approval', '0') === '1',
             'twoFactorRequired' => Setting::get('two_factor_required', '0') === '1'

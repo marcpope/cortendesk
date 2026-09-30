@@ -1216,6 +1216,15 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     height: 8px;
 }
 
+/* A status badge sitting in a row of small buttons (device detail header).
+   The row's flex stretch sets the height; this centres the label in it. */
+.rd-status-block {
+    display: inline-flex;
+    align-items: center;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
+}
+
 
 /* =========================================================================
    9. STAT TILE
@@ -2059,6 +2068,16 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     line-height: 1.4;
 }
 
+/* The subtitle doubles as the link to the device detail page on phones. */
+a.rd-mini-sub {
+    text-decoration: none;
+}
+
+a.rd-mini-sub:hover {
+    color: var(--rd-shell-accent);
+    text-decoration: underline;
+}
+
 /* The action strip at the bottom of a card-list row. */
 .rd-mini-foot {
     display: flex;
@@ -2511,6 +2530,11 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
 .rd-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 12.5px;
+}
+
+/* One click selects the whole value, for copying ids and UUIDs. */
+.rd-select-all {
+    user-select: all;
 }
 
 /* A single machine-issued code shown in a grid — the one-time recovery codes
@@ -3047,4 +3071,22 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     letter-spacing: .04em;
     text-transform: uppercase;
     color: var(--rd-ink-muted);
+}
+
+/* --- Session notes (issue #79) --------------------------------------------
+   One line in the connection-log table with the full text on hover; wrapped
+   in full on the mobile cards and on the device page. */
+.rd-conn-note {
+    max-width: 260px;
+}
+
+.rd-conn-note .text-truncate {
+    max-width: 260px;
+}
+
+.rd-conn-note-full {
+    display: block;
+    margin-top: 4px;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
 }

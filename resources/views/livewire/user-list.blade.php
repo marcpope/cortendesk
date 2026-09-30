@@ -63,7 +63,7 @@
                                 <div class="rd-cell {{ $user->is_admin ? 'rd-tone-accent' : 'rd-tone-purple' }}">
                                     <span class="rd-avatar">{{ strtoupper(substr($user->username, 0, 1)) }}</span>
                                     <div class="min-width-0">
-                                        <span class="rd-cell-title">{{ $user->username }}</span>
+                                        <a href="{{ route('users.show', $user->id) }}" class="rd-cell-title rd-cell-link">{{ $user->username }}</a>
                                         <span class="rd-cell-sub">{{ $user->name ?: '—' }}</span>
                                     </div>
                                 </div>
@@ -100,9 +100,7 @@
                                 <span class="text-nowrap" title="{{ $user->created_at }}">{{ $user->created_at?->format('Y-m-d') }}</span>
                             </td>
                             <td class="text-end rd-rowact">
-                                @unless ($canTouch)
-                                    <span class="text-muted">—</span>
-                                @endunless
+                                <a href="{{ route('users.show', $user->id) }}" class="rd-act me-2" title="View details"><i class="ri-eye-line"></i></a>
                                 @if ($canTouch)
                                 <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $user->id }})">Edit</a>
                                 <a href="javascript:void(0);" class="rd-act me-2" wire:click="openAssign({{ $user->id }})">Devices</a>
@@ -158,7 +156,7 @@
                                 <div class="rd-cell {{ $user->is_admin ? 'rd-tone-accent' : 'rd-tone-purple' }}">
                                     <span class="rd-avatar">{{ strtoupper(substr($user->username, 0, 1)) }}</span>
                                     <div class="min-width-0">
-                                        <span class="rd-mini-title text-truncate">{{ $user->username }}</span>
+                                        <a href="{{ route('users.show', $user->id) }}" class="rd-mini-title text-truncate">{{ $user->username }}</a>
                                         <span class="rd-mini-sub text-truncate">{{ $user->name ?: ($user->email ?: '—') }}</span>
                                     </div>
                                 </div>
@@ -185,6 +183,7 @@
                                 <span class="text-nowrap">{{ $user->created_at?->format('Y-m-d') }}</span>
                             </span>
                             <div class="rd-mini-acts justify-content-end mt-2">
+                                <a href="{{ route('users.show', $user->id) }}" class="rd-iconbtn" title="View details"><i class="ri-eye-line"></i></a>
                                 @if ($canTouch)
                                 <a href="javascript:void(0);" class="rd-iconbtn" title="Edit" wire:click="edit({{ $user->id }})"><i class="ri-pencil-line"></i></a>
                                 <a href="javascript:void(0);" class="rd-iconbtn" title="Assign devices" wire:click="openAssign({{ $user->id }})"><i class="ri-computer-line"></i></a>

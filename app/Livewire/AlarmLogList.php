@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\AlarmLog;
 use App\Models\Device;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -103,13 +104,13 @@ class AlarmLogList extends Component
             $out = fopen('php://output', 'w');
             fputcsv($out, ['When', 'Device', 'Type', 'Info', 'Conn ID']);
             foreach ($rows as $row) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $row->created_at?->toDateTimeString(),
                     $row->rustdesk_id,
                     $row->typeLabel(),
                     $row->info,
                     $row->conn_id,
-                ]);
+                ]));
             }
             fclose($out);
         }, 'alarm-log.csv');

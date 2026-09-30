@@ -57,12 +57,15 @@ class Device extends Model
         'last_online_at',
         'last_online_ip',
         'registered_ip',
+        'can_initiate',
     ];
 
     protected function casts(): array
     {
         return [
             'last_online_at' => 'datetime',
+            'can_initiate' => 'boolean',
+            'lan_ip_seen_at' => 'datetime',
             'strategy_options' => 'array',
             'strategy_acked_options' => 'array',
             'strategy_acked_at' => 'datetime',
@@ -118,6 +121,16 @@ class Device extends Model
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Incoming only (issue #82): the ID server refuses sessions this device
+     * starts. Unset, as on a model not reloaded since create(), means allowed:
+     * the column defaults to true.
+     */
+    public function isIncomingOnly(): bool
+    {
+        return $this->can_initiate === false;
     }
 
     /** Approved (visible) devices only. */

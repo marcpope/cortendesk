@@ -29,6 +29,13 @@
                 </p>
             </div>
 
+            @if ($httpsOnly ?? false)
+                <div class="alert alert-warning" role="alert">
+                    Sign-in only works over HTTPS here (<code>SESSION_SECURE_COOKIE=true</code>), and this page was opened over HTTP.
+                    Open the console's <code>https://</code> address, or remove <code>SESSION_SECURE_COOKIE</code> to allow sign-in over HTTP.
+                </div>
+            @endif
+
             @if (session('status'))
                 <div class="alert alert-success" role="alert">
                     {{ session('status') }}

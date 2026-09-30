@@ -26,6 +26,7 @@ class AuditsController extends AdminApiController
                 ->orWhere('from_name', 'like', '%'.$request->query('peer').'%')))
             ->when($request->filled('action'), fn ($q) => $q->where('action', $request->query('action')))
             ->tap(fn ($q) => $this->dateRange($q, $request))
+            ->with('noteUser')
             ->orderByDesc('id')
             ->paginate($this->perPage($request));
 
@@ -40,6 +41,9 @@ class AuditsController extends AdminApiController
             'session_id' => $r->session_id,
             'created_at' => $r->created_at?->toIso8601String(),
             'closed_at' => $r->closed_at?->toIso8601String(),
+            'note' => $r->note,
+            'note_by' => $r->noteUser?->username,
+            'noted_at' => $r->noted_at?->toIso8601String(),
         ]);
     }
 

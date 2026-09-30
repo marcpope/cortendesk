@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\ConsoleAudit;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -42,12 +43,20 @@ class ConsoleAuditList extends Component
         'address-book.rule-add' => 'Address book rule added',
         'address-book.rule-update' => 'Address book rule updated',
         'address-book.rule-delete' => 'Address book rule deleted',
+        'address-book.update' => 'Address book updated',
+        'address-book.tag-add' => 'Address book tag added',
+        'address-book.tag-delete' => 'Address book tag deleted',
+        'address-book.peer-add' => 'Address book entry added',
+        'address-book.peer-update' => 'Address book entry updated',
+        'address-book.peer-delete' => 'Address book entry removed',
         'strategy.create' => 'Strategy created',
         'strategy.update' => 'Strategy updated',
         'strategy.toggle' => 'Strategy enabled/disabled',
         'strategy.delete' => 'Strategy deleted',
         'strategy.assign' => 'Strategy assigned',
         'settings.update' => 'Settings updated',
+        'settings.server-access' => 'Server access changed',
+        'settings.server-ip-match' => 'Server IP matching changed',
         'logs.prune' => 'Logs pruned',
     ];
 
@@ -132,7 +141,7 @@ class ConsoleAuditList extends Component
             $out = fopen('php://output', 'w');
             fputcsv($out, ['When', 'Operator', 'Action', 'Target Type', 'Target', 'Details', 'IP']);
             foreach ($rows as $row) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $row->created_at?->toDateTimeString(),
                     $row->username,
                     $row->action,
@@ -140,7 +149,7 @@ class ConsoleAuditList extends Component
                     $row->target_id,
                     $row->summary,
                     $row->ip,
-                ]);
+                ]));
             }
             fclose($out);
         }, 'console-audit.csv');

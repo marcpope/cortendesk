@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\LoginLog;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -88,7 +89,7 @@ class LoginLogList extends Component
             $out = fopen('php://output', 'w');
             fputcsv($out, ['When', 'Username', 'Client', 'Device ID', 'Device OS', 'IP', 'Result', 'Note']);
             foreach ($rows as $row) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $row->created_at?->toDateTimeString(),
                     $row->username,
                     $row->client,
@@ -97,7 +98,7 @@ class LoginLogList extends Component
                     $row->ip,
                     $row->successful ? 'Success' : 'Failed',
                     $row->note,
-                ]);
+                ]));
             }
             fclose($out);
         }, 'login-log.csv');

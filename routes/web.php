@@ -116,6 +116,11 @@ Route::middleware('auth')->group(function () {
         ->middleware('console-can:strategy,r');
     Route::view('/users', 'users.index')->name('users')
         ->middleware('console-can:user,r');
+    // One user in full (issue #55). Every section below the profile checks
+    // its own permission in the component, like the device detail page.
+    Route::get('/users/{user}', fn (int $user) => view('users.show', ['user' => $user]))
+        ->whereNumber('user')->name('users.show')
+        ->middleware('console-can:user,r');
     // One device in full (issue #35). The id is scoped through visibleTo in
     // the component, so a guessed id outside the user's fleet is a 404.
     Route::get('/devices/{device}', fn (int $device) => view('devices.show', ['device' => $device]))

@@ -72,6 +72,8 @@ class FleetDiagnostics
                 ],
             ],
             'scheduler' => ['ok' => $schedulerFresh, 'last_seen_at' => $schedulerAt],
+            // Whether hbbs is following this console's device policy (#81, #82).
+            'server_link' => ServerLink::status() + ['mode' => ServerLink::mode()],
             'fleet' => [
                 'total' => Device::query()->approved()->count(),
                 'online' => Device::query()->approved()->online()->count(),

@@ -15,10 +15,11 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 ## Features
 
 **Console**
-- **Devices** — live fleet with presence, platform icons, aliases, device groups ("folders"), pre-registration, and a recycle bin. One-click connect via `rustdesk://` deep links or the built-in web client. Pick your own table columns (CPU, memory, IP, UUID and more — saved per user), export the current view to CSV, and multi-select rows to bulk-delete or add devices to an address book.
-- **Users & access scoping** — admins see everything; regular users see only their own devices plus device groups granted to them or their user groups. The RustDesk client API is scoped with the same rules.
+- **Devices** — live fleet with presence, platform icons, aliases, device groups ("folders"), pre-registration, and a recycle bin. One-click connect via `rustdesk://` deep links or the built-in web client. Pick your own table columns (CPU, memory, IP, UUID and more — saved per user), export the current view to CSV, and multi-select rows to bulk-delete or add devices to an address book. Each device has a detail page with its connections, file transfers, notifications and address books.
+- **Server access control** — with the embedded ID server (or CortenDesk Server 1.1.0+), limit the server to devices you approved, and mark devices incoming only so they can be controlled but cannot start sessions. The ID server enforces both. It also reports each device's LAN address seen during connection setup, shown as an optional LAN IP column. See [CortenDesk Server](https://github.com/marcpope/cortendesk-server#device-policy-from-a-cortendesk-console).
+- **Users & access scoping** — a detail page per user shows their devices, address books, sign-ins, console actions and connections. Admins see everything; regular users see only their own devices plus device groups granted to them or their user groups. The RustDesk client API is scoped with the same rules.
 - **Address books** — full support for the modern multi-address-book API *and* the legacy API: shared books, share rules (everyone / user / group), tags with colors.
-- **Audit logs** — connections, file transfers, console logins, and security alarms (brute-force/blocked-access events); filterable, exportable to CSV, with configurable retention and automatic nightly pruning.
+- **Audit logs** — connections (with the note RustDesk clients can leave at the end of a session), file transfers, console logins, and security alarms (brute-force/blocked-access events); filterable, exportable to CSV, with configurable retention and automatic nightly pruning.
 - **Single sign-on (OIDC)** — sign in with Keycloak, Authentik, Entra ID, Okta, Google Workspace or any OpenID Connect provider. Authorization-code flow with PKCE, verified ID tokens, just-in-time account creation with optional approval, an email-domain allowlist, and optional provider sign-out. Password sign-in can be switched off — and returns by itself if SSO is disabled or left incompletely configured. For a provider that is unreachable while still configured, `CORTENDESK_OIDC_DISABLED=true` forces it off and brings the password form back.
 - **Device policies (strategies)** — push client settings to devices from the console: permissions, security and password rules, capture options. Assign to a device, a user or a device group, with the most specific assignment winning. Optionally enforced, so a local change is reverted on the next heartbeat.
 - **Two-factor authentication** — TOTP with single-use recovery codes, optionally required for everyone or for administrators only, with an administrator reset and a break-glass command.
@@ -58,7 +59,7 @@ docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
   -p 8080:8080 -p 21115-21119:21115-21119 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.9.1
+  ghcr.io/marcpope/cortendesk:1.10.0
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and
@@ -86,6 +87,18 @@ outside the container talks to them directly — nginx here already bridges
 -e CORTENDESK_RELAY_SERVER=hbbs.example.com:21117 \
 -e CORTENDESK_PUBLIC_KEY="<contents of id_ed25519.pub>"
 ```
+
+To enforce approved-only access and incoming-only devices there, run
+CortenDesk Server 1.1.0 or later and give both sides the same secret:
+`CORTENDESK_SERVER_SECRET` on the console, and `CORTENDESK_SERVER_SECRET` plus
+`CORTENDESK_CONSOLE_URL` on `hbbs`. The embedded server needs none of this.
+See [CortenDesk Server](https://github.com/marcpope/cortendesk-server#device-policy-from-a-cortendesk-console).
+
+**Client installer uploads.** System → Client Downloads accepts installers up
+to 512 MB. Change that with `-e CORTENDESK_DOWNLOADS_MAX_MB=1024`; the container
+applies it to nginx and PHP at boot, so nothing else needs editing. A reverse
+proxy in front of the container has its own body limit (nginx defaults to 1 MB)
+and must allow the same size.
 
 **Coming from separate hbbs/hbbr containers.** Stop them, then mount their data
 directory at `/data/rustdesk`. The key pair and peer database are adopted as
@@ -123,6 +136,9 @@ DB_PASSWORD=********
 CORTENDESK_ID_SERVER=hbbs.example.com:21116
 CORTENDESK_RELAY_SERVER=hbbs.example.com:21117
 CORTENDESK_PUBLIC_KEY=<contents of your id_ed25519.pub>
+# Shared with hbbs (CortenDesk Server 1.1.0+) for device access control,
+# see the CortenDesk Server README. Any long random string.
+CORTENDESK_SERVER_SECRET=
 
 # Native web client (wss endpoints your proxy exposes, see below)
 CORTENDESK_NATIVE_WEBCLIENT=true
@@ -139,6 +155,21 @@ php artisan config:cache route:cache view:cache
 
 Serve `public/` with nginx + php-fpm as usual for Laravel. Log in as **admin / changeme** and change the password immediately.
 
+Client Downloads accepts installers up to `CORTENDESK_DOWNLOADS_MAX_MB` (default
+512). nginx and PHP reject anything larger than their own limits before the
+console sees it, so raise them to at least that size plus a few MB:
+
+```nginx
+client_max_body_size 528m;
+fastcgi_read_timeout 300s;   # in the PHP location: copying and hashing a big file takes a while
+```
+
+```ini
+; php.ini, or a file in PHP's conf.d; restart php-fpm afterwards
+upload_max_filesize = 528M
+post_max_size = 528M
+```
+
 Add the Laravel scheduler to cron (log retention and other maintenance run through it; the Docker image does this automatically):
 
 ```
@@ -150,10 +181,12 @@ Add the Laravel scheduler to cron (log retention and other maintenance run throu
 CortenDesk honors `X-Forwarded-*` headers, so it works out of the box behind a
 TLS-terminating proxy (Traefik, Caddy, nginx-proxy-manager, Cloudflare, …) that
 forwards to the container/app over plain HTTP. Make sure your proxy passes
-`X-Forwarded-Proto` (all of the above do by default), set `APP_URL` to your
-public https URL, and set `SESSION_SECURE_COOKIE=true` so the session cookie
-carries the Secure flag. No mixed-content issues — assets are generated with
-the correct scheme from the forwarded headers.
+`X-Forwarded-Proto` (all of the above do by default) and set `APP_URL` to your
+public https URL. The session cookie carries the Secure flag on every HTTPS
+request, so the same console still accepts sign-in over plain HTTP on the LAN.
+Set `SESSION_SECURE_COOKIE=true` only to refuse HTTP sign-in outright. No
+mixed-content issues — assets are generated with the correct scheme from the
+forwarded headers.
 
 Forwarded headers are trusted only from private/loopback addresses (Docker
 networks, a same-host proxy) so that clients reaching the app directly cannot

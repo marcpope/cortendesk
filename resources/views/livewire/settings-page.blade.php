@@ -125,6 +125,26 @@
                                     </div>
                                     <div class="form-text">When on, a newly seen device is held as <strong>Pending</strong> and hidden from the console and API until an operator approves it on the Devices &rarr; Pending tab. Deployed devices (via an API token) are pre-approved.</div>
                                 </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="serverAccessMode">Server access</label>
+                                    <select id="serverAccessMode" class="form-select @error('serverAccessMode') is-invalid @enderror"
+                                            wire:model="serverAccessMode" style="max-width: 320px;">
+                                        <option value="{{ \App\Services\ServerLink::MODE_OPEN }}">Open: any device with the key</option>
+                                        <option value="{{ \App\Services\ServerLink::MODE_APPROVED }}">Approved devices only</option>
+                                    </select>
+                                    @error('serverAccessMode') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    <div class="form-text">Enforced by the ID server. With approved devices only, pending, recycled and unknown devices still come online and show as Pending, but cannot start or receive sessions, and only clients signed in to this console (and the web client) can start one. Turn on Require device approval as well, or every device that reports here is approved on arrival. Incoming-only devices are refused when they start a session in either mode.</div>
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="serverIpMatch" wire:model="serverIpMatch">
+                                        <label class="form-check-label" for="serverIpMatch">Identify signed-out devices by IP address</label>
+                                    </div>
+                                    <div class="form-text">Approved devices only: lets a signed-out client start sessions when an approved device registered from the same IP. Weak: devices sharing a public IP, or behind a proxy that rewrites source addresses (Docker's userland proxy, IPv6 port publishing, Docker Desktop), can pass as each other.</div>
+                                    @php $linkTone = $serverLink['ok'] === true ? 'text-success' : ($serverLink['ok'] === false ? 'text-danger' : 'text-muted'); @endphp
+                                    <div class="form-text {{ $linkTone }}" id="server-link-status">
+                                        <i class="{{ $serverLink['ok'] === false ? 'ri-error-warning-line' : 'ri-link' }} me-1"></i>ID server link: {{ $serverLink['note'] }}
+                                        @if ($serverLink['ok'] === false) Needs CortenDesk Server 1.1.0 or later linked to this console. @endif
+                                    </div>
+                                </div>
                                 <button type="submit" class="btn btn-primary" @disabled(! $canManageSettings)><i class="ri-save-line me-1"></i>Save Settings</button>
                             </form>
                         </div>

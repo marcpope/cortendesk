@@ -2,7 +2,7 @@
     {{-- Header: who this is and how to reach it. --}}
     <div class="card">
         <div class="card-body d-flex flex-wrap align-items-center gap-3">
-            <x-platform-icon :platform="$device->platform()" size="fs-32"/>
+            <x-platform-icon :platform="$device->platform()" size="fs-36"/>
             <div class="min-width-0 me-auto">
                 <h4 class="mb-0 text-truncate">{{ $device->alias ?: $device->hostname ?: $device->rustdesk_id }}</h4>
                 <span class="text-muted">
@@ -10,15 +10,20 @@
                     @if ($device->alias && $device->hostname) · {{ $device->hostname }} @endif
                 </span>
             </div>
-            @if ($device->trashed())
-                <span class="badge bg-warning-subtle text-warning">In the recycle bin</span>
-            @elseif ($device->isOnline())
-                <span class="badge bg-success-subtle text-success"><i class="rd-dot"></i>Online</span>
-            @else
-                <span class="badge bg-secondary-subtle text-secondary"><i class="rd-dot"></i>Offline</span>
-            @endif
-            @unless ($device->trashed())
-                <div class="d-flex gap-2">
+            {{-- Status sits in the button row so flex stretches it to the
+                 buttons' height. --}}
+            <div class="d-flex flex-wrap gap-2">
+                @if ($device->trashed())
+                    <span class="badge bg-warning-subtle text-warning rd-status-block">In the recycle bin</span>
+                @elseif ($device->isOnline())
+                    <span class="badge bg-success-subtle text-success rd-status-block"><i class="rd-dot"></i>Online</span>
+                @else
+                    <span class="badge bg-secondary-subtle text-secondary rd-status-block"><i class="rd-dot"></i>Offline</span>
+                @endif
+                @if ($device->isIncomingOnly())
+                    <span class="badge bg-info-subtle text-info rd-status-block" title="Can be controlled, cannot start sessions">Incoming only</span>
+                @endif
+                @unless ($device->trashed())
                     <a href="rustdesk://{{ $device->rustdesk_id }}" class="btn btn-sm btn-outline-light"
                        title="Connect with RustDesk"><i class="ri-links-line me-1"></i>RustDesk</a>
                     @if (config('cortendesk.native_webclient'))
@@ -26,8 +31,14 @@
                            target="cortendesk-webclient" rel="noopener" class="btn btn-sm btn-primary">
                             <i class="ri-remote-control-line me-1"></i>Connect</a>
                     @endif
-                </div>
-            @endunless
+                    @if ($canEdit)
+                        <button type="button" class="btn btn-sm btn-outline-light" wire:click="editDevice">
+                            <i class="ri-pencil-line me-1"></i>Edit</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" wire:click="confirmDelete">
+                            <i class="ri-delete-bin-line me-1"></i>Delete</button>
+                    @endif
+                @endunless
+            </div>
         </div>
     </div>
 
@@ -43,9 +54,20 @@
                         <div class="rd-def"><dt>Memory</dt><dd>{{ $device->memory ?: '—' }}</dd></div>
                         <div class="rd-def"><dt>Client version</dt><dd>{{ $device->version ?: '—' }}</dd></div>
                         <div class="rd-def"><dt>Client user</dt><dd>{{ $device->username ?: '—' }}</dd></div>
-                        <div class="rd-def"><dt>Last IP</dt><dd class="rd-mono">{{ $device->last_online_ip ?: '—' }}</dd></div>
-                        <div class="rd-def"><dt>Registered from</dt><dd class="rd-mono" title="The address this device first appeared from; blank for devices that registered before this was recorded.">{{ $device->registered_ip ?: '—' }}</dd></div>
-                        <div class="rd-def"><dt>UUID</dt><dd class="rd-mono text-truncate" style="max-width: 220px" title="{{ $device->uuid }}">{{ $device->uuid ?: '—' }}</dd></div>
+                        <div class="rd-def"><dt>Last IP</dt><dd>{{ $device->last_online_ip ?: '—' }}</dd></div>
+                        <div class="rd-def"><dt>LAN IP</dt>
+                            <dd class="text-end" title="Learned by the ID server when a session is set up between devices on the same network. Clients do not report it.">
+                                @if ($device->lan_ip)
+                                    <span>{{ $device->lan_ip }}</span>
+                                    <span class="d-block text-muted fs-12">last seen during a connection {{ $device->lan_ip_seen_at?->diffForHumans() }}</span>
+                                @else
+                                    —
+                                @endif
+                            </dd>
+                        </div>
+                        <div class="rd-def"><dt>Sessions</dt><dd>{{ $device->isIncomingOnly() ? 'Incoming only' : 'Incoming and outgoing' }}</dd></div>
+                        <div class="rd-def"><dt>Registered from</dt><dd title="The address this device first appeared from; blank for devices that registered before this was recorded.">{{ $device->registered_ip ?: '—' }}</dd></div>
+                        <div class="rd-def"><dt>UUID</dt><dd class="rd-mono rd-select-all min-width-0">{{ $device->uuid ?: '—' }}</dd></div>
                         <div class="rd-def"><dt>First seen</dt><dd>{{ $device->created_at?->diffForHumans() ?? '—' }}</dd></div>
                         <div class="rd-def"><dt>Last seen</dt><dd>{{ $device->last_online_at?->diffForHumans() ?? 'never' }}</dd></div>
                         <div class="rd-def"><dt>Group</dt><dd>{{ $device->group?->name ?: '—' }}</dd></div>
@@ -74,7 +96,7 @@
                 <div class="card-body pt-0">
                     @if ($editingNote)
                         <textarea class="form-control @error('note') is-invalid @enderror" rows="3"
-                                  wire:model="note" maxlength="1000"></textarea>
+                                  wire:model="note" maxlength="500"></textarea>
                         @error('note')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         <div class="d-flex gap-2 mt-2">
                             <button type="button" class="btn btn-sm btn-primary" wire:click="saveNote">Save</button>
@@ -86,17 +108,52 @@
                 </div>
             </div>
 
-            {{-- Membership: which books hand this device out. --}}
+            {{-- Membership: which books hand this device out. Add and remove
+                 follow the same per-book rule as the list's bulk add. --}}
             <div class="card">
-                <div class="card-header"><h5 class="card-title mb-0">Address books</h5></div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Address books</h5>
+                    @if ($canWriteBooks && ! $device->trashed() && ! $abPickerOpen)
+                        <a href="javascript:void(0);" class="fs-13 text-muted" wire:click="openAbPicker">
+                            <i class="ri-add-line me-1"></i>Add</a>
+                    @endif
+                </div>
                 <div class="card-body pt-0">
+                    @if ($abPickerOpen)
+                        <form wire:submit="addToBook" class="mb-3">
+                            <label class="form-label" for="dd-ab-book">Add to address book</label>
+                            <div class="d-flex gap-2">
+                                <select id="dd-ab-book" class="form-select @error('abBookId') is-invalid @enderror" wire:model="abBookId">
+                                    <option value="0">Choose…</option>
+                                    @foreach ($addableBooks as $book)
+                                        <option value="{{ $book->id }}">{{ $book->name }}{{ $book->is_personal ? ' (personal)' : '' }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-primary">Add</button>
+                                <button type="button" class="btn btn-sm btn-light" wire:click="closeAbPicker">Cancel</button>
+                            </div>
+                            @error('abBookId')<div class="text-danger fs-13 mt-1">{{ $message }}</div>@enderror
+                            @if ($addableBooks->isEmpty())
+                                <div class="form-text">It is already in every book you can edit.</div>
+                            @endif
+                        </form>
+                    @endif
                     @forelse ($books as $book)
                         <span class="badge bg-secondary-subtle text-secondary me-1 mb-1">
                             <i class="ri-contacts-book-2-line me-1"></i>{{ $book->is_personal ? ($book->owner?->username ? $book->owner->username."'s personal" : 'Personal') : $book->name }}
+                            @if (in_array($book->id, $writableBookIds, true))
+                                <a href="javascript:void(0);" class="text-secondary ms-1" title="Remove from this address book"
+                                   aria-label="Remove from {{ $book->name }}"
+                                   wire:click="removeFromBook({{ $book->id }})"
+                                   wire:confirm="Remove this device from {{ $book->name }}?"><i class="ri-close-line"></i></a>
+                            @endif
                         </span>
                     @empty
                         <span class="text-muted">In no address book you can see.</span>
                     @endforelse
+                    @if ($abResult !== '')
+                        <div class="fs-13 text-success mt-2"><i class="ri-check-line me-1"></i>{{ $abResult }}</div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -114,6 +171,9 @@
                                 <dt class="fw-normal">
                                     {{ $c->from_name ?: $c->from_peer ?: 'unknown' }}
                                     <span class="text-muted">· {{ $c->ip }}</span>
+                                    @if ($c->note)
+                                        <span class="rd-cell-sub rd-conn-note-full"><i class="ri-sticky-note-line"></i> {{ $c->note }}@if ($c->noteUser) · {{ $c->noteUser->username }}@endif</span>
+                                    @endif
                                 </dt>
                                 <dd class="text-end text-muted mb-0">
                                     {{ $c->created_at->diffForHumans() }}
@@ -135,7 +195,12 @@
                         @forelse ($transfers as $t)
                             <div class="rd-def">
                                 <dt class="fw-normal text-truncate" style="max-width: 70%" title="{{ $t->path }}">
-                                    <i class="ri-arrow-{{ $t->direction ? 'up' : 'down' }}-line me-1"></i>{{ $t->path ?: '—' }}
+                                    @if ($t->direction === 1)
+                                        <i class="ri-arrow-down-line text-warning me-1" title="Receive"></i>
+                                    @else
+                                        <i class="ri-arrow-up-line text-info me-1" title="Send"></i>
+                                    @endif
+                                    {{ $t->path ?: '—' }}
                                 </dt>
                                 <dd class="text-end text-muted mb-0">{{ $t->created_at->diffForHumans() }}</dd>
                             </div>
@@ -163,6 +228,27 @@
                         @endforelse
                     </div>
                 </div>
+
+                <div class="card">
+                    <div class="card-header"><h5 class="card-title mb-0">Notifications</h5></div>
+                    <div class="card-body pt-0">
+                        @forelse ($notifications as $n)
+                            <div class="rd-def">
+                                <dt class="fw-normal">
+                                    {{ \App\Services\AppriseNotifications::EVENTS[$n->event] ?? $n->event }}
+                                    @if ($n->error)<span class="d-block text-danger fs-13 text-break">{{ $n->error }}</span>@endif
+                                </dt>
+                                <dd class="text-end text-muted mb-0 text-nowrap">
+                                    <span title="{{ $n->created_at?->format('Y-m-d H:i:s T') }}">{{ $n->created_at?->diffForHumans() }}</span>
+                                    @php $tone = ['sent' => 'success', 'failed' => 'danger'][$n->status] ?? 'secondary'; @endphp
+                                    <span class="badge bg-{{ $tone }}-subtle text-{{ $tone }} ms-1">{{ $n->status }}</span>
+                                </dd>
+                            </div>
+                        @empty
+                            <span class="text-muted">No notifications sent for this device.</span>
+                        @endforelse
+                    </div>
+                </div>
             @else
                 <div class="card">
                     <div class="card-body text-muted">
@@ -172,4 +258,8 @@
             @endif
         </div>
     </div>
+
+    @include('livewire.partials.device-edit-modal')
+
+    @include('livewire.partials.device-delete-modal')
 </div>

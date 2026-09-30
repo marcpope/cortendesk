@@ -4,10 +4,32 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
-#[Fillable(['action', 'conn_id', 'rustdesk_id', 'from_peer', 'from_name', 'ip', 'session_id', 'conn_type', 'uuid', 'closed_at'])]
+#[Fillable(['action', 'conn_id', 'rustdesk_id', 'from_peer', 'from_name', 'ip', 'session_id', 'conn_type', 'uuid', 'closed_at', 'guid', 'note', 'note_user_id', 'noted_at'])]
 class AuditConnection extends Model
 {
+    /** Longest end-of-session note kept. The Flutter client caps its field at 256. */
+    public const NOTE_MAX_LENGTH = 2000;
+
+    /**
+     * Every session gets the guid the controlling client later asks for
+     * (GET /api/audit/conn/active) and sends its note against (PUT /api/audit).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (AuditConnection $row) {
+            $row->guid ??= (string) Str::uuid();
+        });
+    }
+
+    /** Who wrote the note; null for the tokenless in-session note. */
+    public function noteUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'note_user_id');
+    }
+
     /**
      * Session type as reported by the client's audit/conn call
      * (docs/client-api.md): the label every screen and the CSV export use.
@@ -167,6 +189,8 @@ class AuditConnection extends Model
             'closed_at' => 'datetime',
             'disconnect_requested_at' => 'datetime',
             'disconnect_sent_at' => 'datetime',
+            'note_user_id' => 'integer',
+            'noted_at' => 'datetime',
         ];
     }
 }

@@ -1,5 +1,6 @@
 # CortenDesk container nginx — rendered by entrypoint.sh with envsubst
-# (only ${RUSTDESK_WS_HOST} is substituted; $nginx_vars are untouched).
+# (only ${RUSTDESK_WS_HOST}, ${NGINX_RESOLVER}, ${CORTENDESK_UPLOAD_BODY_MB} and
+# ${CORTENDESK_DOWNLOADS_PATH} are substituted; $nginx_vars are untouched).
 worker_processes auto;
 pid /run/nginx/nginx.pid;
 error_log /dev/stderr warn;
@@ -11,6 +12,8 @@ http {
     default_type application/octet-stream;
     access_log off;
     sendfile on;
+    # Everything except the installer upload endpoint (below) keeps a small
+    # body limit, so no other route buffers a large anonymous POST.
     client_max_body_size 32m;
 
     map $http_upgrade $connection_upgrade {
@@ -58,6 +61,29 @@ http {
             proxy_send_timeout 3600s;
         }
 
+        # Livewire's temporary-upload endpoint, the only route that takes an
+        # installer. Sized from CORTENDESK_DOWNLOADS_MAX_MB with headroom for
+        # the multipart framing. Requests still need Livewire's signed URL.
+        location ~ ^/livewire-[0-9a-f]+/upload-file$ {
+            client_max_body_size ${CORTENDESK_UPLOAD_BODY_MB}m;
+            fastcgi_pass 127.0.0.1:9000;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $realpath_root/index.php;
+            fastcgi_param SCRIPT_NAME /index.php;
+            fastcgi_param HTTPS $fcgi_https if_not_empty;
+            fastcgi_read_timeout 300s;
+        }
+
+        # Installer files, sent by nginx when ClientDownloadController answers
+        # with X-Accel-Redirect. internal: unreachable from outside.
+        location /_cortendesk_downloads/ {
+            internal;
+            alias ${CORTENDESK_DOWNLOADS_PATH}/;
+            types { }
+            default_type application/octet-stream;
+            add_header X-Content-Type-Options nosniff always;
+        }
+
         location / {
             try_files $uri $uri/ /index.php?$query_string;
         }
@@ -67,6 +93,9 @@ http {
             fastcgi_index index.php;
             fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
             fastcgi_param HTTPS $fcgi_https if_not_empty;
+            # A large installer upload is copied and hashed after it arrives;
+            # give PHP longer than the 60s default to answer.
+            fastcgi_read_timeout 300s;
             include fastcgi_params;
         }
 

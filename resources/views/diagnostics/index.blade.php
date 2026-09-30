@@ -21,6 +21,9 @@
             ['label' => 'Public API', 'ok' => $report['services']['api']['ok'], 'detail' => 'Local version route '.$report['services']['api']['version_route'].' is registered.'],
             ['label' => 'WebSocket bridge', 'ok' => $report['services']['websocket_bridge']['ok'], 'detail' => $report['services']['websocket_bridge']['note']],
             ['label' => 'Scheduler', 'ok' => $report['scheduler']['ok'], 'detail' => $report['scheduler']['ok'] ? 'Heartbeat is fresh.' : 'No fresh scheduler heartbeat.'],
+            ['label' => 'ID server link', 'ok' => $report['server_link']['ok'], 'detail' => $report['server_link']['note']
+                .($report['server_link']['agent'] ? ' ('.$report['server_link']['agent'].')' : '')
+                .($report['server_link']['mode'] === 'approved' ? ' Server access: approved devices only.' : '')],
             ['label' => 'SMTP', 'ok' => $report['smtp']['configured'] ? $report['smtp']['healthy'] : null, 'detail' => $report['smtp']['note']],
         ];
     @endphp

@@ -157,8 +157,9 @@ class ClientDownloadManager extends Component
             'notes' => ['nullable', 'string', 'max:500'],
         ], [
             'file.max' => 'That build is larger than the '.round($maxKb / 1024).' MB upload limit. '
-                .'Raise upload_max_filesize/post_max_size in docker/php.ini and client_max_body_size '
-                .'in docker/nginx.conf.template together, then CORTENDESK_DOWNLOADS_MAX_KB.',
+                .'Raise it with CORTENDESK_DOWNLOADS_MAX_MB; the Docker image applies it to nginx and PHP '
+                .'as well. A manual install also needs client_max_body_size, upload_max_filesize and '
+                .'post_max_size raised to match.',
         ]);
 
         $download = $this->editing ? ClientDownload::findOrFail($this->editing) : new ClientDownload;
@@ -308,13 +309,13 @@ class ClientDownloadManager extends Component
     }
 
     /**
-     * Upload ceiling in KB. Kept below PHP's post_max_size on purpose: past it
-     * the request is dropped before Laravel sees it, and the operator gets an
-     * empty page instead of a validation message.
+     * Upload ceiling in KB. The Docker image sizes nginx and PHP above it from
+     * the same variable; past those the request is dropped before Laravel sees
+     * it, and the operator gets an empty page instead of a validation message.
      */
     public static function maxKilobytes(): int
     {
-        return max(1024, (int) config('cortendesk.downloads_max_kb', 30720));
+        return max(1024, (int) config('cortendesk.downloads_max_kb', 512 * 1024));
     }
 
     public function render()

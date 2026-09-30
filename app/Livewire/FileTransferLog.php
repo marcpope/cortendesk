@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\AuditFileTransfer;
 use App\Models\Device;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -97,7 +98,7 @@ class FileTransferLog extends Component
             $out = fopen('php://output', 'w');
             fputcsv($out, ['When', 'Device', 'From ID', 'From Name', 'Direction', 'Path', 'Files', 'IP']);
             foreach ($rows as $row) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $row->created_at?->toDateTimeString(),
                     $row->rustdesk_id,
                     $row->from_peer,
@@ -106,7 +107,7 @@ class FileTransferLog extends Component
                     $row->path,
                     $row->file_count,
                     $row->ip,
-                ]);
+                ]));
             }
             fclose($out);
         }, 'file-transfer-log.csv');

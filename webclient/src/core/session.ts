@@ -152,6 +152,7 @@ export class Session {
         licenceKey: this.config.serverKeyB64,
         version: CLIENT_VERSION,
         connType: this.connType,
+        token: this.config.signalToken,
       }),
     );
     this.setState('rendezvous');
@@ -184,7 +185,8 @@ export class Session {
         return;
       }
       case 'punchHoleResponse':
-        if (parsed.failure) this.fail(`punch hole failed: ${parsed.failure}`);
+        // The server's own text when it sends one: it says why (e.g. not approved).
+        if (parsed.failure) this.fail(parsed.message || `punch hole failed: ${parsed.failure}`);
         return;
       default:
         return;

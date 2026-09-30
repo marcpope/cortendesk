@@ -11,7 +11,9 @@ use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\ClientAuthController;
 use App\Http\Controllers\Api\ClientOidcController;
 use App\Http\Controllers\Api\GroupTabController;
+use App\Http\Controllers\Api\ServerLinkController;
 use App\Http\Controllers\Api\SyncController;
+use App\Http\Middleware\VerifyServerSecret;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,6 +56,7 @@ Route::middleware('auth:client')->group(function () {
     Route::post('/logout', [ClientAuthController::class, 'logout']);
     Route::post('/currentUser', [ClientAuthController::class, 'currentUser']);
     Route::put('/audit', [AuditController::class, 'note']);
+    Route::get('/audit/conn/active', [AuditController::class, 'activeConnection']);
 
     // Legacy address book (client < 1.2.6, Sciter)
     Route::get('/ab', [AddressBookController::class, 'legacyGet']);
@@ -82,6 +85,20 @@ Route::middleware('auth:client')->group(function () {
     Route::get('/users', [GroupTabController::class, 'users']);
     Route::get('/peers', [GroupTabController::class, 'peers']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Server link (CortenDesk Server 1.1.0+)
+|--------------------------------------------------------------------------
+| Called by hbbs, not by clients: it pulls the device policy and reports LAN
+| addresses. Bearer = CORTENDESK_SERVER_SECRET. Spec: docs/server-link.md.
+*/
+Route::middleware([VerifyServerSecret::class, 'throttle:600,1'])
+    ->prefix('server')
+    ->group(function () {
+        Route::get('/policy', [ServerLinkController::class, 'policy']);
+        Route::post('/local-addrs', [ServerLinkController::class, 'localAddrs']);
+    });
 
 /*
 |--------------------------------------------------------------------------

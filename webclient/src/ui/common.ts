@@ -11,6 +11,8 @@ export type RdGlobalConfig = {
   wsRelayUrl: string;
   myId: string;
   myName: string;
+  /** Console-signed ticket for the ID server, empty when the server link is off. */
+  signalToken?: string;
   /** Console version, injected per request — see OVERLAY_VERSION. */
   version?: string;
   workerUrl?: string;
@@ -148,6 +150,7 @@ export function buildSessionConfig(
     password,
     myId: g.myId,
     myName: g.myName,
+    ...(g.signalToken ? { signalToken: g.signalToken } : {}),
     savedHashHex,
     ...(connType ? { connType } : {}),
   };

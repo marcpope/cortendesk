@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AddressBook;
 use App\Models\AddressBookEntry;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -55,8 +56,8 @@ class WebClientController extends Controller
             'code' => 0,
             'message' => 'success',
             'data' => [
-                'id_server' => (string) config('cortendesk.id_server'),
-                'key' => (string) config('cortendesk.public_key'),
+                'id_server' => Setting::server('id_server'),
+                'key' => Setting::server('public_key'),
                 'peers' => (object) $peers,
             ],
         ]);

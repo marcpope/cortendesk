@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\AuditConnection;
 use App\Models\Device;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -81,7 +82,8 @@ class ConnectionLog extends Component
                     $q->where('rustdesk_id', 'like', $s)
                         ->orWhere('from_peer', 'like', $s)
                         ->orWhere('from_name', 'like', $s)
-                        ->orWhere('ip', 'like', $s);
+                        ->orWhere('ip', 'like', $s)
+                        ->orWhere('note', 'like', $s);
                 });
             })
             ->when($this->dateFrom !== '', fn (Builder $q) => $q->whereDate('created_at', '>=', $this->dateFrom))
@@ -92,13 +94,13 @@ class ConnectionLog extends Component
 
     public function export(): StreamedResponse
     {
-        $rows = $this->query()->limit(10000)->get();
+        $rows = $this->query()->with('noteUser')->limit(10000)->get();
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['When', 'Controlled Device', 'From ID', 'From Name', 'Type', 'IP', 'Closed At', 'Duration (s)']);
+            fputcsv($out, ['When', 'Controlled Device', 'From ID', 'From Name', 'Type', 'IP', 'Closed At', 'Duration (s)', 'Note', 'Note By']);
             foreach ($rows as $row) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $row->created_at?->toDateTimeString(),
                     $row->rustdesk_id,
                     $row->from_peer,
@@ -107,7 +109,9 @@ class ConnectionLog extends Component
                     $row->ip,
                     $row->closed_at?->toDateTimeString() ?? 'active',
                     $row->closed_at ? $row->created_at->diffInSeconds($row->closed_at) : '',
-                ]);
+                    $row->note,
+                    $row->noteUser?->username,
+                ]));
             }
             fclose($out);
         }, 'connection-log.csv');
@@ -116,7 +120,7 @@ class ConnectionLog extends Component
     public function render()
     {
         return view('livewire.connection-log', [
-            'connections' => $this->query()->paginate($this->perPage),
+            'connections' => $this->query()->with('noteUser')->paginate($this->perPage),
         ]);
     }
 }
