@@ -73,7 +73,7 @@
                                 @endif
                             </span>
                             {{-- No text-muted: the active row's colour comes from the
-                                 list group's own --ct-list-group-active-color, and a
+                                 list group's own --bs-list-group-active-color, and a
                                  hard-coded grey here would flatten the selection. --}}
                             <small class="rd-cell-sub">
                                 @if ($tab === 'personal')

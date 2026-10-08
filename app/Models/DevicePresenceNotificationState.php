@@ -103,6 +103,24 @@ class DevicePresenceNotificationState extends Model
     }
 
     /**
+     * Record an offline alert that was delivered outside the claim flow (a
+     * retry). Converts a leftover pending claim rather than ignoring it.
+     */
+    public static function recordDeliveredOffline(Device $device): void
+    {
+        static::recordLegacyOffline($device);
+        static::query()
+            ->where('device_id', $device->id)
+            ->whereNull('offline_notified_at')
+            ->update([
+                'offline_notified_at' => now(),
+                'offline_claim_token' => null,
+                'offline_claimed_at' => null,
+                'updated_at' => now(),
+            ]);
+    }
+
+    /**
      * Atomically acquire the right to attempt one offline delivery.
      *
      * The unique device row is inserted pending before transport starts. A dead
@@ -163,8 +181,8 @@ class DevicePresenceNotificationState extends Model
 
     /**
      * Atomically consume the single outstanding recovery marker for a device.
-     * Recovery is deliberately at-most-once: once consumed, a failed transport
-     * is not retried because a second consumer must never send a duplicate.
+     * Consumption is at-most-once so a second consumer never sends a
+     * duplicate. A failed transport is retried from its delivery row.
      */
     /** Unlocked existence check — the cheap gate in front of the claim dance. */
     public static function hasAnyRecoverableStateFor(Device $device): bool

@@ -81,6 +81,8 @@ class FileTransferLog extends Component
                         ->orWhere('from_peer', 'like', $s)
                         ->orWhere('from_name', 'like', $s)
                         ->orWhere('path', 'like', $s)
+                        // Clipboard transfers have no path; their file names are in info.
+                        ->orWhere('info', 'like', $s)
                         ->orWhere('ip', 'like', $s);
                 });
             })
@@ -96,7 +98,8 @@ class FileTransferLog extends Component
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['When', 'Device', 'From ID', 'From Name', 'Direction', 'Path', 'Files', 'IP']);
+            // Columns are append-only: scripts read them by position.
+            fputcsv($out, ['When', 'Device', 'From ID', 'From Name', 'Direction', 'Path', 'Files', 'IP', 'File names']);
             foreach ($rows as $row) {
                 fputcsv($out, Csv::row([
                     $row->created_at?->toDateTimeString(),
@@ -107,6 +110,7 @@ class FileTransferLog extends Component
                     $row->path,
                     $row->file_count,
                     $row->ip,
+                    implode('; ', $row->fileNames()),
                 ]));
             }
             fclose($out);

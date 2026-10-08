@@ -23,10 +23,11 @@ class AlarmLog extends Model
         7 => ['label' => 'Terminal login backoff', 'severity' => 'warning'],
         8 => ['label' => 'Terminal login concurrency', 'severity' => 'warning'],
         9 => ['label' => 'Session scope violation', 'severity' => 'danger'],
+        10 => ['label' => 'ID whitelist block', 'severity' => 'danger'],
 
         // Console-raised alarms. Deliberately numbered from 100 so they can
-        // never collide with a client type the upstream protocol adds later —
-        // 0–9 are the client's and the range between is left to it.
+        // never collide with a client type the upstream protocol adds later:
+        // the client's types start at 0 and the range below 100 is left to it.
         100 => ['label' => 'Console brute force', 'severity' => 'danger'],
         101 => ['label' => 'Console password spraying', 'severity' => 'danger'],
     ];

@@ -71,6 +71,8 @@ class AuditsController extends AdminApiController
             'file_count' => $r->file_count,
             'ip' => $r->ip,
             'created_at' => $r->created_at?->toIso8601String(),
+            'files' => $r->transferredFiles(),
+            'clipboard' => $r->isClipboard(),
         ]);
     }
 

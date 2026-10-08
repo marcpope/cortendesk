@@ -22,6 +22,12 @@ class UpdateChecker
         return 'https://github.com/marcpope/cortendesk/releases/tag/v'.$version;
     }
 
+    /** False when CORTENDESK_UPDATE_CHECK turns the check off. */
+    public static function enabled(): bool
+    {
+        return (bool) config('cortendesk.update_check', true);
+    }
+
     /** The newer version string if an upgrade is available, else null. */
     public static function upgradeAvailable(): ?string
     {
@@ -38,6 +44,10 @@ class UpdateChecker
     /** Latest published version, cached ~6h. Empty string means "check failed". */
     public static function latestVersion(): ?string
     {
+        if (! self::enabled()) {
+            return null;
+        }
+
         // Never reach out during the test suite.
         if (app()->environment('testing')) {
             return Cache::get(self::CACHE_KEY) ?: null;

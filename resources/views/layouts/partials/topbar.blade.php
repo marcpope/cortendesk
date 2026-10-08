@@ -1,27 +1,15 @@
-<div class="navbar-custom">
-    <div class="topbar container-fluid">
+<div class="rd-topbar">
+    <div class="rd-topbar-inner container-fluid">
         <div class="d-flex align-items-center gap-lg-2 gap-1">
 
-            <div class="logo-topbar">
-                <a href="{{ route('overview') }}" class="logo-light">
-                    <span class="logo-lg">
-                        <img src="{{ asset('assets/images/cortendesk-logo-light.svg') }}" alt="CortenDesk" height="26">
-                    </span>
-                    <span class="logo-sm">
-                        <img src="{{ asset('assets/images/cortendesk-sm.svg') }}" alt="CortenDesk" height="28">
-                    </span>
-                </a>
-                <a href="{{ route('overview') }}" class="logo-dark">
-                    <span class="logo-lg">
-                        <img src="{{ asset('assets/images/cortendesk-logo-dark.svg') }}" alt="CortenDesk" height="26">
-                    </span>
-                    <span class="logo-sm">
-                        <img src="{{ asset('assets/images/cortendesk-sm.svg') }}" alt="CortenDesk" height="28">
-                    </span>
+            {{-- Only shown while the sidebar is off-canvas (phones). --}}
+            <div class="rd-topbar-logo">
+                <a href="{{ route('overview') }}">
+                    <img src="{{ asset('assets/images/cortendesk-sm.svg') }}" alt="CortenDesk" height="28">
                 </a>
             </div>
 
-            <button class="button-toggle-menu">
+            <button type="button" class="rd-menu-toggle" data-rd-toggle="sidebar" aria-label="Toggle menu">
                 <i class="ri-menu-2-fill"></i>
             </button>
         </div>
@@ -31,7 +19,7 @@
             $rdRole = $rdUser?->is_admin ? 'Administrator' : ($rdUser?->role?->name ?? 'User');
         @endphp
 
-        <ul class="topbar-menu d-flex align-items-center">
+        <ul class="rd-topbar-menu d-flex align-items-center">
 
             @if ($rdUser?->consoleAllows('setting') && ($newVersion = \App\Support\UpdateChecker::upgradeAvailable()))
                 <li class="rd-topbar-upgrade">
@@ -52,20 +40,20 @@
                  light palette unreachable on a phone — the one screen size where
                  someone is most likely to be outdoors and want it. --}}
             <li>
-                <div class="nav-link rd-topbar-btn" id="light-dark-mode" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Theme Mode">
+                <div class="nav-link rd-topbar-btn rd-theme-toggle" data-rd-toggle="theme" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Theme Mode">
                     <i class="ri-moon-line"></i>
                 </div>
             </li>
 
             <li class="d-none d-md-inline-block">
-                <a class="nav-link rd-topbar-btn" href="" data-toggle="fullscreen" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Full Screen">
+                <a class="nav-link rd-topbar-btn" href="#" data-rd-toggle="fullscreen" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Full Screen">
                     <i class="ri-fullscreen-line"></i>
                 </a>
             </li>
 
             <li class="dropdown">
-                <a class="nav-link dropdown-toggle arrow-none nav-user" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
-                    <span class="account-user-avatar">
+                <a class="nav-link dropdown-toggle rd-no-caret rd-user-chip" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
+                    <span>
                         <span class="rd-avatar rd-tone-accent">
                             {{ strtoupper(substr($rdUser->username ?? 'A', 0, 1)) }}
                         </span>
@@ -75,7 +63,7 @@
                         <h6 class="rd-topbar-role">{{ $rdRole }}</h6>
                     </span>
                 </a>
-                <div class="dropdown-menu dropdown-menu-end dropdown-menu-animated profile-dropdown">
+                <div class="dropdown-menu dropdown-menu-end rd-dropdown-slide rd-profile-menu">
                     <div class="dropdown-header">
                         <h6 class="rd-menu-name text-truncate">{{ $rdUser?->displayName() }}</h6>
                         <span class="rd-menu-role">{{ $rdRole }}</span>

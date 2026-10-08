@@ -316,7 +316,7 @@
         resizeTimer = setTimeout(render, 250);
     });
 
-    // Re-render with the right mode colors when the Attex theme toggle flips.
+    // Re-render with the right mode colors when the topbar theme toggle flips.
     new MutationObserver(function (muts) {
         muts.forEach(function (m) { if (m.attributeName === "data-bs-theme") render(); });
     }).observe(document.documentElement, { attributes: true });

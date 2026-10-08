@@ -4,15 +4,20 @@ CortenDesk licensing notes
 CortenDesk is licensed under the GNU Affero General Public License v3.0
 (see LICENSE).
 
-Exception — bundled admin theme:
-The files under public/assets/ (excluding public/assets/images/cortendesk-*
-public/assets/css/cortendesk.css and public/assets/js/cortendesk.js)
-belong to the Attex template
-by Coder Themes, included here under a license held by this project as a
-no-cost to the user project. These theme files are NOT covered by the AGPL license
-of this repository and may not be extracted, redistributed, or reused outside
-of this end product. To use the Attex theme in your own projects, purchase
-a license at themeforest.net.
+Third-party files shipped under public/assets/, each under its own
+license (the license text sits next to the files):
+
+  vendor/bootstrap/    Bootstrap 5.3.8, MIT License,
+                       (c) The Bootstrap Authors
+  vendor/remixicon/    Remix Icon 4.8.0, Apache License 2.0,
+                       (c) Remix Design. remixicon.css is modified;
+                       its header says how.
+  vendor/apexcharts/   ApexCharts 3.35.4, MIT License, (c) ApexCharts
+  fonts/figtree/       Figtree font files, SIL Open Font License 1.1,
+                       (c) The Figtree Project Authors
+
+Everything else under public/assets/ is part of CortenDesk and covered by
+the AGPL.
 
 The vendored RustDesk protocol definitions (webclient/protos/) originate
 from the RustDesk project and are licensed AGPL-3.0, consistent with this

@@ -1,0 +1,1401 @@
+/* =========================================================================
+   CortenDesk shell: base typography, Bootstrap tuning and the app layout.
+   Static file, no build step. Load order:
+
+     vendor/bootstrap/bootstrap.min.css   stock Bootstrap 5.3
+     vendor/remixicon/remixicon.css       icon font
+     fonts/figtree/figtree.css            UI typeface
+     css/spacing.css                      spacing utilities at a 1.5rem step
+     css/shell.css                        this file
+     css/cortendesk.css                   design tokens + components
+
+   Colours do not live here. cortendesk.css owns the palette (--rd-* tokens)
+   and binds it onto Bootstrap's --bs-* variables for both themes. This file
+   sets sizes, spacing and layout, and reads colours from those variables.
+
+   Sections
+     1. BASE          font, body, headings, small print, labels
+     2. COMPONENTS    Bootstrap component sizing (forms, buttons, tables...)
+     3. UTILITIES     fs-*, table-centered, nav-bordered, header-title...
+     4. SHELL         topbar, sidebar (expanded / condensed / off-canvas),
+                      content area, page title, footer
+     5. AUTH          the signed-out pages
+   ========================================================================= */
+
+:root {
+    /* Shell metrics. */
+    --rd-topbar-height: 70px;
+    --rd-footer-height: 60px;
+    --rd-sidebar-width: 240px;
+    --rd-sidebar-width-sm: 70px;
+    --rd-nav-font-size: 0.875rem;
+    --rd-nav-icon-size: 1.125rem;
+    --rd-nav-icon-width: 40px;
+    --rd-nav-pad-x: 8px;
+    --rd-nav-pad-y: 9px;
+}
+
+
+/* =========================================================================
+   1. BASE
+   ========================================================================= */
+
+:root,
+[data-bs-theme] {
+    --bs-font-sans-serif: "Figtree", sans-serif;
+    --bs-body-font-family: var(--bs-font-sans-serif);
+    --bs-body-font-size: 0.875rem;
+    --bs-link-decoration: none;
+}
+
+/* The few palette entries cortendesk.css leaves alone (it binds the brand
+   and status colours). These keep `text-dark`, `bg-dark-subtle` and the
+   *-text-emphasis hover shades in the console's slate range. */
+:root,
+[data-bs-theme="light"] {
+    --bs-light-text-emphasis: #ced4da;
+    --bs-secondary-text-emphasis: #616971;
+}
+
+[data-bs-theme="dark"] {
+    --bs-dark: #637385;
+    --bs-dark-rgb: 99, 115, 133;
+    --bs-dark-text-emphasis: #6c757d;
+    --bs-dark-bg-subtle: rgba(99, 115, 133, 0.2);
+    --bs-light-text-emphasis: #6c757d;
+    --bs-secondary-text-emphasis: #6c757d;
+}
+
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+a {
+    text-decoration: none;
+}
+
+label {
+    font-weight: 600;
+}
+
+b,
+strong {
+    font-weight: 700;
+}
+
+hr {
+    margin: 1.125rem 0;
+    border-top: var(--bs-border-width) solid var(--bs-border-color);
+    opacity: 1;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    margin-bottom: 10px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+h1, .h1 { font-size: calc(1.34375rem + 1.125vw); }
+h2, .h2 { font-size: calc(1.307rem + 0.684vw); }
+h3, .h3 { font-size: calc(1.271125rem + 0.2535vw); }
+h4, .h4 { font-size: 1.09375rem; }
+h5, .h5 { font-size: 0.91rem; }
+h6, .h6 { font-size: 0.74375rem; }
+
+@media (min-width: 1200px) {
+    h1, .h1 { font-size: 2.1875rem; }
+    h2, .h2 { font-size: 1.82rem; }
+    h3, .h3 { font-size: 1.46125rem; }
+}
+
+.fs-1 { font-size: calc(1.34375rem + 1.125vw) !important; }
+.fs-2 { font-size: calc(1.307rem + 0.684vw) !important; }
+.fs-3 { font-size: calc(1.271125rem + 0.2535vw) !important; }
+.fs-4 { font-size: 1.09375rem !important; }
+.fs-5 { font-size: 0.91rem !important; }
+.fs-6 { font-size: 0.74375rem !important; }
+
+@media (min-width: 1200px) {
+    .fs-1 { font-size: 2.1875rem !important; }
+    .fs-2 { font-size: 1.82rem !important; }
+    .fs-3 { font-size: 1.46125rem !important; }
+}
+
+small,
+.small,
+.form-text,
+.valid-feedback,
+.invalid-feedback {
+    font-size: 0.75rem;
+}
+
+code,
+kbd,
+pre {
+    font-size: 0.75rem;
+}
+
+.lead {
+    font-size: 1.09375rem;
+}
+
+caption {
+    padding-top: 0.95rem;
+    padding-bottom: 0.95rem;
+}
+
+
+/* =========================================================================
+   2. COMPONENTS
+   Sizes only. Stock Bootstrap is tuned for a 16px body; the console runs at
+   14px, so controls, cells and padding come down to match.
+   ========================================================================= */
+
+/* --- Forms --------------------------------------------------------------- */
+
+.form-control,
+.form-select,
+.input-group-text {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.875rem;
+    border-radius: 0.25rem;
+}
+
+.form-select {
+    padding-right: 2.7rem;
+    background-position: right 0.9rem center;
+    background-size: 14px 10px;
+}
+
+.form-select[multiple],
+.form-select[size]:not([size="1"]) {
+    padding-right: 0.9rem;
+}
+
+textarea.form-control {
+    min-height: calc(1.5em + 0.9rem + calc(var(--bs-border-width) * 2));
+}
+
+.form-control::file-selector-button {
+    margin: -0.45rem -0.9rem;
+    margin-inline-end: 0.9rem;
+    padding: 0.45rem 0.9rem;
+}
+
+.form-control-sm,
+.form-select-sm,
+.input-group-sm > .form-control,
+.input-group-sm > .form-select,
+.input-group-sm > .input-group-text,
+.input-group-sm > .btn {
+    padding-top: 0.28rem;
+    padding-bottom: 0.28rem;
+    padding-left: 0.8rem;
+    font-size: 0.85rem;
+    border-radius: 0.25rem;
+}
+
+.form-control-sm,
+.input-group-sm > .form-control,
+.input-group-sm > .input-group-text,
+.input-group-sm > .btn {
+    padding-right: 0.8rem;
+}
+
+.form-control-sm {
+    min-height: calc(1.5em + 0.56rem + calc(var(--bs-border-width) * 2));
+}
+
+.form-control-plaintext {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+}
+
+.col-form-label {
+    padding-top: calc(0.45rem + var(--bs-border-width));
+    padding-bottom: calc(0.45rem + var(--bs-border-width));
+}
+
+/* Focus is drawn by cortendesk.css as an accent border. Text fields show no
+   ring: every field is :valid or :invalid, so this covers all of them and
+   outranks the ring cortendesk.css sets on .form-control:focus. */
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+    box-shadow: none;
+}
+
+.form-control:valid:focus,
+.form-control:invalid:focus,
+.form-control.is-valid:focus,
+.form-control.is-invalid:focus {
+    box-shadow: none !important;
+}
+
+.form-control:disabled,
+.form-select:disabled {
+    background-color: var(--bs-tertiary-bg);
+}
+
+.form-check {
+    min-height: 1.3125rem;
+    padding-left: 1.635em;
+    margin-bottom: 0;
+}
+
+.form-check .form-check-input {
+    margin-left: -1.635em;
+}
+
+.form-check-input {
+    width: 1.135em;
+    height: 1.135em;
+    margin-top: 0.1825em;
+}
+
+.form-switch {
+    padding-left: 2.5em;
+}
+
+.form-switch .form-check-input {
+    width: 2em;
+    margin-left: -2.5em;
+}
+
+.form-range {
+    height: 1.3rem;
+}
+
+/* --- Buttons ------------------------------------------------------------- */
+
+.btn {
+    --bs-btn-padding-x: 0.9rem;
+    --bs-btn-padding-y: 0.45rem;
+    --bs-btn-font-size: 0.875rem;
+    --bs-btn-border-radius: var(--bs-border-radius-sm);
+    --bs-btn-focus-box-shadow: 0 0 0 0.15rem rgba(var(--bs-btn-focus-shadow-rgb), 0.5);
+}
+
+/* Variants read the theme palette (bound in cortendesk.css) instead of
+   Bootstrap's fixed hexes, so a status colour changes in one place. */
+.btn-primary {
+    --bs-btn-bg: var(--bs-primary);
+    --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-bg: var(--bs-primary-text-emphasis);
+    --bs-btn-hover-border-color: var(--bs-primary-text-emphasis);
+    --bs-btn-active-bg: var(--bs-primary-text-emphasis);
+    --bs-btn-active-border-color: var(--bs-primary-text-emphasis);
+    --bs-btn-disabled-bg: var(--bs-primary);
+    --bs-btn-disabled-border-color: var(--bs-primary);
+    --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--bs-primary);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-bg: var(--bs-primary);
+    --bs-btn-hover-border-color: var(--bs-primary);
+    --bs-btn-active-bg: var(--bs-primary);
+    --bs-btn-active-border-color: var(--bs-primary);
+    --bs-btn-disabled-color: var(--bs-primary);
+    --bs-btn-disabled-border-color: var(--bs-primary);
+    --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+}
+
+.btn-secondary {
+    --bs-btn-bg: var(--bs-secondary);
+    --bs-btn-border-color: var(--bs-secondary);
+    --bs-btn-hover-bg: var(--bs-secondary-text-emphasis);
+    --bs-btn-hover-border-color: var(--bs-secondary-text-emphasis);
+    --bs-btn-active-bg: var(--bs-secondary-text-emphasis);
+    --bs-btn-active-border-color: var(--bs-secondary-text-emphasis);
+    --bs-btn-disabled-bg: var(--bs-secondary);
+    --bs-btn-disabled-border-color: var(--bs-secondary);
+    --bs-btn-focus-shadow-rgb: var(--bs-secondary-rgb);
+}
+
+.btn-outline-secondary {
+    --bs-btn-color: var(--bs-secondary);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--bs-secondary);
+    --bs-btn-hover-bg: var(--bs-secondary);
+    --bs-btn-hover-border-color: var(--bs-secondary);
+    --bs-btn-active-bg: var(--bs-secondary);
+    --bs-btn-active-border-color: var(--bs-secondary);
+    --bs-btn-disabled-color: var(--bs-secondary);
+    --bs-btn-disabled-border-color: var(--bs-secondary);
+    --bs-btn-focus-shadow-rgb: var(--bs-secondary-rgb);
+}
+
+.btn-success {
+    --bs-btn-bg: var(--bs-success);
+    --bs-btn-border-color: var(--bs-success);
+    --bs-btn-hover-bg: var(--bs-success-text-emphasis);
+    --bs-btn-hover-border-color: var(--bs-success-text-emphasis);
+    --bs-btn-active-bg: var(--bs-success-text-emphasis);
+    --bs-btn-active-border-color: var(--bs-success-text-emphasis);
+    --bs-btn-disabled-bg: var(--bs-success);
+    --bs-btn-disabled-border-color: var(--bs-success);
+    --bs-btn-focus-shadow-rgb: var(--bs-success-rgb);
+}
+
+.btn-outline-success {
+    --bs-btn-color: var(--bs-success);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--bs-success);
+    --bs-btn-hover-bg: var(--bs-success);
+    --bs-btn-hover-border-color: var(--bs-success);
+    --bs-btn-active-bg: var(--bs-success);
+    --bs-btn-active-border-color: var(--bs-success);
+    --bs-btn-disabled-color: var(--bs-success);
+    --bs-btn-disabled-border-color: var(--bs-success);
+    --bs-btn-focus-shadow-rgb: var(--bs-success-rgb);
+}
+
+.btn-info {
+    --bs-btn-bg: var(--bs-info);
+    --bs-btn-border-color: var(--bs-info);
+    --bs-btn-hover-bg: var(--bs-info-text-emphasis);
+    --bs-btn-hover-border-color: var(--bs-info-text-emphasis);
+    --bs-btn-active-bg: var(--bs-info-text-emphasis);
+    --bs-btn-active-border-color: var(--bs-info-text-emphasis);
+    --bs-btn-disabled-bg: var(--bs-info);
+    --bs-btn-disabled-border-color: var(--bs-info);
+    --bs-btn-focus-shadow-rgb: var(--bs-info-rgb);
+}
+
+.btn-outline-info {
+    --bs-btn-color: var(--bs-info);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--bs-info);
+    --bs-btn-hover-bg: var(--bs-info);
+    --bs-btn-hover-border-color: var(--bs-info);
+    --bs-btn-active-bg: var(--bs-info);
+    --bs-btn-active-border-color: var(--bs-info);
+    --bs-btn-disabled-color: var(--bs-info);
+    --bs-btn-disabled-border-color: var(--bs-info);
+    --bs-btn-focus-shadow-rgb: var(--bs-info-rgb);
+}
+
+.btn-warning {
+    --bs-btn-bg: var(--bs-warning);
+    --bs-btn-border-color: var(--bs-warning);
+    --bs-btn-hover-bg: var(--bs-warning-text-emphasis);
+    --bs-btn-hover-border-color: var(--bs-warning-text-emphasis);
+    --bs-btn-active-bg: var(--bs-warning-text-emphasis);
+    --bs-btn-active-border-color: var(--bs-warning-text-emphasis);
+    --bs-btn-disabled-bg: var(--bs-warning);
+    --bs-btn-disabled-border-color: var(--bs-warning);
+    --bs-btn-focus-shadow-rgb: var(--bs-warning-rgb);
+}
+
+.btn-outline-warning {
+    --bs-btn-color: var(--bs-warning);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--bs-warning);
+    --bs-btn-hover-bg: var(--bs-warning);
+    --bs-btn-hover-border-color: var(--bs-warning);
+    --bs-btn-active-bg: var(--bs-warning);
+    --bs-btn-active-border-color: var(--bs-warning);
+    --bs-btn-disabled-color: var(--bs-warning);
+    --bs-btn-disabled-border-color: var(--bs-warning);
+    --bs-btn-focus-shadow-rgb: var(--bs-warning-rgb);
+}
+
+.btn-danger {
+    --bs-btn-bg: var(--bs-danger);
+    --bs-btn-border-color: var(--bs-danger);
+    --bs-btn-hover-bg: var(--bs-danger-text-emphasis);
+    --bs-btn-hover-border-color: var(--bs-danger-text-emphasis);
+    --bs-btn-active-bg: var(--bs-danger-text-emphasis);
+    --bs-btn-active-border-color: var(--bs-danger-text-emphasis);
+    --bs-btn-disabled-bg: var(--bs-danger);
+    --bs-btn-disabled-border-color: var(--bs-danger);
+    --bs-btn-focus-shadow-rgb: var(--bs-danger-rgb);
+}
+
+.btn-outline-danger {
+    --bs-btn-color: var(--bs-danger);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--bs-danger);
+    --bs-btn-hover-bg: var(--bs-danger);
+    --bs-btn-hover-border-color: var(--bs-danger);
+    --bs-btn-active-bg: var(--bs-danger);
+    --bs-btn-active-border-color: var(--bs-danger);
+    --bs-btn-disabled-color: var(--bs-danger);
+    --bs-btn-disabled-border-color: var(--bs-danger);
+    --bs-btn-focus-shadow-rgb: var(--bs-danger-rgb);
+}
+
+.btn-light {
+    --bs-btn-bg: var(--bs-light);
+    --bs-btn-border-color: var(--bs-light);
+    --bs-btn-hover-bg: var(--bs-light-text-emphasis);
+    --bs-btn-hover-border-color: var(--bs-light-text-emphasis);
+    --bs-btn-active-bg: var(--bs-light-text-emphasis);
+    --bs-btn-active-border-color: var(--bs-light-text-emphasis);
+    --bs-btn-disabled-bg: var(--bs-light);
+    --bs-btn-disabled-border-color: var(--bs-light);
+    --bs-btn-focus-shadow-rgb: var(--bs-light-rgb);
+}
+
+.btn-outline-light {
+    --bs-btn-color: var(--bs-light);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--bs-light);
+    --bs-btn-hover-bg: var(--bs-light);
+    --bs-btn-hover-border-color: var(--bs-light);
+    --bs-btn-active-bg: var(--bs-light);
+    --bs-btn-active-border-color: var(--bs-light);
+    --bs-btn-disabled-color: var(--bs-light);
+    --bs-btn-disabled-border-color: var(--bs-light);
+    --bs-btn-focus-shadow-rgb: var(--bs-light-rgb);
+}
+
+.btn-dark {
+    --bs-btn-bg: var(--bs-dark);
+    --bs-btn-border-color: var(--bs-dark);
+    --bs-btn-hover-bg: var(--bs-dark-text-emphasis);
+    --bs-btn-hover-border-color: var(--bs-dark-text-emphasis);
+    --bs-btn-active-bg: var(--bs-dark-text-emphasis);
+    --bs-btn-active-border-color: var(--bs-dark-text-emphasis);
+    --bs-btn-disabled-bg: var(--bs-dark);
+    --bs-btn-disabled-border-color: var(--bs-dark);
+    --bs-btn-focus-shadow-rgb: var(--bs-dark-rgb);
+}
+
+.btn-outline-dark {
+    --bs-btn-color: var(--bs-dark);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--bs-dark);
+    --bs-btn-hover-bg: var(--bs-dark);
+    --bs-btn-hover-border-color: var(--bs-dark);
+    --bs-btn-active-bg: var(--bs-dark);
+    --bs-btn-active-border-color: var(--bs-dark);
+    --bs-btn-disabled-color: var(--bs-dark);
+    --bs-btn-disabled-border-color: var(--bs-dark);
+    --bs-btn-focus-shadow-rgb: var(--bs-dark-rgb);
+}
+
+/* White text on the info and warning fills, as on the other colours. */
+.btn-info,
+.btn-warning,
+.btn-outline-info,
+.btn-outline-warning {
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-color: #fff;
+}
+
+.btn-info,
+.btn-warning {
+    --bs-btn-color: #fff;
+    --bs-btn-disabled-color: #fff;
+}
+
+[data-bs-theme="dark"] .btn-light {
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-color: #fff;
+}
+
+.btn-sm,
+.btn-group-sm > .btn {
+    --bs-btn-padding-x: 0.8rem;
+    --bs-btn-padding-y: 0.28rem;
+    --bs-btn-font-size: 0.85rem;
+}
+
+.btn-lg,
+.btn-group-lg > .btn {
+    --bs-btn-font-size: 1.21625rem;
+    --bs-btn-border-radius: var(--bs-border-radius);
+}
+
+.btn-link {
+    text-decoration: none;
+}
+
+.dropdown-toggle::after {
+    margin-left: 0.35em;
+    vertical-align: 0.1575em;
+}
+
+/* --- Cards --------------------------------------------------------------- */
+
+.card {
+    --bs-card-spacer-y: 1.5rem;
+    --bs-card-spacer-x: 1.5rem;
+    --bs-card-title-spacer-y: 0.75rem;
+    --bs-card-cap-padding-y: 1.125rem;
+    --bs-card-cap-padding-x: 1.5rem;
+    --bs-card-cap-bg: transparent;
+    --bs-card-bg: var(--bs-secondary-bg);
+    --bs-card-border-color: var(--bs-border-color);
+    --bs-card-box-shadow: var(--bs-box-shadow);
+    box-shadow: var(--bs-card-box-shadow);
+    margin-bottom: 1.25rem;
+}
+
+/* --- Tables -------------------------------------------------------------- */
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--bs-body-color);
+    --bs-table-hover-bg: var(--bs-tertiary-bg);
+    --bs-table-hover-color: var(--bs-body-color);
+    --bs-table-striped-bg: var(--bs-tertiary-bg);
+    --bs-table-striped-color: var(--bs-body-color);
+    --bs-table-active-bg: var(--bs-tertiary-bg);
+    --bs-table-active-color: var(--bs-body-color);
+    margin-bottom: 1.5rem;
+}
+
+.table > :not(caption) > * > * {
+    padding: 0.95rem;
+}
+
+.table-sm > :not(caption) > * > * {
+    padding: 0.5rem;
+}
+
+/* --- Dropdowns ----------------------------------------------------------- */
+
+.dropdown-menu {
+    --bs-dropdown-font-size: 0.875rem;
+    --bs-dropdown-padding-y: 0.25rem;
+    --bs-dropdown-bg: var(--bs-secondary-bg);
+    --bs-dropdown-border-color: var(--bs-border-color);
+    --bs-dropdown-border-radius: 0.375rem;
+    --bs-dropdown-divider-bg: var(--bs-border-color);
+    --bs-dropdown-divider-margin-y: 0.75rem;
+    --bs-dropdown-item-padding-x: 1.125rem;
+    --bs-dropdown-item-padding-y: 0.375rem;
+    --bs-dropdown-header-color: inherit;
+    --bs-dropdown-header-padding-x: 0.84375rem;
+    --bs-dropdown-link-hover-color: var(--bs-tertiary-color);
+    --bs-dropdown-link-active-color: var(--bs-tertiary-color);
+    --bs-dropdown-link-active-bg: var(--bs-tertiary-bg);
+    box-shadow: var(--bs-dropdown-box-shadow);
+}
+
+.dropdown-header {
+    font-size: 0.85rem;
+}
+
+/* --- Navs, breadcrumb, pagination ---------------------------------------- */
+
+.nav-tabs {
+    --bs-nav-tabs-link-active-bg: var(--bs-secondary-bg);
+    --bs-nav-tabs-link-active-border-color: var(--bs-border-color) var(--bs-border-color) var(--bs-secondary-bg);
+}
+
+.nav-tabs > li > a,
+.nav-pills > li > a {
+    color: var(--bs-secondary-color);
+    font-weight: 600;
+}
+
+.nav-pills {
+    --bs-nav-pills-border-radius: 0.375rem;
+}
+
+.breadcrumb {
+    --bs-breadcrumb-padding-y: 1.5rem;
+}
+
+/* Chevron divider: Remix Icon's arrow-right-s glyph. */
+.breadcrumb-item + .breadcrumb-item::before {
+    content: var(--bs-breadcrumb-divider, "\ea6e");
+    font-family: "remixicon";
+    font-size: 16px;
+    line-height: 1.3;
+}
+
+.pagination {
+    --bs-pagination-font-size: 0.875rem;
+    --bs-pagination-bg: var(--bs-secondary-bg);
+    --bs-pagination-color: var(--bs-tertiary-color);
+    --bs-pagination-border-radius: var(--bs-border-radius-sm);
+    --bs-pagination-focus-box-shadow: none;
+}
+
+.pagination-sm {
+    --bs-pagination-font-size: 0.85rem;
+}
+
+/* --- Badges, alerts, lists, progress ------------------------------------- */
+
+.badge {
+    --bs-badge-padding-x: 0.4em;
+    --bs-badge-padding-y: 0.25em;
+    --bs-badge-font-size: 0.8em;
+    --bs-badge-font-weight: 500;
+    --bs-badge-border-radius: 0.375rem;
+}
+
+.alert {
+    --bs-alert-padding-x: 1.25rem;
+    --bs-alert-padding-y: 0.8rem;
+    --bs-alert-border-radius: 0.375rem;
+}
+
+.alert-dismissible {
+    padding-right: 3.75rem;
+}
+
+.alert-dismissible .btn-close {
+    padding: 1rem 1.25rem;
+}
+
+.list-group {
+    --bs-list-group-color: var(--bs-tertiary-color);
+    --bs-list-group-bg: var(--bs-secondary-bg);
+    --bs-list-group-item-padding-x: 1.2rem;
+    --bs-list-group-item-padding-y: 0.75rem;
+    --bs-list-group-action-hover-color: var(--bs-body-color);
+    --bs-list-group-disabled-bg: var(--bs-tertiary-bg);
+}
+
+.progress,
+.progress-stacked {
+    --bs-progress-bg: var(--bs-body-bg);
+    --bs-progress-font-size: 0.65625rem;
+}
+
+.accordion-button {
+    font-size: 0.875rem;
+}
+
+/* --- Overlays ------------------------------------------------------------ */
+
+.modal {
+    --bs-modal-bg: var(--bs-secondary-bg);
+    --bs-modal-border-color: transparent;
+    --bs-modal-border-radius: var(--bs-border-radius-sm);
+    --bs-modal-inner-border-radius: calc(var(--bs-border-radius-sm) - var(--bs-border-width));
+    --bs-modal-box-shadow: 0 0.125rem 0.25rem rgba(var(--bs-body-color-rgb), 0.15);
+}
+
+.modal-dialog {
+    box-shadow: var(--bs-box-shadow);
+}
+
+.modal-backdrop {
+    --bs-backdrop-bg: var(--bs-emphasis-color);
+}
+
+.btn-close {
+    --bs-btn-close-color: var(--bs-secondary-color);
+    --bs-btn-close-hover-opacity: 0.8;
+    --bs-btn-close-focus-shadow: none;
+}
+
+.tooltip {
+    --bs-tooltip-padding-x: 0.75rem;
+    --bs-tooltip-padding-y: 0.375rem;
+    --bs-tooltip-font-size: 0.85rem;
+    --bs-tooltip-bg: var(--bs-body-color);
+    --bs-tooltip-opacity: 1;
+}
+
+.popover {
+    --bs-popover-font-size: 0.85rem;
+    --bs-popover-bg: var(--bs-secondary-bg);
+    --bs-popover-border-color: var(--bs-border-color);
+    --bs-popover-body-padding-x: 0.75rem;
+    --bs-popover-body-padding-y: 0.5rem;
+}
+
+.spinner-border,
+.spinner-grow {
+    --bs-spinner-vertical-align: -0.25em;
+}
+
+
+/* =========================================================================
+   3. UTILITIES
+   ========================================================================= */
+
+.fs-10 { font-size: 10px !important; }
+.fs-11 { font-size: 11px !important; }
+.fs-12 { font-size: 12px !important; }
+.fs-13 { font-size: 13px !important; }
+.fs-14 { font-size: 14px !important; }
+.fs-15 { font-size: 15px !important; }
+.fs-16 { font-size: 16px !important; }
+.fs-17 { font-size: 17px !important; }
+.fs-18 { font-size: 18px !important; }
+.fs-19 { font-size: 19px !important; }
+.fs-20 { font-size: 20px !important; }
+.fs-21 { font-size: 21px !important; }
+.fs-22 { font-size: 22px !important; }
+.fs-23 { font-size: 23px !important; }
+.fs-24 { font-size: 24px !important; }
+.fs-36 { font-size: 36px !important; }
+.fs-48 { font-size: 48px !important; }
+
+.table-centered th,
+.table-centered td {
+    vertical-align: middle !important;
+}
+
+/* Card heading used across the console. Spacing here; the type itself is
+   set in cortendesk.css (section 5). */
+.header-title {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.card-header .header-title {
+    margin-bottom: 0;
+}
+
+/* Underline tab strip. Colours in cortendesk.css (section 17). */
+.nav-tabs.nav-bordered {
+    border-bottom: 2px solid var(--bs-border-color);
+}
+
+.nav-tabs.nav-bordered .nav-item {
+    margin-bottom: -1px;
+}
+
+.nav-tabs.nav-bordered li a {
+    border: 0;
+    padding: 0.625rem 1.25rem;
+}
+
+.nav-tabs.nav-bordered li a.active {
+    border-bottom: 2px solid var(--bs-primary);
+}
+
+/* Dropdown that slides in from slightly below its toggle. It hangs from the
+   bottom edge of its parent rather than where Popper would put it, so
+   Popper's transform is cancelled; the slide runs on `translate`, which is a
+   separate property. */
+.rd-dropdown-slide {
+    position: absolute;
+    margin: 0;
+    z-index: 1000;
+    animation: rd-dropdown-in 0.3s both;
+}
+
+.rd-dropdown-slide.show {
+    top: 100% !important;
+    transform: none !important;
+}
+
+.rd-dropdown-slide.dropdown-menu-end[style] {
+    left: auto;
+    right: 0;
+}
+
+@keyframes rd-dropdown-in {
+    from { translate: 0 10px; }
+    to { translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rd-dropdown-slide {
+        animation: none;
+    }
+}
+
+/* A dropdown toggle that should not draw Bootstrap's caret. */
+.rd-no-caret::after {
+    display: none;
+}
+
+/* Password field eye: <div data-password="false"><span class="rd-password-eye">.
+   shell.js flips the input type and adds .show-password to the button. */
+.rd-password-eye {
+    cursor: pointer;
+}
+
+.rd-password-eye::before {
+    content: "\ecb5"; /* ri-eye-line */
+    font-family: "remixicon";
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.2;
+    vertical-align: middle;
+}
+
+.show-password .rd-password-eye::before {
+    content: "\ecb7"; /* ri-eye-off-line */
+}
+
+
+/* =========================================================================
+   4. SHELL
+   Markup (layouts/app.blade.php and its partials):
+
+     .rd-app
+       .rd-topbar > .rd-topbar-inner      sticky bar right of the sidebar
+       .rd-sidebar                        fixed left column
+         .rd-sidebar-logo, .rd-sidebar-scroll > .rd-nav
+       .rd-main > .rd-content             page; .rd-footer pinned at bottom
+
+   <html data-rd-sidebar> picks the sidebar form: expanded, condensed or
+   offcanvas (theme-init.js / shell.js). The sidebar and topbar sit on the
+   dark chrome in both themes; their colours come from the --rd-shell-*
+   tokens in cortendesk.css.
+   ========================================================================= */
+
+.rd-app {
+    width: 100%;
+    height: 100%;
+}
+
+/* --- Topbar -------------------------------------------------------------- */
+
+.rd-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    min-height: var(--rd-topbar-height);
+    margin-left: var(--rd-sidebar-width);
+    background: var(--rd-shell-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    transition: all 0.25s ease-in-out;
+}
+
+.rd-topbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: var(--rd-topbar-height);
+    margin: 0 auto;
+}
+
+.rd-topbar-menu {
+    position: relative;
+    margin-bottom: 0;
+    list-style: none;
+}
+
+.rd-topbar-menu li {
+    max-height: var(--rd-topbar-height);
+}
+
+.rd-topbar-menu .nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: var(--rd-topbar-height);
+    padding: 0;
+    color: var(--rd-shell-ink-muted);
+    cursor: pointer;
+}
+
+.rd-topbar-menu .nav-link:hover,
+.rd-topbar-menu .nav-link.show {
+    color: var(--rd-shell-ink);
+}
+
+.rd-menu-toggle {
+    position: relative;
+    z-index: 1;
+    width: 60px;
+    border: 0;
+    background: transparent;
+    color: var(--rd-shell-ink-muted);
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.rd-menu-toggle:hover {
+    color: var(--rd-shell-ink);
+}
+
+/* The small logo in the bar only shows when the sidebar is off-canvas. */
+.rd-topbar-logo {
+    display: none;
+    float: left;
+    padding: 0 0.75rem;
+    line-height: var(--rd-topbar-height);
+}
+
+.rd-topbar-logo img {
+    height: 22px;
+}
+
+/* Theme button shows the moon in light mode and the sun in dark mode. */
+[data-bs-theme="dark"] .rd-theme-toggle .ri-moon-line::before {
+    content: "\f1bf"; /* ri-sun-line */
+}
+
+.rd-is-fullscreen .ri-fullscreen-line::before {
+    content: "\ed9a"; /* ri-fullscreen-exit-line */
+}
+
+.rd-user-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 0 solid var(--rd-shell-border);
+    transition: none;
+}
+
+@media (max-width: 575.98px) {
+    .rd-topbar-menu {
+        position: initial;
+    }
+
+    .rd-topbar .dropdown {
+        position: static;
+    }
+
+    .rd-topbar .dropdown .dropdown-menu {
+        left: 10px !important;
+        right: 10px !important;
+    }
+}
+
+/* --- Sidebar ------------------------------------------------------------- */
+
+.rd-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    width: var(--rd-sidebar-width);
+    min-width: var(--rd-sidebar-width);
+    padding-bottom: calc(var(--rd-footer-height) + 0.75rem);
+    background: var(--rd-shell-bg);
+    border-right: 1px solid var(--bs-border-color);
+    box-shadow: var(--bs-box-shadow);
+    transition: all 0.25s ease-in-out;
+}
+
+.rd-sidebar-logo {
+    position: sticky;
+    top: 0;
+    display: block;
+    padding: 0 0 0 18px;
+    line-height: var(--rd-topbar-height);
+    text-align: left;
+    transition: all 0.25s ease-in-out;
+}
+
+.rd-sidebar-logo .rd-logo-lg {
+    display: block;
+}
+
+.rd-sidebar-logo .rd-logo-lg img {
+    height: 40px;
+}
+
+.rd-sidebar-logo .rd-logo-sm {
+    display: none;
+}
+
+.rd-sidebar-logo .rd-logo-sm img {
+    height: 22px;
+}
+
+/* Close button, shown only on the off-canvas sidebar. */
+.rd-sidebar-close {
+    position: absolute;
+    top: 0;
+    right: 19.6px;
+    z-index: 1;
+    display: none;
+    color: var(--rd-shell-ink-muted);
+    font-size: var(--rd-nav-icon-size);
+    line-height: var(--rd-topbar-height);
+    cursor: pointer;
+}
+
+.rd-sidebar-close:hover {
+    color: var(--rd-shell-ink);
+}
+
+/* The menu scrolls on its own when it is taller than the window. The logo
+   above it is one topbar-height tall, hence the subtraction. */
+.rd-sidebar-scroll {
+    height: calc(100% - var(--rd-topbar-height));
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--rd-shell-border-strong) transparent;
+}
+
+.rd-sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.rd-sidebar-scroll::-webkit-scrollbar-thumb {
+    background: var(--rd-shell-border-strong);
+    border-radius: 3px;
+}
+
+/* --- Sidebar nav --------------------------------------------------------- */
+
+.rd-nav,
+.rd-nav ul {
+    padding-left: 0;
+    list-style: none;
+}
+
+.rd-nav-title {
+    padding: var(--rd-nav-pad-y) calc(var(--rd-nav-pad-x) * 2);
+    color: var(--rd-shell-ink-dim);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+    cursor: default;
+}
+
+.rd-nav-link {
+    position: relative;
+    display: block;
+    padding: var(--rd-nav-pad-y) var(--rd-nav-pad-x);
+    color: var(--rd-shell-ink-muted);
+    font-size: var(--rd-nav-font-size);
+    white-space: nowrap;
+    transition: all 0.25s ease-in-out;
+}
+
+.rd-nav-link:hover,
+.rd-nav-link:focus,
+.rd-nav-link:active {
+    color: var(--rd-shell-ink);
+}
+
+.rd-nav-link span {
+    vertical-align: middle;
+}
+
+.rd-nav-link i {
+    display: inline-block;
+    width: var(--rd-nav-icon-width);
+    font-size: var(--rd-nav-icon-size);
+    line-height: var(--rd-nav-icon-size);
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Chevron on an entry that opens a sub-list; turns down when open. */
+.rd-nav-arrow {
+    position: absolute;
+    top: 50%;
+    right: calc(var(--rd-nav-pad-x) * 1.5);
+    display: inline-block;
+    font-size: calc(var(--rd-nav-font-size) * 1.18);
+    line-height: var(--rd-nav-icon-size);
+    transform: translate(-50%, -50%);
+    transition: transform 0.15s;
+}
+
+.rd-nav-arrow::before {
+    content: "\ea6e"; /* ri-arrow-right-s-line */
+    font-family: "remixicon";
+}
+
+.rd-nav-item > a[aria-expanded="true"] > .rd-nav-arrow,
+.rd-nav-item.rd-current > a:not(.collapsed) > .rd-nav-arrow {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.rd-nav-item.rd-current > a {
+    color: var(--rd-shell-accent);
+    font-weight: 500;
+}
+
+.rd-nav-sub {
+    margin-top: calc(var(--rd-nav-pad-y) * -0.5);
+    padding-left: var(--rd-nav-icon-width) !important;
+}
+
+.rd-nav-sub li a {
+    position: relative;
+    display: block;
+    padding: calc(var(--rd-nav-pad-y) * 0.6) calc(var(--rd-nav-pad-x) * 1.5);
+    color: var(--rd-shell-ink-muted);
+    font-size: calc(var(--rd-nav-font-size) * 0.95);
+    white-space: nowrap;
+    transition: all 0.25s ease-in-out;
+}
+
+.rd-nav-sub li a:hover,
+.rd-nav-sub li a:focus,
+.rd-nav-sub li a:active {
+    color: var(--rd-shell-ink);
+}
+
+.rd-nav-sub li.rd-current > a {
+    color: var(--rd-shell-accent);
+    font-weight: 500;
+}
+
+/* --- Content area, page title, footer ------------------------------------ */
+
+.rd-main {
+    position: relative;
+    min-height: calc(100vh - var(--rd-topbar-height) - 2px);
+    margin-left: var(--rd-sidebar-width);
+    padding: 0 0.75rem var(--rd-footer-height);
+    transition: all 0.25s ease-in-out;
+}
+
+.rd-page-title {
+    margin: 0;
+    overflow: hidden;
+    font-size: 18px;
+    line-height: 75px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.rd-page-crumbs {
+    float: right;
+    margin-top: 20px;
+}
+
+.rd-page-crumbs .breadcrumb {
+    padding-top: 8px;
+}
+
+.rd-footer {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    height: var(--rd-footer-height);
+    padding: 0 1.5rem;
+    border-top: 1px solid var(--bs-border-color);
+    transition: all 0.25s ease-in-out;
+}
+
+@media (max-width: 767.98px) {
+    .rd-page-title {
+        display: block;
+        line-height: 70px;
+    }
+
+    .rd-page-crumbs {
+        display: none;
+    }
+
+    .rd-footer {
+        text-align: center;
+    }
+}
+
+/* --- Condensed: icon rail --------------------------------------------------
+   The rail scrolls with the page instead of on its own, so a hovered entry
+   can fly its label (and a sub-list) out past the rail's edge. */
+
+html[data-rd-sidebar="condensed"] .rd-topbar {
+    z-index: 1005;
+    margin-left: var(--rd-sidebar-width-sm);
+}
+
+html[data-rd-sidebar="condensed"] .rd-main {
+    min-height: 1500px;
+    margin-left: var(--rd-sidebar-width-sm);
+}
+
+html[data-rd-sidebar="condensed"] .rd-sidebar {
+    position: absolute;
+    width: var(--rd-sidebar-width-sm);
+    min-width: var(--rd-sidebar-width-sm);
+}
+
+html[data-rd-sidebar="condensed"] .rd-sidebar-scroll {
+    overflow: visible;
+}
+
+html[data-rd-sidebar="condensed"] .rd-sidebar-logo {
+    z-index: 1;
+    padding: 10px 0 0;
+    background: var(--rd-shell-bg);
+    text-align: center;
+}
+
+html[data-rd-sidebar="condensed"] .rd-sidebar-logo .rd-logo-lg {
+    display: none;
+}
+
+html[data-rd-sidebar="condensed"] .rd-sidebar-logo .rd-logo-sm {
+    display: block;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-title,
+html[data-rd-sidebar="condensed"] .rd-sidebar-version {
+    display: none;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav .collapse,
+html[data-rd-sidebar="condensed"] .rd-nav .collapsing {
+    display: none;
+    height: inherit !important;
+    transition: none !important;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item {
+    position: relative;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item .rd-nav-link {
+    padding: calc(var(--rd-nav-pad-y) + 4px) var(--rd-nav-pad-x);
+    transition: none;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item .rd-nav-link i {
+    min-width: calc(var(--rd-sidebar-width-sm) - var(--rd-nav-pad-x) * 2);
+    font-size: 1.25rem;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item .rd-nav-link span {
+    visibility: hidden;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item .rd-nav-link .rd-nav-arrow {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover .rd-nav-link {
+    position: relative;
+    width: var(--rd-sidebar-width);
+    background: var(--rd-shell-2);
+    color: #fff;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover .rd-nav-link span {
+    visibility: visible;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover .rd-nav-link span:not(.badge) {
+    margin-left: var(--rd-nav-pad-x);
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover > .collapse,
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover > .collapsing {
+    display: block !important;
+    transition: none !important;
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover > .collapse > ul,
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover > .collapsing > ul {
+    position: absolute;
+    left: var(--rd-sidebar-width-sm);
+    display: block !important;
+    width: calc(var(--rd-sidebar-width) - var(--rd-sidebar-width-sm));
+    margin-top: 0;
+    padding: 0 !important;
+    background: var(--rd-shell-bg);
+    box-shadow: 0 0 45px 0 rgba(var(--bs-body-color-rgb), 0.2);
+}
+
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover > .collapse > ul a,
+html[data-rd-sidebar="condensed"] .rd-nav-item:hover > .collapsing > ul a {
+    width: calc(var(--rd-sidebar-width) - var(--rd-sidebar-width-sm));
+    padding: calc(var(--rd-nav-pad-y) * 0.9) calc(var(--rd-nav-pad-x) * 2);
+    box-shadow: none;
+}
+
+/* --- Off-canvas: phones ------------------------------------------------------ */
+
+html[data-rd-sidebar="offcanvas"] .rd-topbar {
+    margin-left: 0;
+}
+
+html[data-rd-sidebar="offcanvas"] .rd-topbar-logo {
+    display: inline-block;
+}
+
+html[data-rd-sidebar="offcanvas"] .rd-main {
+    margin-left: 0;
+}
+
+html[data-rd-sidebar="offcanvas"] .rd-sidebar {
+    margin-left: calc(var(--rd-sidebar-width) * -1);
+    border-color: transparent;
+    opacity: 0;
+}
+
+html[data-rd-sidebar="offcanvas"] .rd-sidebar-close {
+    display: block;
+}
+
+html[data-rd-sidebar="offcanvas"].rd-sidebar-open .rd-sidebar {
+    z-index: 1055;
+    margin-left: 0;
+    opacity: 1;
+}
+
+.rd-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    background-color: var(--bs-emphasis-color);
+    opacity: 0.5;
+}
+
+@media (max-width: 767.98px) {
+    .rd-topbar {
+        padding: 0 0.75rem;
+    }
+}
+
+@media (max-width: 375px) {
+    .rd-menu-toggle {
+        width: auto;
+    }
+
+    html[data-rd-sidebar="offcanvas"] .rd-topbar-logo {
+        display: none;
+    }
+}
+
+@media print {
+    .rd-sidebar,
+    .rd-topbar,
+    .rd-page-head,
+    .rd-footer {
+        display: none;
+    }
+
+    .rd-main,
+    .rd-content,
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    .card {
+        box-shadow: none;
+    }
+}
+
+
+/* =========================================================================
+   5. AUTH
+   Signed-out pages (layouts/guest.blade.php): one centred column over the
+   background image from cortendesk.css.
+   ========================================================================= */
+
+.rd-auth-page {
+    display: flex;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.rd-auth-brand {
+    margin-bottom: 2rem;
+}

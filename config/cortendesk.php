@@ -86,6 +86,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Apprise notifications
+    |--------------------------------------------------------------------------
+    | HTTP timeout in seconds for notifications the scheduler sends (device
+    | offline/recovery and retries). Sends made while handling a request
+    | always use 3 seconds. Clamped to 1-60.
+    */
+    'notifications' => [
+        'scheduled_timeout' => (int) env('CORTENDESK_NOTIFY_TIMEOUT', 15),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Build Installers
     |--------------------------------------------------------------------------
     | URL the sidebar "Build Installers" entry opens (an rdgen instance).
@@ -134,4 +146,15 @@ return [
     | off also re-enables password sign-in, whatever the stored settings say.
     */
     'oidc_disabled' => filter_var(env('CORTENDESK_OIDC_DISABLED', false), FILTER_VALIDATE_BOOL),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update check
+    |--------------------------------------------------------------------------
+    | The console reads the VERSION file from GitHub every ~6 hours to show an
+    | "update available" badge. CORTENDESK_UPDATE_CHECK=false stops the request
+    | and hides the badge and the release status line, for installs that must
+    | not call out or that get their updates from a packager.
+    */
+    'update_check' => filter_var(env('CORTENDESK_UPDATE_CHECK', true), FILTER_VALIDATE_BOOL),
 ];

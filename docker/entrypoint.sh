@@ -5,6 +5,70 @@
 set -e
 cd /app
 
+_is_uint() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
+
+# --- file descriptors --------------------------------------------------------
+# Many Docker hosts start containers with a soft limit of 1024 open files and a
+# much higher hard limit. 1024 is too few once a few hundred devices connect:
+# nginx fails accept4() with EMFILE and hbbr runs out of sockets. Raise the soft
+# limit toward the hard one here, before supervisord starts, so every process
+# inherits it. Never above the hard limit (that needs CAP_SYS_RESOURCE) and
+# never lower than what the container already has.
+_fd_want=65536
+_fd_hard="$(ulimit -Hn)"
+if _is_uint "$_fd_hard" && [ "$_fd_hard" -lt "$_fd_want" ]; then
+    _fd_want="$_fd_hard"
+fi
+_fd_soft="$(ulimit -Sn)"
+if _is_uint "$_fd_soft" && [ "$_fd_soft" -lt "$_fd_want" ]; then
+    ulimit -Sn "$_fd_want" 2>/dev/null || true
+fi
+FD_LIMIT="$(ulimit -Sn)"
+if _is_uint "$FD_LIMIT" && [ "$FD_LIMIT" -lt 4096 ]; then
+    echo "[cortendesk] WARNING: only $FD_LIMIT open files allowed (hard limit $_fd_hard)."
+    echo "[cortendesk]          Larger fleets need more: docker run --ulimit nofile=65536:65536"
+fi
+
+# --- console port ------------------------------------------------------------
+# nginx listens here inside the container. 9000 is php-fpm and 21115-21119
+# belong to the ID server and relay, so those are refused. A bad value stops
+# the container: falling back to 8080 would leave the console unreachable on
+# the port the operator mapped, and the healthcheck would probe the wrong one.
+CORTENDESK_HTTP_PORT="${CORTENDESK_HTTP_PORT:-8080}"
+if ! _is_uint "$CORTENDESK_HTTP_PORT" || [ "$CORTENDESK_HTTP_PORT" -lt 1 ] \
+    || [ "$CORTENDESK_HTTP_PORT" -gt 65535 ] || [ "$CORTENDESK_HTTP_PORT" -eq 9000 ] \
+    || { [ "$CORTENDESK_HTTP_PORT" -ge 21115 ] && [ "$CORTENDESK_HTTP_PORT" -le 21119 ]; }; then
+    echo "[cortendesk] CORTENDESK_HTTP_PORT='$CORTENDESK_HTTP_PORT' is not usable: pick 1-65535, not 9000 or 21115-21119" >&2
+    exit 1
+fi
+export CORTENDESK_HTTP_PORT
+
+# --- log level ---------------------------------------------------------------
+# One knob for the console (LOG_LEVEL), hbbs/hbbr (RUST_LOG) and php-fpm's
+# per-request access log. LOG_LEVEL or RUST_LOG set explicitly still wins.
+# hbbs/hbbr only know off, error, warn, info, debug and trace, and an unknown
+# word there silences them, so map onto those. Their debug is limited to the
+# servers' own modules: a global debug adds HTTP client chatter every 5 seconds.
+_fpm_access=/proc/self/fd/2
+if [ -n "${CORTENDESK_LOG_LEVEL:-}" ]; then
+    _ll="$(echo "$CORTENDESK_LOG_LEVEL" | tr 'A-Z' 'a-z')"
+    case "$_ll" in
+        debug)                    _rl=info,hbbs=debug,hbbr=debug,hbb_common=debug ;;
+        info|notice)              _rl=info ;;
+        warn|warning)             _ll=warning; _rl=warn ;;
+        error|critical|alert|emergency) _rl=error ;;
+        *)
+            echo "[cortendesk] WARNING: CORTENDESK_LOG_LEVEL='$CORTENDESK_LOG_LEVEL' is not one of debug, info, notice, warning, error, critical; ignoring it"
+            _ll="" ;;
+    esac
+    if [ -n "$_ll" ]; then
+        export LOG_LEVEL="${LOG_LEVEL:-$_ll}"
+        export RUST_LOG="${RUST_LOG:-$_rl}"
+        # One line per PHP request is info-level output.
+        case "$_rl" in warn|error) _fpm_access=/dev/null ;; esac
+    fi
+fi
+
 # --- the embedded ID server and relay ----------------------------------------
 # hbbs and hbbr run in this container by default. Set
 # CORTENDESK_EMBEDDED_SERVER=false to leave them out and point the console at
@@ -75,7 +139,7 @@ if [ "$EMBEDDED" = 1 ]; then
         CORTENDESK_SERVER_SECRET="$(cat /data/.server_secret)"
     fi
     export CORTENDESK_SERVER_SECRET
-    export CORTENDESK_CONSOLE_URL="${CORTENDESK_CONSOLE_URL:-http://127.0.0.1:8080}"
+    export CORTENDESK_CONSOLE_URL="${CORTENDESK_CONSOLE_URL:-http://127.0.0.1:$CORTENDESK_HTTP_PORT}"
 
     # What the console tells clients, and what hbbs tells them about the relay.
     # An explicit setting always wins; these only fill in the blanks.
@@ -115,7 +179,6 @@ export CORTENDESK_DOWNLOADS_ACCEL=/_cortendesk_downloads
 # Upload ceiling. One variable sizes every layer an installer upload passes
 # through: the app's own limit, PHP and nginx. CORTENDESK_DOWNLOADS_MAX_KB is
 # the older spelling and still honoured when the MB one is unset.
-_is_uint() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
 if [ -n "${CORTENDESK_DOWNLOADS_MAX_MB:-}" ]; then
     _max_mb="$CORTENDESK_DOWNLOADS_MAX_MB"
 elif _is_uint "${CORTENDESK_DOWNLOADS_MAX_KB:-}"; then
@@ -135,6 +198,60 @@ cat > /usr/local/etc/php/conf.d/zz-cortendesk-uploads.ini <<EOF
 ; Written by entrypoint.sh from CORTENDESK_DOWNLOADS_MAX_MB. Edits are lost.
 upload_max_filesize = ${CORTENDESK_UPLOAD_BODY_MB}M
 post_max_size = ${CORTENDESK_UPLOAD_BODY_MB}M
+EOF
+
+# --- php-fpm pool size ---------------------------------------------------------
+# The stock pool is 5 workers. Every heartbeat, sysinfo upload and console page
+# needs one, so a few hundred devices fill it, requests queue up in nginx and
+# the console stops answering (issue #93). A worker is roughly 35-40 MB.
+# Default: 24 workers, or fewer when the container has a memory limit, so that
+# a full pool stays under about half of it. CORTENDESK_FPM_MAX_CHILDREN wins.
+_mem_mb=""
+for _f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+    if [ -r "$_f" ]; then
+        _mem_mb="$(awk '$1 ~ /^[0-9]+$/ && $1 < 1099511627776 { printf "%d", $1 / 1048576 }' "$_f")"
+        break
+    fi
+done
+_fpm_default=24
+if _is_uint "$_mem_mb" && [ "$_mem_mb" -gt 0 ]; then
+    _fpm_default=$((_mem_mb / 2 / 40))
+    [ "$_fpm_default" -gt 24 ] && _fpm_default=24
+    [ "$_fpm_default" -lt 5 ] && _fpm_default=5
+fi
+_fpm_max="${CORTENDESK_FPM_MAX_CHILDREN:-$_fpm_default}"
+if ! _is_uint "$_fpm_max" || [ "$_fpm_max" -lt 1 ]; then
+    echo "[cortendesk] WARNING: CORTENDESK_FPM_MAX_CHILDREN='$_fpm_max' is not a whole number above 0; using $_fpm_default"
+    _fpm_max="$_fpm_default"
+fi
+# Spare workers scale with the pool: 24 gives min 3, start 6, max 12.
+_fpm_min_spare=$((_fpm_max / 8)); [ "$_fpm_min_spare" -lt 1 ] && _fpm_min_spare=1
+_fpm_max_spare=$((_fpm_max / 2)); [ "$_fpm_max_spare" -lt "$_fpm_min_spare" ] && _fpm_max_spare="$_fpm_min_spare"
+_fpm_start=$((_fpm_max / 4))
+[ "$_fpm_start" -lt "$_fpm_min_spare" ] && _fpm_start="$_fpm_min_spare"
+[ "$_fpm_start" -gt "$_fpm_max_spare" ] && _fpm_start="$_fpm_max_spare"
+# The file sorts after www.conf and docker.conf, so these values win. The only
+# later file, zz-docker.conf, sets daemonize and nothing else.
+cat > /usr/local/etc/php-fpm.d/zz-cortendesk-fpm.conf <<EOF
+; Written by entrypoint.sh from CORTENDESK_FPM_MAX_CHILDREN and
+; CORTENDESK_LOG_LEVEL. Edits are lost.
+[global]
+; Let workers finish their request on a reload or stop instead of being killed.
+process_control_timeout = 10s
+
+[www]
+; Only nginx in this container talks to php-fpm. The base image listens on
+; every interface, which exposes FastCGI to the rest of the Docker network.
+listen = 127.0.0.1:9000
+; /dev/null when CORTENDESK_LOG_LEVEL is warning or quieter.
+access.log = ${_fpm_access}
+pm = dynamic
+pm.max_children = ${_fpm_max}
+pm.start_servers = ${_fpm_start}
+pm.min_spare_servers = ${_fpm_min_spare}
+pm.max_spare_servers = ${_fpm_max_spare}
+; Recycle workers now and then so a slow leak cannot grow without bound.
+pm.max_requests = 1000
 EOF
 
 # --- APP_KEY: use the env if provided, else generate once into /data --------
@@ -194,16 +311,36 @@ case "$NGINX_RESOLVER" in
     *:*)   NGINX_RESOLVER="[$NGINX_RESOLVER]" ;; # bare IPv6 — only v6 has colons
 esac
 export NGINX_RESOLVER
-envsubst '${RUSTDESK_WS_HOST} ${NGINX_RESOLVER} ${CORTENDESK_UPLOAD_BODY_MB} ${CORTENDESK_DOWNLOADS_PATH}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+
+# Connections per nginx worker. A proxied request holds two descriptors (client
+# and php-fpm or the ws upstream), so each worker may open twice as many files,
+# capped at what the container allows.
+_ngx_conn="${CORTENDESK_NGINX_WORKER_CONNECTIONS:-4096}"
+if ! _is_uint "$_ngx_conn" || [ "$_ngx_conn" -lt 64 ]; then
+    echo "[cortendesk] WARNING: CORTENDESK_NGINX_WORKER_CONNECTIONS='$_ngx_conn' is not a whole number of at least 64; using 4096"
+    _ngx_conn=4096
+fi
+_ngx_files=$((_ngx_conn * 2))
+if _is_uint "$_fd_hard" && [ "$_ngx_files" -gt "$_fd_hard" ]; then
+    _ngx_files="$_fd_hard"
+    if [ "$_ngx_conn" -gt "$_ngx_files" ]; then
+        echo "[cortendesk] WARNING: $_ngx_conn nginx connections need more open files than the hard limit ($_fd_hard); using $_ngx_files"
+        _ngx_conn="$_ngx_files"
+    fi
+fi
+export NGINX_WORKER_CONNECTIONS="$_ngx_conn" NGINX_WORKER_RLIMIT_NOFILE="$_ngx_files"
+
+envsubst '${RUSTDESK_WS_HOST} ${NGINX_RESOLVER} ${CORTENDESK_UPLOAD_BODY_MB} ${CORTENDESK_DOWNLOADS_PATH} ${CORTENDESK_HTTP_PORT} ${NGINX_WORKER_CONNECTIONS} ${NGINX_WORKER_RLIMIT_NOFILE}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
 php artisan config:cache --no-interaction -q
 php artisan route:cache --no-interaction -q
 php artisan view:cache --no-interaction -q
 
 if [ "$EMBEDDED" = 1 ]; then
-    echo "[cortendesk] ready — console on :8080, ID server on :21116, relay on :21117"
+    echo "[cortendesk] ready — console on :$CORTENDESK_HTTP_PORT, ID server on :21116, relay on :21117"
     echo "[cortendesk] server ${CORTENDESK_SERVER_VERSION:-?}, key ${CORTENDESK_PUBLIC_KEY}"
 else
-    echo "[cortendesk] ready — listening on :8080 (ws bridge -> ${RUSTDESK_WS_HOST}:21118/21119)"
+    echo "[cortendesk] ready — listening on :$CORTENDESK_HTTP_PORT (ws bridge -> ${RUSTDESK_WS_HOST}:21118/21119)"
 fi
+echo "[cortendesk] php-fpm ${_fpm_max} workers, nginx ${NGINX_WORKER_CONNECTIONS} connections per worker, ${FD_LIMIT} open files"
 exec supervisord -c /etc/supervisord.conf

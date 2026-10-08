@@ -84,6 +84,15 @@ import { VoiceCaptureController, browserVoiceCaptureDeps } from '../media/voice-
 import { voiceCallUiModel } from './voice-call-ui';
 import { VoiceCallAttemptOwner } from './voice-call-attempt';
 import { remoteInputAllowed, type RemoteInputChannel } from './view-only-policy';
+import {
+  loadPrefs,
+  resetCommands,
+  resetPrefs,
+  savePrefs,
+  withRememberedOptions,
+  type CodecName,
+  type SessionPrefs,
+} from './session-prefs';
 
 // Back-compat: everything that used to live here is re-exported for tests and
 // external importers.
@@ -122,6 +131,7 @@ type Els = {
   peerSub: HTMLElement;
   recordingIndicator: HTMLElement;
   btnMonitors: HTMLButtonElement;
+  btnFullscreen: HTMLButtonElement;
   btnFit: HTMLButtonElement;
   btnViewOnly: HTMLButtonElement;
   chatList: HTMLElement;
@@ -234,6 +244,8 @@ export class RdApp {
   private fitMode: FitMode = 'fit';
   private quality: number = QUALITY.balanced;
   private customQuality = 75;
+  /** The custom slider, not a preset, is what the peer is using. */
+  private customQualityActive = false;
   private customFps = 30;
   private adaptiveFpsTarget = 30;
   private adaptiveFps = false;
@@ -485,6 +497,7 @@ export class RdApp {
 
     const onFullscreenChange = () => {
       const fs = !!document.fullscreenElement;
+      this.syncFullscreenButton();
       if (fs) {
         bottomOpen = false;
         topOpen = false;
@@ -536,6 +549,7 @@ export class RdApp {
         <span class="rd-island-sep rd-stream-only" aria-hidden="true"></span>
         <span class="rd-recording-indicator rd-stream-only" id="rd-recording-indicator" hidden aria-live="polite">REC <span>00:00</span></span>
         <button type="button" class="rd-ib rd-stream-only" id="rd-btn-monitors" title="Select monitor" aria-label="Select monitor" aria-haspopup="true" hidden>${iconHtml('monitor')}</button>
+        <button type="button" class="rd-ib rd-stream-only" id="rd-btn-fullscreen" title="Fullscreen" aria-label="Fullscreen" aria-pressed="false">${iconHtml('fullscreen')}</button>
         <button type="button" class="rd-ib rd-stream-only" id="rd-btn-more" title="More options" aria-label="More options" aria-haspopup="true">${iconHtml('more')}</button>
         <span class="rd-island-sep rd-stream-only" aria-hidden="true"></span>
         <button type="button" class="rd-chip rd-stream-only" id="rd-btn-fit" aria-haspopup="true" title="Scale mode">
@@ -558,6 +572,12 @@ export class RdApp {
     this.el.btnViewOnly = q(t, '#rd-btn-viewonly');
 
     this.el.btnMonitors.addEventListener('click', () => this.openMonitorPop());
+    this.el.btnFullscreen = q<HTMLButtonElement>(t, '#rd-btn-fullscreen');
+    // iPhone Safari has no element fullscreen; a button that only toasts an
+    // error is worse than none.
+    this.el.btnFullscreen.hidden = document.fullscreenEnabled === false;
+    this.el.btnFullscreen.addEventListener('click', () => void this.toggleFullscreen());
+    this.syncFullscreenButton();
     q<HTMLButtonElement>(t, '#rd-btn-more').addEventListener('click', (e) =>
       this.openMorePop(e.currentTarget as HTMLElement),
     );
@@ -1168,7 +1188,6 @@ export class RdApp {
 
   private openMorePop(anchor: HTMLElement): void {
     this.openPop(anchor, (pop) => {
-      const fs = !!document.fullscreenElement;
       const security = buildSecurityControlMenu({
         platform: this.peerPlatform,
         permissions: this.permissions,
@@ -1220,12 +1239,11 @@ export class RdApp {
           : '';
       pop.innerHTML =
         this.menuItem('refresh', 'Refresh video', false, 'refresh') +
-        this.menuItem(fs ? 'fullscreenExit' : 'fullscreen', fs ? 'Exit fullscreen' : 'Fullscreen', false, 'fullscreen') +
         '<div class="rd-pop-sep"></div><div class="rd-pop-title">Image quality</div>' +
-        this.menuItem(null, 'Best', this.quality === QUALITY.best, 'quality:best') +
-        this.menuItem(null, 'Balanced', this.quality === QUALITY.balanced, 'quality:balanced') +
-        this.menuItem(null, 'Speed', this.quality === QUALITY.speed, 'quality:speed') +
-        `<label class="rd-display-slider"><span>Custom quality</span><input data-action="customQuality" type="range" min="10" max="100" value="${this.customQuality}"><output>${this.customQuality}</output></label>` +
+        this.menuItem(null, 'Best', !this.customQualityActive && this.quality === QUALITY.best, 'quality:best') +
+        this.menuItem(null, 'Balanced', !this.customQualityActive && this.quality === QUALITY.balanced, 'quality:balanced') +
+        this.menuItem(null, 'Speed', !this.customQualityActive && this.quality === QUALITY.speed, 'quality:speed') +
+        `<label class="rd-display-slider${this.customQualityActive ? ' rd-checked' : ''}"><span>Custom quality</span><input data-action="customQuality" type="range" min="10" max="100" value="${this.customQuality}"><output>${this.customQuality}</output></label>` +
         '<div class="rd-pop-sep"></div><div class="rd-pop-title">Frame rate and codec</div>' +
         this.menuItem(null, 'Adaptive FPS', this.adaptiveFps, 'adaptiveFps') +
         `<label class="rd-display-slider"><span>${this.adaptiveFps ? 'Maximum FPS' : 'Custom FPS'}</span><input data-action="customFps" type="range" min="5" max="120" step="5" value="${this.customFps}"><output>${this.customFps}</output></label>` +
@@ -1239,13 +1257,17 @@ export class RdApp {
           : '') +
         securityHtml +
         tools +
-        mediaHtml;
+        mediaHtml +
+        '<div class="rd-pop-sep"></div>' +
+        this.menuItem(null, 'Reset settings to defaults', false, 'resetPrefs') +
+        '<div class="rd-pop-note">Display and media settings are remembered in this browser for every device.</div>';
       pop.querySelector<HTMLButtonElement>('[data-action="refresh"]')?.addEventListener('click', () => {
         this.post({ c: 'refresh' });
         this.closePop();
       });
-      pop.querySelector<HTMLButtonElement>('[data-action="fullscreen"]')?.addEventListener('click', () => {
-        void this.toggleFullscreen();
+      pop.querySelector<HTMLButtonElement>('[data-action="resetPrefs"]')?.addEventListener('click', () => {
+        this.resetSessionPrefs();
+        this.toast('Settings reset to defaults');
         this.closePop();
       });
       const qualityValues: Record<string, number> = { best: QUALITY.best, balanced: QUALITY.balanced, speed: QUALITY.speed };
@@ -1253,7 +1275,9 @@ export class RdApp {
         button.addEventListener('click', () => {
           const key = button.dataset.action?.slice('quality:'.length) ?? '';
           this.quality = qualityValues[key] ?? QUALITY.balanced;
+          this.customQualityActive = false;
           this.post({ c: 'quality', imageQuality: this.quality });
+          this.rememberPrefs({ quality: this.quality, customQualityActive: false });
           this.closePop();
         });
       }
@@ -1264,7 +1288,9 @@ export class RdApp {
       });
       customQuality?.addEventListener('change', () => {
         this.customQuality = Number(customQuality.value);
+        this.customQualityActive = true;
         this.post({ c: 'customQuality', quality: this.customQuality });
+        this.rememberPrefs({ customQuality: this.customQuality, customQualityActive: true });
       });
       pop.querySelector<HTMLButtonElement>('[data-action="adaptiveFps"]')?.addEventListener('click', () => {
         this.adaptiveFps = !this.adaptiveFps;
@@ -1272,6 +1298,7 @@ export class RdApp {
         this.adaptiveStableSamples = 0;
         this.lastDroppedFrames = this.stats?.framesDropped ?? 0;
         this.post({ c: 'customFps', fps: this.adaptiveFpsTarget });
+        this.rememberPrefs({ adaptiveFps: this.adaptiveFps });
         this.toast(this.adaptiveFps ? 'Adaptive FPS enabled; bitrate remains host-managed' : 'Fixed FPS enabled');
         this.closePop();
       });
@@ -1285,6 +1312,7 @@ export class RdApp {
         this.adaptiveFpsTarget = this.customFps;
         this.adaptiveStableSamples = 0;
         this.post({ c: 'customFps', fps: this.adaptiveFpsTarget });
+        this.rememberPrefs({ customFps: this.customFps });
       });
       for (const button of pop.querySelectorAll<HTMLButtonElement>('[data-action^="codec:"]')) {
         button.addEventListener('click', () => {
@@ -1293,6 +1321,7 @@ export class RdApp {
           if (prefer === null || !this.codecSupport.includes(codec as never)) return;
           this.preferredCodec = codec;
           this.post({ c: 'preferredCodec', prefer });
+          this.rememberPrefs({ codec: codec as CodecName });
           this.closePop();
         });
       }
@@ -1304,6 +1333,11 @@ export class RdApp {
           this.post({ c: 'displayOption', option: 'showRemoteCursor', enabled: true });
         }
         this.post({ c: 'displayOption', option: action, enabled });
+        this.rememberPrefs({
+          showRemoteCursor: this.showRemoteCursor,
+          followRemoteCursor: this.followRemoteCursor,
+          followRemoteWindow: this.followRemoteWindow,
+        });
         if (action === 'showRemoteCursor' && !enabled) this.el.remoteCursor.hidden = true;
         this.closePop();
       };
@@ -1313,6 +1347,7 @@ export class RdApp {
       pop.querySelector<HTMLButtonElement>('[data-action="cursorScale"]')?.addEventListener('click', () => {
         this.cursorScale = this.cursorScale > 1 ? 1 : 2;
         this.updateRemoteCursorTransform();
+        this.rememberPrefs({ cursorScale: this.cursorScale });
         this.closePop();
       });
       for (const button of pop.querySelectorAll<HTMLButtonElement>('[data-security]')) {
@@ -1333,6 +1368,7 @@ export class RdApp {
       pop.querySelector<HTMLButtonElement>('[data-action="audioToggle"]')?.addEventListener('click', () => {
         this.remoteAudioEnabled = !this.remoteAudioEnabled;
         this.post({ c: 'remoteAudio', enabled: this.remoteAudioEnabled });
+        this.rememberPrefs({ remoteAudio: this.remoteAudioEnabled });
         if (this.remoteAudioEnabled) void this.resumeAudioFromUserGesture();
         else this.audioPlayback?.reset();
         this.toast(this.remoteAudioEnabled ? 'Remote audio enabled' : 'Remote audio disabled');
@@ -1341,6 +1377,7 @@ export class RdApp {
       pop.querySelector<HTMLButtonElement>('[data-action="audioMute"]')?.addEventListener('click', () => {
         this.audioMuted = !this.audioMuted;
         this.audioPlayback?.setMuted(this.audioMuted);
+        this.rememberPrefs({ audioMuted: this.audioMuted });
         this.toast(this.audioMuted ? 'Remote audio muted' : 'Remote audio unmuted');
         this.closePop();
       });
@@ -1351,9 +1388,11 @@ export class RdApp {
         const output = volume.parentElement?.querySelector('output');
         if (output) output.textContent = `${volume.value}%`;
       });
+      volume?.addEventListener('change', () => this.rememberPrefs({ audioVolume: this.audioVolume }));
       pop.querySelector<HTMLButtonElement>('[data-action="clipboardToggle"]')?.addEventListener('click', () => {
         this.clipboardEnabled = !this.clipboardEnabled;
         this.post({ c: 'clipboardEnabled', enabled: this.clipboardEnabled });
+        this.rememberPrefs({ clipboard: this.clipboardEnabled });
         if (!this.clipboardEnabled) this.removeClipboardSyncOffer();
         this.toast(this.clipboardEnabled ? 'Text clipboard enabled' : 'Text clipboard disabled');
         this.closePop();
@@ -1429,15 +1468,96 @@ export class RdApp {
         this.menuItem(null, 'Fit to screen', this.fitMode === 'fit') +
         this.menuItem(null, 'Actual size', this.fitMode === 'actual');
       const items = pop.querySelectorAll<HTMLButtonElement>('.rd-mi');
-      const set = (mode: FitMode, label: string): void => {
-        this.fitMode = mode;
-        this.el.viewport.dataset.fit = mode;
-        q(this.el.toolbar, '#rd-fit-label').textContent = label;
+      const set = (mode: FitMode): void => {
+        this.setFitMode(mode);
+        this.rememberPrefs({ fitMode: mode });
         this.closePop();
       };
-      items[0]?.addEventListener('click', () => set('fit', 'Fit to screen'));
-      items[1]?.addEventListener('click', () => set('actual', 'Actual size'));
+      items[0]?.addEventListener('click', () => set('fit'));
+      items[1]?.addEventListener('click', () => set('actual'));
     });
+  }
+
+  private setFitMode(mode: FitMode): void {
+    this.fitMode = mode;
+    this.el.viewport.dataset.fit = mode;
+    q(this.el.toolbar, '#rd-fit-label').textContent = mode === 'fit' ? 'Fit to screen' : 'Actual size';
+  }
+
+  // --- remembered settings (issue #92) --------------------------------------
+
+  /**
+   * Save only the fields the user just changed. Writing the whole live state
+   * would also save things the session adjusted on its own, such as a codec
+   * this browser cannot decode falling back to automatic.
+   */
+  private rememberPrefs(patch: Partial<SessionPrefs>): void {
+    savePrefs({ ...loadPrefs(), ...patch });
+  }
+
+  /** Load remembered settings into the session state, ahead of connecting. */
+  private applyPrefs(p: SessionPrefs): void {
+    this.quality = p.quality;
+    this.customQuality = p.customQuality;
+    this.customQualityActive = p.customQualityActive;
+    this.customFps = p.customFps;
+    this.adaptiveFps = p.adaptiveFps;
+    this.adaptiveFpsTarget = p.customFps;
+    this.preferredCodec = p.codec;
+    this.setFitMode(p.fitMode);
+    this.showRemoteCursor = p.showRemoteCursor || p.followRemoteCursor;
+    this.followRemoteCursor = p.followRemoteCursor;
+    this.followRemoteWindow = p.followRemoteWindow;
+    this.cursorScale = p.cursorScale;
+    this.updateRemoteCursorTransform();
+    this.clipboardEnabled = p.clipboard;
+    this.remoteAudioEnabled = p.remoteAudio;
+    this.audioMuted = p.audioMuted;
+    this.audioVolume = p.audioVolume;
+    this.audioPlayback?.setVolume(this.audioVolume);
+    this.audioPlayback?.setMuted(this.audioMuted);
+  }
+
+  /** Forget remembered settings and put the live session back on the defaults. */
+  private resetSessionPrefs(): void {
+    const before = this.livePrefs();
+    const d = resetPrefs();
+    this.applyPrefs(d);
+    if (!this.showRemoteCursor) this.el.remoteCursor.hidden = true;
+    if (this.state !== 'streaming') return;
+    for (const cmd of resetCommands(before, d)) this.post(cmd);
+    if (!before.remoteAudio) void this.resumeAudioFromUserGesture();
+  }
+
+  private livePrefs(): SessionPrefs {
+    return {
+      quality: this.quality,
+      customQuality: this.customQuality,
+      customQualityActive: this.customQualityActive,
+      customFps: this.customFps,
+      adaptiveFps: this.adaptiveFps,
+      codec: this.preferredCodec as CodecName,
+      fitMode: this.fitMode,
+      showRemoteCursor: this.showRemoteCursor,
+      followRemoteCursor: this.followRemoteCursor,
+      followRemoteWindow: this.followRemoteWindow,
+      cursorScale: this.cursorScale,
+      clipboard: this.clipboardEnabled,
+      remoteAudio: this.remoteAudioEnabled,
+      audioMuted: this.audioMuted,
+      audioVolume: this.audioVolume,
+    };
+  }
+
+  private syncFullscreenButton(): void {
+    const btn = this.el.btnFullscreen;
+    if (!btn) return;
+    const fs = !!document.fullscreenElement;
+    const label = fs ? 'Exit fullscreen' : 'Fullscreen';
+    btn.innerHTML = iconHtml(fs ? 'fullscreenExit' : 'fullscreen');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-pressed', String(fs));
   }
 
   private openKeysPop(anchor: HTMLElement): void {
@@ -1766,12 +1886,6 @@ export class RdApp {
     this.cameraSupported = false;
     this.platformAdditions = '';
     this.codecSupport = ['auto'];
-    this.preferredCodec = 'auto';
-    this.showRemoteCursor = false;
-    this.followRemoteCursor = false;
-    this.followRemoteWindow = false;
-    this.adaptiveFps = false;
-    this.adaptiveFpsTarget = this.customFps;
     this.adaptiveStableSamples = 0;
     this.lastDroppedFrames = 0;
     this.el.remoteCursor.hidden = true;
@@ -1780,11 +1894,13 @@ export class RdApp {
     this.streamStartMs = 0;
     this.displays = [];
     this.current = 0;
-    this.remoteAudioEnabled = true;
     this.audioStarted = false;
-    this.audioMuted = false;
-    this.audioVolume = 1;
-    this.clipboardEnabled = true;
+    // Remembered display and media settings, read fresh so a reconnect picks
+    // up changes made during the previous session. The peer gets the same
+    // values in the LoginRequest, so the menus and the stream agree.
+    const prefs = loadPrefs();
+    this.applyPrefs(prefs);
+    config = withRememberedOptions(config, prefs);
     this.removeClipboardSyncOffer();
     this.createAudioPlayback();
     const canvas = this.freshCanvas();

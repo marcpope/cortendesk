@@ -23,29 +23,17 @@ a.card-hover:active {
     }
 }
 
-/* Sidebar wordmark: larger (~1.8x) and left-justified so it fills the header.
-   Logo SVG is 470x88 (5.34:1) → 40px tall ≈ 213px wide, fits the 240px sidebar.
-   Condensed / sm-hover rules have higher specificity, so those modes are
-   unaffected and keep their centered small mark. */
-.leftside-menu .logo {
-    text-align: left;
-    padding: 0 0 0 18px;
-}
-.leftside-menu .logo-lg img {
-    height: 40px;
-}
-
 /* Auth (login) brand block — mirrors the web client login: big icon with an
    orange glow + two-tone wordmark. Header background is always dark, so the
    light wordmark color is fixed, not theme-dependent. */
-.auth-brand {
+.rd-auth-brand {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 16px;
     text-decoration: none;
 }
-.auth-brand-logo {
+.rd-auth-brand-logo {
     flex: none;
     width: 60px;
     height: 60px;
@@ -53,38 +41,24 @@ a.card-hover:active {
     object-fit: contain;
     filter: drop-shadow(0 6px 16px rgba(201, 83, 31, 0.45));
 }
-.auth-brand-wordmark {
+.rd-auth-brand-wordmark {
     font-size: 40px;
     font-weight: 800;
     letter-spacing: -0.02em;
     line-height: 1;
     color: #e7ebf3;
 }
-.auth-brand-wordmark span {
+.rd-auth-brand-wordmark span {
     color: #e2652e;
 }
 @media (max-width: 480px) {
-    .auth-brand-wordmark {
+    .rd-auth-brand-wordmark {
         font-size: 32px;
     }
-    .auth-brand-logo {
+    .rd-auth-brand-logo {
         width: 50px;
         height: 50px;
     }
-}
-
-/* Sidebar: keep the light-mode near-black menu (#212529) in dark mode too —
-   Attex swaps it to a lighter slate (#313a46) which we don't want. */
-html[data-bs-theme="dark"][data-menu-color="dark"] {
-    --ct-menu-bg: #212529;
-}
-
-/* Condensed sidebar: the wordmark rule above (left-align + 18px pad) leaks in
-   here — Attex doesn't reset it. Re-center the small mark and give it a bit
-   of breathing room at the top. */
-html[data-sidenav-size="condensed"]:not([data-layout="topnav"]) .wrapper .leftside-menu .logo {
-    text-align: center;
-    padding: 10px 0 0;
 }
 
 /* Flex helper Bootstrap doesn't ship: allow a flex child to shrink below its
@@ -98,10 +72,10 @@ html[data-sidenav-size="condensed"]:not([data-layout="topnav"]) .wrapper .leftsi
    Fixed-position pseudo-element instead of background-attachment:fixed, which
    iOS Safari mishandles. Base color matches the image's darkest tone so any
    flash-of-unloaded-background is invisible. */
-body.authentication-bg {
+body.rd-auth-bg {
     background-color: #171d29;
 }
-body.authentication-bg::before {
+body.rd-auth-bg::before {
     content: "";
     position: fixed;
     inset: 0;
@@ -110,8 +84,8 @@ body.authentication-bg::before {
 }
 
 /* Sidebar version footer — pinned bottom-left of the full sidebar.
-   The theme's .leftside-menu is already position:fixed, so this anchors to it;
-   do NOT re-position .leftside-menu here (it breaks the fixed sidebar). */
+   .rd-sidebar is already position:fixed, so this anchors to it; do NOT
+   re-position .rd-sidebar here (it breaks the fixed sidebar). */
 .rd-sidebar-version {
     position: absolute;
     left: 0;
@@ -122,60 +96,43 @@ body.authentication-bg::before {
     gap: 8px;
     padding: 10px 20px;
     font-size: 12px;
-    background: var(--ct-menu-bg);
+    background: var(--rd-shell-bg);
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 .rd-sidebar-version-num {
-    color: var(--ct-menu-item-color, #8391a2);
+    color: var(--rd-shell-ink-muted);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-/* Hide in the condensed (icons-only) sidebar — no room for the label. */
-html[data-sidenav-size="condensed"]:not([data-layout=topnav]) .rd-sidebar-version { display: none; }
-
-/* The theme reserves room for the footer with a padding-bottom on the fixed
-   .leftside-menu, and the scrolling menu container is .h-100 — 100% of that
-   already-shortened content box. But the logo sits ABOVE the container inside
-   the same box and is in normal flow (position:sticky), so the container ends
-   up one topbar-height taller than the space it has: its last ~65px scroll
-   underneath the pinned footer, where nothing can be tapped. Invisible on a
-   tall window because the menu doesn't scroll at all; on a phone it swallows
-   the final item whole (issue #21 — Build Installers, or Settings when no
-   installer builder is configured). Subtracting the logo gives the container
-   its real height. Bootstrap's .h-100 is !important, hence the override. */
-.leftside-menu #leftside-menu-container.h-100 {
-    height: calc(100% - var(--ct-topbar-height)) !important;
-}
+/* The condensed (icons-only) sidebar hides it: no room for the label (see
+   shell.css). The scrolling menu above it is sized in shell.css too, so its
+   last entry never ends up underneath this footer (issue #21). */
 
 /* =========================================================================
    CORTENDESK DESIGN SYSTEM — FOUNDATION
    =========================================================================
 
    Everything below this banner is the shared design foundation: tokens first,
-   then the theme bindings that repaint Attex, then the reusable components.
+   then the bindings that repaint Bootstrap, then the reusable components.
    Nothing here is screen-specific — pages opt in by using the classes.
 
    How the theming works
    ---------------------
-   The compiled Attex build renames Bootstrap's CSS variable prefix from
-   `--bs-` to `--ct-`, and nearly every component reads its colours from those
+   Nearly every Bootstrap component reads its colours from `--bs-*` CSS
    variables. So the cheapest way to restyle the console is to redefine ~30
-   `--ct-*` tokens rather than to write per-component selectors.
+   of those rather than to write per-component selectors. Sizes and the app
+   layout live in shell.css; this file is about colour and components.
 
-   This file is loaded AFTER app.min.css, so an equal-specificity rule here
-   wins. Two consequences worth remembering:
-
-     * `:root` here beats BOTH of Attex's `:root,[data-bs-theme=light]` and
-       `[data-bs-theme=dark]` blocks (all are specificity 0,1,0). That is why
-       the `--ct-*` bindings live in `:root` and reference `--rd-*` tokens —
-       the `--rd-*` tokens are what changes per theme, the bindings never do.
-     * Attex's menu / topbar colours use the two-attribute selector
-       `html[data-bs-theme=dark][data-menu-color=dark]` (0,2,1). Overriding
-       those needs the same double-attribute form (see SHELL below).
+   This file is loaded AFTER bootstrap.min.css and shell.css, so an
+   equal-specificity rule here wins. `:root` here beats BOTH of Bootstrap's
+   `:root,[data-bs-theme=light]` and `[data-bs-theme=dark]` blocks (all are
+   specificity 0,1,0). That is why the `--bs-*` bindings live in `:root` and
+   reference `--rd-*` tokens — the `--rd-*` tokens are what changes per
+   theme, the bindings never do.
 
    Section index
    -------------
      1. TOKENS            --rd-* palette, dark default + light overrides
-     2. THEME BINDING     --rd-* mapped onto Attex's --ct-* variables
+     2. THEME BINDING     --rd-* mapped onto Bootstrap's --bs-* variables
      3. BASE              body / headings / links / scrollbar
      4. SHELL             sidebar + topbar chrome, sidebar nav items
      5. CARD              card, card header, card title
@@ -195,8 +152,8 @@ html[data-sidenav-size="condensed"]:not([data-layout=topnav]) .rd-sidebar-versio
     19. PHONE             the 390px contract — wrap guards, tap targets, modals
     20. DOWNLOAD TILES    .rd-dl — the client-installer links (auth + /downloads)
 
-   Naming: anything new is prefixed `rd-` so it is obvious what is ours and
-   what came from the theme.
+   Naming: anything of ours is prefixed `rd-` so it is obvious what is ours
+   and what is Bootstrap's.
    ========================================================================= */
 
 
@@ -267,12 +224,11 @@ html[data-sidenav-size="condensed"]:not([data-layout=topnav]) .rd-sidebar-versio
     --rd-tone-rgb: var(--rd-accent-rgb);
 
     /* --- Shell ----------------------------------------------------------
-       The sidebar and topbar are dark in BOTH themes: the layout declares
-       data-menu-color="dark" / data-topbar-color="dark", and the theme
-       answers that by showing the light wordmark — which is white, so a
-       white sidebar swallows half the brand. These tokens keep the chrome
-       on the dark ramp while the content area follows the theme. In dark
-       mode they are aliases and change nothing. */
+       The sidebar and topbar are dark in BOTH themes: they carry the light
+       wordmark — which is white, so a white sidebar would swallow half the
+       brand. These tokens keep the chrome on the dark ramp while the
+       content area follows the theme. In dark mode they are aliases and
+       change nothing. */
     --rd-shell-bg: var(--rd-surface);
     --rd-shell-2: var(--rd-surface-2);
     --rd-shell-border: var(--rd-border);
@@ -345,7 +301,7 @@ html[data-bs-theme="light"] {
 
 
 /* =========================================================================
-   2. THEME BINDING — --rd-* onto Attex's --ct-*
+   2. THEME BINDING — --rd-* onto Bootstrap's --bs-*
    =========================================================================
    These declarations are theme-independent: they always point at an --rd-*
    token, and the token is what flips with the theme. Do not add literal
@@ -354,96 +310,88 @@ html[data-bs-theme="light"] {
 
 :root {
     /* --- Page + text ---------------------------------------------------- */
-    --ct-body-bg: var(--rd-bg);
-    --ct-body-bg-rgb: var(--rd-bg-rgb);
-    --ct-body-color: var(--rd-ink);
-    --ct-body-color-rgb: var(--rd-ink-rgb);
-    --ct-emphasis-color: var(--rd-ink);
-    --ct-emphasis-color-rgb: var(--rd-ink-rgb);
-    --ct-heading-color: var(--rd-ink);
+    --bs-body-bg: var(--rd-bg);
+    --bs-body-bg-rgb: var(--rd-bg-rgb);
+    --bs-body-color: var(--rd-ink);
+    --bs-body-color-rgb: var(--rd-ink-rgb);
+    --bs-emphasis-color: var(--rd-ink);
+    --bs-emphasis-color-rgb: var(--rd-ink-rgb);
+    --bs-heading-color: var(--rd-ink);
 
-    /* .text-muted resolves to --ct-secondary-color (196 uses across views). */
-    --ct-secondary-color: var(--rd-ink-muted);
-    --ct-secondary-color-rgb: var(--rd-ink-muted-rgb);
+    /* .text-muted resolves to --bs-secondary-color (196 uses across views). */
+    --bs-secondary-color: var(--rd-ink-muted);
+    --bs-secondary-color-rgb: var(--rd-ink-muted-rgb);
 
-    /* --ct-secondary-bg is the card / dropdown / modal / pagination surface
-       (--ct-card-bg reads it). It is ALSO the literal background of
+    /* --bs-secondary-bg is the card / dropdown / modal / pagination surface
+       (--bs-card-bg reads it). It is ALSO the literal background of
        .form-control / .form-select — those are pushed back to --rd-surface-2
        explicitly in section 6. */
-    --ct-secondary-bg: var(--rd-surface);
-    --ct-secondary-bg-rgb: var(--rd-surface-rgb);
+    --bs-secondary-bg: var(--rd-surface);
+    --bs-secondary-bg-rgb: var(--rd-surface-rgb);
 
-    /* --ct-tertiary-bg drives table hover and dropdown hover. */
-    --ct-tertiary-bg: var(--rd-surface-2);
-    --ct-tertiary-bg-rgb: var(--rd-surface-2-rgb);
-    --ct-tertiary-color: var(--rd-ink);
-    --ct-tertiary-color-rgb: var(--rd-ink-rgb);
+    /* --bs-tertiary-bg drives table hover and dropdown hover. */
+    --bs-tertiary-bg: var(--rd-surface-2);
+    --bs-tertiary-bg-rgb: var(--rd-surface-2-rgb);
+    --bs-tertiary-color: var(--rd-ink);
+    --bs-tertiary-color-rgb: var(--rd-ink-rgb);
 
     /* --- Borders + shape ------------------------------------------------ */
-    --ct-border-color: var(--rd-border);
-    --ct-border-color-translucent: var(--rd-border-strong);
-    --ct-border-radius: var(--rd-radius);
-    --ct-border-radius-sm: var(--rd-radius-sm);
-    --ct-border-radius-lg: var(--rd-radius);
-    --ct-border-radius-pill: var(--rd-radius-pill);
-    --ct-box-shadow: var(--rd-shadow);
-    --ct-box-shadow-sm: var(--rd-shadow);
-
-    /* One token gives cards their hairline, plus the card-header divider,
-       the sidebar right edge and the topbar underline. Attex ships 0px. */
-    --ct-theme-card-border-width: 1px;
+    --bs-border-color: var(--rd-border);
+    --bs-border-color-translucent: var(--rd-border-strong);
+    --bs-border-radius: var(--rd-radius);
+    --bs-border-radius-sm: var(--rd-radius-sm);
+    --bs-border-radius-lg: var(--rd-radius);
+    --bs-border-radius-pill: var(--rd-radius-pill);
+    --bs-box-shadow: var(--rd-shadow);
+    --bs-box-shadow-sm: var(--rd-shadow);
 
     /* --- Palette -------------------------------------------------------- */
-    --ct-primary: var(--rd-accent);
-    --ct-primary-rgb: var(--rd-accent-rgb);
-    --ct-primary-text-emphasis: var(--rd-accent-hover);
-    --ct-secondary: var(--rd-ink-muted);
-    --ct-secondary-rgb: var(--rd-ink-muted-rgb);
-    --ct-success: var(--rd-green);
-    --ct-success-rgb: var(--rd-green-rgb);
-    --ct-success-text-emphasis: var(--rd-green);
-    --ct-info: var(--rd-blue);
-    --ct-info-rgb: var(--rd-blue-rgb);
-    --ct-info-text-emphasis: var(--rd-blue);
-    --ct-warning: var(--rd-amber);
-    --ct-warning-rgb: var(--rd-amber-rgb);
-    --ct-warning-text-emphasis: var(--rd-amber);
-    --ct-danger: var(--rd-red);
-    --ct-danger-rgb: var(--rd-red-rgb);
-    --ct-danger-text-emphasis: var(--rd-red);
-    --ct-light: var(--rd-surface-2);
-    --ct-light-rgb: var(--rd-surface-2-rgb);
+    --bs-primary: var(--rd-accent);
+    --bs-primary-rgb: var(--rd-accent-rgb);
+    --bs-primary-text-emphasis: var(--rd-accent-hover);
+    --bs-secondary: var(--rd-ink-muted);
+    --bs-secondary-rgb: var(--rd-ink-muted-rgb);
+    --bs-success: var(--rd-green);
+    --bs-success-rgb: var(--rd-green-rgb);
+    --bs-success-text-emphasis: var(--rd-green);
+    --bs-info: var(--rd-blue);
+    --bs-info-rgb: var(--rd-blue-rgb);
+    --bs-info-text-emphasis: var(--rd-blue);
+    --bs-warning: var(--rd-amber);
+    --bs-warning-rgb: var(--rd-amber-rgb);
+    --bs-warning-text-emphasis: var(--rd-amber);
+    --bs-danger: var(--rd-red);
+    --bs-danger-rgb: var(--rd-red-rgb);
+    --bs-danger-text-emphasis: var(--rd-red);
+    --bs-light: var(--rd-surface-2);
+    --bs-light-rgb: var(--rd-surface-2-rgb);
 
-    /* Subtle tints. Attex computes these from -rgb in dark but hardcodes
-       hexes in light; stating them here keeps `badge bg-*-subtle text-*`
-       identical in both themes and at the ~14% the spec asks for. */
-    --ct-primary-bg-subtle: rgba(var(--rd-accent-rgb), 0.14);
-    --ct-secondary-bg-subtle: rgba(var(--rd-ink-muted-rgb), 0.14);
-    --ct-success-bg-subtle: rgba(var(--rd-green-rgb), 0.14);
-    --ct-info-bg-subtle: rgba(var(--rd-blue-rgb), 0.14);
-    --ct-warning-bg-subtle: rgba(var(--rd-amber-rgb), 0.14);
-    --ct-danger-bg-subtle: rgba(var(--rd-red-rgb), 0.14);
-    --ct-light-bg-subtle: var(--rd-surface-2);
-    --ct-primary-border-subtle: rgba(var(--rd-accent-rgb), 0.28);
-    --ct-secondary-border-subtle: rgba(var(--rd-ink-muted-rgb), 0.28);
-    --ct-success-border-subtle: rgba(var(--rd-green-rgb), 0.28);
-    --ct-info-border-subtle: rgba(var(--rd-blue-rgb), 0.28);
-    --ct-warning-border-subtle: rgba(var(--rd-amber-rgb), 0.28);
-    --ct-danger-border-subtle: rgba(var(--rd-red-rgb), 0.28);
-    --ct-light-border-subtle: var(--rd-border);
+    /* Subtle tints. Bootstrap hardcodes a hex per theme; stating them here
+       keeps `badge bg-*-subtle text-*` identical in both themes and at the
+       ~14% the spec asks for. */
+    --bs-primary-bg-subtle: rgba(var(--rd-accent-rgb), 0.14);
+    --bs-secondary-bg-subtle: rgba(var(--rd-ink-muted-rgb), 0.14);
+    --bs-success-bg-subtle: rgba(var(--rd-green-rgb), 0.14);
+    --bs-info-bg-subtle: rgba(var(--rd-blue-rgb), 0.14);
+    --bs-warning-bg-subtle: rgba(var(--rd-amber-rgb), 0.14);
+    --bs-danger-bg-subtle: rgba(var(--rd-red-rgb), 0.14);
+    --bs-light-bg-subtle: var(--rd-surface-2);
+    --bs-primary-border-subtle: rgba(var(--rd-accent-rgb), 0.28);
+    --bs-secondary-border-subtle: rgba(var(--rd-ink-muted-rgb), 0.28);
+    --bs-success-border-subtle: rgba(var(--rd-green-rgb), 0.28);
+    --bs-info-border-subtle: rgba(var(--rd-blue-rgb), 0.28);
+    --bs-warning-border-subtle: rgba(var(--rd-amber-rgb), 0.28);
+    --bs-danger-border-subtle: rgba(var(--rd-red-rgb), 0.28);
+    --bs-light-border-subtle: var(--rd-border);
 
     /* --- Links + focus -------------------------------------------------- */
-    --ct-link-color: var(--rd-accent-ink);
-    --ct-link-color-rgb: var(--rd-accent-rgb);
-    --ct-link-hover-color: var(--rd-accent-hover);
-    --ct-link-hover-color-rgb: var(--rd-accent-rgb);
-    --ct-focus-ring-color: var(--rd-accent-soft);
-    --ct-code-color: var(--rd-accent-ink);
-    --ct-highlight-bg: var(--rd-accent-soft);
-
-    /* --- Sidebar metrics ------------------------------------------------ */
-    --ct-menu-item-font-size: 0.875rem;
-    --ct-menu-item-icon-size: 1.125rem;
+    --bs-link-color: var(--rd-accent-ink);
+    --bs-link-color-rgb: var(--rd-accent-rgb);
+    --bs-link-hover-color: var(--rd-accent-hover);
+    --bs-link-hover-color-rgb: var(--rd-accent-rgb);
+    --bs-focus-ring-color: var(--rd-accent-soft);
+    --bs-code-color: var(--rd-accent-ink);
+    --bs-highlight-bg: var(--rd-accent-soft);
 }
 
 
@@ -451,18 +399,18 @@ html[data-bs-theme="light"] {
    3. BASE
    ========================================================================= */
 
-.page-title-box .page-title {
+.rd-page-head .rd-page-title {
     color: var(--rd-ink);
     font-size: 18px;
     font-weight: 600;
 }
 
-.page-title-box .breadcrumb,
-.page-title-box .breadcrumb a {
+.rd-page-head .breadcrumb,
+.rd-page-head .breadcrumb a {
     color: var(--rd-ink-dim);
 }
 
-.page-title-box .breadcrumb .active {
+.rd-page-head .breadcrumb .active {
     color: var(--rd-ink-muted);
 }
 
@@ -470,7 +418,7 @@ hr {
     border-top-color: var(--rd-border);
 }
 
-.footer {
+.rd-footer {
     color: var(--rd-ink-dim);
 }
 
@@ -483,37 +431,13 @@ hr {
 /* =========================================================================
    4. SHELL — sidebar + topbar
    =========================================================================
-   Attex sets the menu / topbar palette on a two-attribute selector, so these
-   overrides must use the same form or they lose on specificity. The
-   #212529 menu override further up the file predates this section; the rule
-   below supersedes it so the sidebar sits on the same blue-grey ramp as the
-   rest of the console. Left in place rather than edited — it is harmless.
+   Layout and metrics are in shell.css; this is the look of the chrome. The
+   sidebar and topbar read the --rd-shell-* tokens, which stay dark in both
+   themes.
    ========================================================================= */
 
-html[data-bs-theme="dark"][data-menu-color="light"],
-html[data-bs-theme="dark"][data-menu-color="dark"],
-html[data-menu-color="dark"] {
-    --ct-menu-bg: var(--rd-shell-bg);
-    --ct-menu-item-color: var(--rd-shell-ink-muted);
-    --ct-menu-item-hover-color: var(--rd-shell-ink);
-    --ct-menu-item-active-color: var(--rd-shell-accent);
-    --ct-menu-condensed-link-bg: var(--rd-shell-2);
-    --ct-help-box-bg: var(--rd-shell-2);
-}
-
-html[data-bs-theme="dark"][data-topbar-color="light"],
-html[data-bs-theme="dark"][data-topbar-color="dark"],
-html[data-topbar-color="dark"] {
-    --ct-topbar-bg: var(--rd-shell-bg);
-    --ct-topbar-item-color: var(--rd-shell-ink-muted);
-    --ct-topbar-item-hover-color: var(--rd-shell-ink);
-    --ct-topbar-search-bg: var(--rd-shell-2);
-    --ct-topbar-user-bg: var(--rd-shell-2);
-    --ct-topbar-user-border: var(--rd-shell-border);
-}
-
 /* Section headings: 11px, wide tracking, dim. */
-.side-nav .side-nav-title {
+.rd-nav .rd-nav-title {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -522,33 +446,33 @@ html[data-topbar-color="dark"] {
     padding-bottom: 8px;
 }
 
-.side-nav .side-nav-title:first-child {
+.rd-nav .rd-nav-title:first-child {
     padding-top: 8px;
 }
 
 /* Items: rounded chip, inset from the sidebar edge. Margins are symmetric so
    the condensed (icons-only) sidebar stays centred. */
-.side-nav .side-nav-link {
+.rd-nav .rd-nav-link {
     margin: 2px 8px;
     border-radius: var(--rd-radius-sm);
 }
 
-.side-nav .side-nav-link:hover,
-.side-nav .side-nav-link:focus {
+.rd-nav .rd-nav-link:hover,
+.rd-nav .rd-nav-link:focus {
     background-color: var(--rd-shell-2);
 }
 
 /* Active item: soft accent chip, accent text + icon, 3px bar flush against
    the sidebar edge (hence the negative offset — it sits outside the chip). */
-.side-nav .menuitem-active > .side-nav-link,
-.side-nav .menuitem-active > .side-nav-link:hover,
-.side-nav .menuitem-active > .side-nav-link:focus {
+.rd-nav .rd-current > .rd-nav-link,
+.rd-nav .rd-current > .rd-nav-link:hover,
+.rd-nav .rd-current > .rd-nav-link:focus {
     background-color: var(--rd-shell-accent-soft);
     color: var(--rd-shell-accent);
     font-weight: 600;
 }
 
-.side-nav .menuitem-active > .side-nav-link::before {
+.rd-nav .rd-current > .rd-nav-link::before {
     content: "";
     position: absolute;
     left: -8px;
@@ -559,44 +483,41 @@ html[data-topbar-color="dark"] {
     background-color: var(--rd-shell-accent);
 }
 
-/* Condensed (icons-only) and collapsed sm-hover sidebars.
+/* Condensed (icons-only) sidebar.
    There is no label to sit beside, so the link becomes a centred square: the
    accent bar is dropped (it would push the glyph off-centre in a 2-3 character
    wide chip) and the horizontal margin is equalised. Without this the icon
    drifts right of centre, because the expanded layout reserves space to the
    left of the label. */
-html[data-sidenav-size="condensed"]:not([data-layout="topnav"]) .wrapper .side-nav .side-nav-link,
-html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftside-menu:not(:hover) .side-nav .side-nav-link {
+html[data-rd-sidebar="condensed"] .rd-nav .rd-nav-link {
     margin-inline: 6px;
     padding-inline: 0;
     justify-content: center;
     text-align: center;
 }
 
-html[data-sidenav-size="condensed"]:not([data-layout="topnav"]) .wrapper .side-nav .side-nav-link > i,
-html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftside-menu:not(:hover) .side-nav .side-nav-link > i {
+html[data-rd-sidebar="condensed"] .rd-nav .rd-nav-link > i {
     margin: 0;
 }
 
-html[data-sidenav-size="condensed"]:not([data-layout="topnav"]) .wrapper .side-nav .menuitem-active > .side-nav-link::before,
-html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftside-menu:not(:hover) .side-nav .menuitem-active > .side-nav-link::before {
+html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     content: none;
 }
 
 /* Sub-level (collapse) items sit inside the group, so no bar for them. */
-.side-nav-second-level .menuitem-active > a::before {
+.rd-nav-sub .rd-current > a::before {
     content: none;
 }
 
-.side-nav-second-level li a.active,
-.side-nav-second-level .menuitem-active > a {
+.rd-nav-sub li a.active,
+.rd-nav-sub .rd-current > a {
     color: var(--rd-shell-accent);
 }
 
 /* Sidebar footer (markup already exists — this restyles it, see the
    .rd-sidebar-version rules further up). Two rows: a status line, then the
    running version with its badge. The sidebar already reserves the space —
-   .leftside-menu carries a padding-bottom of a footer height plus change —
+   .rd-sidebar carries a padding-bottom of a footer height plus change —
    so the block can grow to two lines without covering the last nav item. */
 .rd-sidebar-version {
     flex-wrap: wrap;
@@ -672,48 +593,17 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     color: var(--rd-shell-amber);
 }
 
-/* Collapsed sm-hover sidebar: same reasoning as the condensed rule above. */
-html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftside-menu:not(:hover) .rd-sidebar-version {
-    display: none;
-}
-
 
 /* --- Topbar --------------------------------------------------------------
-   The theme stretches every topbar item to the full height of the bar and
-   paints the user block as a full-height slab with borders down both sides.
-   Both read as heavy furniture on a flat console, so the actions become
-   36px ghost buttons and the user block becomes a chip that lines up with
-   them. The theme's own selectors are three classes deep, hence the equally
-   deep overrides. */
-.navbar-custom {
-    box-shadow: none;
-}
-
-/* Shrinking the items to chips (below) also shrank the row that holds them:
-   .navbar-custom is min-height 70px, but .topbar only measured 42px and sat
-   at the top of it, pooling 28px of dead space underneath. Everything then
-   read as pushed toward the ceiling. The theme never needed this rule because
-   its full-height items filled the bar on their own. .topbar already carries
-   align-items:center, so giving it the bar's own height is the whole fix. */
-.navbar-custom .topbar {
-    min-height: var(--ct-topbar-height);
-}
-
-.navbar-custom .topbar-menu {
+   shell.css stretches every topbar item to the full height of the bar. That
+   reads as heavy furniture on a flat console, so the actions become 36px
+   ghost buttons and the user block becomes a chip that lines up with them. */
+.rd-topbar-menu {
     gap: 8px;
 }
 
-.navbar-custom .button-toggle-menu {
-    color: var(--rd-shell-ink-muted);
-    font-size: 22px;
-}
-
-.navbar-custom .button-toggle-menu:hover {
-    color: var(--rd-shell-ink);
-}
-
 /* Icon actions: theme toggle, fullscreen. */
-.navbar-custom .topbar-menu .nav-link.rd-topbar-btn {
+.rd-topbar-menu .nav-link.rd-topbar-btn {
     width: 36px;
     height: 36px;
     justify-content: center;
@@ -722,25 +612,25 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.navbar-custom .topbar-menu .nav-link.rd-topbar-btn:hover,
-.navbar-custom .topbar-menu .nav-link.rd-topbar-btn:focus-visible {
+.rd-topbar-menu .nav-link.rd-topbar-btn:hover,
+.rd-topbar-menu .nav-link.rd-topbar-btn:focus-visible {
     background-color: var(--rd-shell-2);
     color: var(--rd-shell-ink);
 }
 
-.navbar-custom .topbar-menu .nav-link.rd-topbar-btn i {
+.rd-topbar-menu .nav-link.rd-topbar-btn i {
     font-size: inherit;
     line-height: 1;
 }
 
 /* The upgrade notice reads as a badge, not as a button, so it gets no hover
    chrome of its own — only the badge inside it is interactive-looking. */
-.navbar-custom .topbar-menu .rd-topbar-upgrade .rd-shell-badge {
+.rd-topbar-menu .rd-topbar-upgrade .rd-shell-badge {
     padding: 6px 10px;
 }
 
 /* User chip. */
-.navbar-custom .topbar-menu .nav-link.nav-user {
+.rd-topbar-menu .nav-link.rd-user-chip {
     min-height: 0;
     height: 42px;
     gap: 10px;
@@ -751,14 +641,14 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     background-color: var(--rd-shell-2);
 }
 
-.navbar-custom .topbar-menu .nav-link.nav-user:hover,
-.navbar-custom .topbar-menu .nav-link.nav-user.show {
+.rd-topbar-menu .nav-link.rd-user-chip:hover,
+.rd-topbar-menu .nav-link.rd-user-chip.show {
     border-color: var(--rd-shell-border-strong);
 }
 
 /* The avatar sits on the dark chrome, so it takes the shell accent rather
    than the theme's (which is darkened for a white surface). */
-.navbar-custom .rd-avatar {
+.rd-topbar .rd-avatar {
     --rd-tone: var(--rd-shell-accent);
     --rd-tone-rgb: var(--rd-accent-rgb);
 }
@@ -799,18 +689,18 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
 /* --- Profile dropdown ----------------------------------------------------
    Same shape language as the sidebar: rounded items, hairline divider, and
    a header that names the signed-in user (the chip hides that below lg). */
-.profile-dropdown {
+.rd-profile-menu {
     min-width: 236px;
     padding: 6px;
 }
 
-.profile-dropdown .dropdown-header {
+.rd-profile-menu .dropdown-header {
     padding: 8px 10px 10px;
     margin-bottom: 4px;
     border-bottom: 1px solid var(--rd-border);
 }
 
-.profile-dropdown .dropdown-item {
+.rd-profile-menu .dropdown-item {
     display: flex;
     align-items: center;
     gap: 9px;
@@ -823,18 +713,18 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     text-align: left;
 }
 
-.profile-dropdown .dropdown-item i {
+.rd-profile-menu .dropdown-item i {
     font-size: 16px;
     line-height: 1;
     color: var(--rd-ink-dim);
 }
 
-.profile-dropdown .dropdown-item:hover i,
-.profile-dropdown .dropdown-item:focus i {
+.rd-profile-menu .dropdown-item:hover i,
+.rd-profile-menu .dropdown-item:focus i {
     color: var(--rd-ink-muted);
 }
 
-.profile-dropdown form {
+.rd-profile-menu form {
     margin: 0;
 }
 
@@ -853,13 +743,13 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
    ========================================================================= */
 
 .card {
-    --ct-card-spacer-y: 20px;
-    --ct-card-spacer-x: 20px;
-    --ct-card-cap-padding-y: 14px;
-    --ct-card-cap-padding-x: 20px;
-    --ct-card-border-color: var(--rd-border);
-    --ct-card-bg: var(--rd-surface);
-    --ct-card-box-shadow: var(--rd-shadow);
+    --bs-card-spacer-y: 20px;
+    --bs-card-spacer-x: 20px;
+    --bs-card-cap-padding-y: 14px;
+    --bs-card-cap-padding-x: 20px;
+    --bs-card-border-color: var(--rd-border);
+    --bs-card-bg: var(--rd-surface);
+    --bs-card-box-shadow: var(--rd-shadow);
     margin-bottom: 20px;
 }
 
@@ -870,8 +760,8 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     border-bottom: 1px solid var(--rd-border);
 }
 
-/* Title inside a card header — `.header-title` is the theme's own class and
-   is used across the existing views, so it gets the treatment too. */
+/* Title inside a card header — `.header-title` (spacing in shell.css) is
+   used across the existing views, so it gets the treatment too. */
 .card-header .header-title,
 .card-header .card-title,
 .card-title {
@@ -882,7 +772,7 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
 }
 
 .card-body .card-title {
-    margin-bottom: var(--ct-card-title-spacer-y);
+    margin-bottom: var(--bs-card-title-spacer-y);
 }
 
 /* Right-hand controls in a card header. */
@@ -920,7 +810,7 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
    6. FORMS + BUTTONS
    =========================================================================
    Inputs must sit on --rd-surface-2 so they read against the card they are
-   on; Attex points them at --ct-secondary-bg, which is now the card colour
+   on; shell.css points them at --bs-secondary-bg, which is the card colour
    itself, so they are restated here.
    ========================================================================= */
 
@@ -972,99 +862,99 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
 }
 
 .btn {
-    --ct-btn-font-weight: 500;
-    --ct-btn-border-radius: var(--rd-radius-sm);
+    --bs-btn-font-weight: 500;
+    --bs-btn-border-radius: var(--rd-radius-sm);
 }
 
 .btn-primary {
-    --ct-btn-color: #fff;
-    --ct-btn-bg: var(--rd-accent);
-    --ct-btn-border-color: var(--rd-accent);
-    --ct-btn-hover-color: #fff;
-    --ct-btn-hover-bg: var(--rd-accent-hover);
-    --ct-btn-hover-border-color: var(--rd-accent-hover);
-    --ct-btn-active-color: #fff;
-    --ct-btn-active-bg: var(--rd-accent-hover);
-    --ct-btn-active-border-color: var(--rd-accent-hover);
-    --ct-btn-disabled-color: #fff;
-    --ct-btn-disabled-bg: var(--rd-accent);
-    --ct-btn-disabled-border-color: var(--rd-accent);
-    --ct-btn-focus-shadow-rgb: var(--rd-accent-rgb);
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--rd-accent);
+    --bs-btn-border-color: var(--rd-accent);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--rd-accent-hover);
+    --bs-btn-hover-border-color: var(--rd-accent-hover);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--rd-accent-hover);
+    --bs-btn-active-border-color: var(--rd-accent-hover);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: var(--rd-accent);
+    --bs-btn-disabled-border-color: var(--rd-accent);
+    --bs-btn-focus-shadow-rgb: var(--rd-accent-rgb);
 }
 
 .btn-outline-primary {
-    --ct-btn-color: var(--rd-accent-ink);
-    --ct-btn-border-color: rgba(var(--rd-accent-rgb), 0.4);
-    --ct-btn-hover-color: #fff;
-    --ct-btn-hover-bg: var(--rd-accent);
-    --ct-btn-hover-border-color: var(--rd-accent);
-    --ct-btn-active-color: #fff;
-    --ct-btn-active-bg: var(--rd-accent-hover);
-    --ct-btn-active-border-color: var(--rd-accent-hover);
-    --ct-btn-disabled-color: var(--rd-accent-ink);
-    --ct-btn-focus-shadow-rgb: var(--rd-accent-rgb);
+    --bs-btn-color: var(--rd-accent-ink);
+    --bs-btn-border-color: rgba(var(--rd-accent-rgb), 0.4);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--rd-accent);
+    --bs-btn-hover-border-color: var(--rd-accent);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--rd-accent-hover);
+    --bs-btn-active-border-color: var(--rd-accent-hover);
+    --bs-btn-disabled-color: var(--rd-accent-ink);
+    --bs-btn-focus-shadow-rgb: var(--rd-accent-rgb);
 }
 
-/* .btn-light is the console's secondary button (32 uses). Attex pairs a light
-   fill with near-black text, which is unreadable once the fill goes dark, so
+/* .btn-light is the console's secondary button (32 uses). Bootstrap pairs a
+   light fill with near-black text, which is unreadable once the fill goes dark, so
    it becomes a neutral bordered button instead. */
 .btn-light {
-    --ct-btn-color: var(--rd-ink);
-    --ct-btn-bg: var(--rd-surface-2);
-    --ct-btn-border-color: var(--rd-border);
-    --ct-btn-hover-color: var(--rd-ink);
-    --ct-btn-hover-bg: var(--rd-surface-3);
-    --ct-btn-hover-border-color: var(--rd-border-strong);
-    --ct-btn-active-color: var(--rd-ink);
-    --ct-btn-active-bg: var(--rd-surface-3);
-    --ct-btn-active-border-color: var(--rd-border-strong);
-    --ct-btn-disabled-color: var(--rd-ink-muted);
-    --ct-btn-disabled-bg: var(--rd-surface-2);
-    --ct-btn-disabled-border-color: var(--rd-border);
-    --ct-btn-focus-shadow-rgb: var(--rd-ink-muted-rgb);
+    --bs-btn-color: var(--rd-ink);
+    --bs-btn-bg: var(--rd-surface-2);
+    --bs-btn-border-color: var(--rd-border);
+    --bs-btn-hover-color: var(--rd-ink);
+    --bs-btn-hover-bg: var(--rd-surface-3);
+    --bs-btn-hover-border-color: var(--rd-border-strong);
+    --bs-btn-active-color: var(--rd-ink);
+    --bs-btn-active-bg: var(--rd-surface-3);
+    --bs-btn-active-border-color: var(--rd-border-strong);
+    --bs-btn-disabled-color: var(--rd-ink-muted);
+    --bs-btn-disabled-bg: var(--rd-surface-2);
+    --bs-btn-disabled-border-color: var(--rd-border);
+    --bs-btn-focus-shadow-rgb: var(--rd-ink-muted-rgb);
 }
 
 .btn-outline-light {
-    --ct-btn-color: var(--rd-ink-muted);
-    --ct-btn-bg: transparent;
-    --ct-btn-border-color: var(--rd-border-strong);
-    --ct-btn-hover-color: var(--rd-ink);
-    --ct-btn-hover-bg: var(--rd-surface-2);
-    --ct-btn-hover-border-color: var(--rd-border-strong);
-    --ct-btn-active-color: var(--rd-ink);
-    --ct-btn-active-bg: var(--rd-surface-2);
-    --ct-btn-active-border-color: var(--rd-border-strong);
-    --ct-btn-disabled-color: var(--rd-ink-dim);
-    --ct-btn-focus-shadow-rgb: var(--rd-ink-muted-rgb);
+    --bs-btn-color: var(--rd-ink-muted);
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: var(--rd-border-strong);
+    --bs-btn-hover-color: var(--rd-ink);
+    --bs-btn-hover-bg: var(--rd-surface-2);
+    --bs-btn-hover-border-color: var(--rd-border-strong);
+    --bs-btn-active-color: var(--rd-ink);
+    --bs-btn-active-bg: var(--rd-surface-2);
+    --bs-btn-active-border-color: var(--rd-border-strong);
+    --bs-btn-disabled-color: var(--rd-ink-dim);
+    --bs-btn-focus-shadow-rgb: var(--rd-ink-muted-rgb);
 }
 
-/* Attex hardcodes the old blue on these two. */
+/* Bootstrap hardcodes its blue on these two. */
 .nav-pills {
-    --ct-nav-pills-link-active-bg: var(--rd-accent);
+    --bs-nav-pills-link-active-bg: var(--rd-accent);
 }
 
 .pagination {
-    --ct-pagination-bg: transparent;
-    --ct-pagination-color: var(--rd-ink-muted);
-    --ct-pagination-hover-bg: var(--rd-surface-2);
-    --ct-pagination-hover-color: var(--rd-ink);
-    --ct-pagination-focus-bg: var(--rd-surface-2);
-    --ct-pagination-active-bg: var(--rd-accent-soft);
-    --ct-pagination-active-border-color: rgba(var(--rd-accent-rgb), 0.35);
-    --ct-pagination-active-color: var(--rd-accent-ink);
-    --ct-pagination-disabled-bg: transparent;
-    --ct-pagination-disabled-color: var(--rd-ink-dim);
+    --bs-pagination-bg: transparent;
+    --bs-pagination-color: var(--rd-ink-muted);
+    --bs-pagination-hover-bg: var(--rd-surface-2);
+    --bs-pagination-hover-color: var(--rd-ink);
+    --bs-pagination-focus-bg: var(--rd-surface-2);
+    --bs-pagination-active-bg: var(--rd-accent-soft);
+    --bs-pagination-active-border-color: rgba(var(--rd-accent-rgb), 0.35);
+    --bs-pagination-active-color: var(--rd-accent-ink);
+    --bs-pagination-disabled-bg: transparent;
+    --bs-pagination-disabled-color: var(--rd-ink-dim);
 }
 
 .dropdown-menu {
-    --ct-dropdown-bg: var(--rd-surface);
-    --ct-dropdown-border-color: var(--rd-border);
-    --ct-dropdown-border-radius: var(--rd-radius-sm);
-    --ct-dropdown-link-color: var(--rd-ink-muted);
-    --ct-dropdown-link-hover-color: var(--rd-ink);
-    --ct-dropdown-link-hover-bg: var(--rd-surface-2);
-    --ct-dropdown-link-active-bg: var(--rd-surface-2);
-    --ct-dropdown-link-active-color: var(--rd-ink);
+    --bs-dropdown-bg: var(--rd-surface);
+    --bs-dropdown-border-color: var(--rd-border);
+    --bs-dropdown-border-radius: var(--rd-radius-sm);
+    --bs-dropdown-link-color: var(--rd-ink-muted);
+    --bs-dropdown-link-hover-color: var(--rd-ink);
+    --bs-dropdown-link-hover-bg: var(--rd-surface-2);
+    --bs-dropdown-link-active-bg: var(--rd-surface-2);
+    --bs-dropdown-link-active-color: var(--rd-ink);
 }
 
 .modal-content {
@@ -1082,22 +972,22 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
 /* =========================================================================
    7. TABLE
    =========================================================================
-   Note: Attex paints table cells with
-   `.table > :not(caption) > * > * { background-color: var(--ct-table-bg) !important }`
-   so a plain background-color on <th> loses. Setting the variable in a
-   thead scope works with that rule instead of against it.
+   Note: Bootstrap paints table cells with
+   `.table > :not(caption) > * > * { background-color: var(--bs-table-bg) }`
+   and the rule's three-level selector outranks a plain th rule. Setting the
+   variable in a thead scope works with that rule instead of against it.
    ========================================================================= */
 
 .table {
-    --ct-table-border-color: var(--rd-border);
-    --ct-table-hover-bg: var(--rd-surface-2);
-    --ct-table-hover-color: var(--rd-ink);
-    --ct-table-striped-bg: var(--rd-surface-2);
-    --ct-table-active-bg: var(--rd-surface-2);
+    --bs-table-border-color: var(--rd-border);
+    --bs-table-hover-bg: var(--rd-surface-2);
+    --bs-table-hover-color: var(--rd-ink);
+    --bs-table-striped-bg: var(--rd-surface-2);
+    --bs-table-active-bg: var(--rd-surface-2);
 }
 
 .table > thead {
-    --ct-table-bg: var(--rd-surface-2);
+    --bs-table-bg: var(--rd-surface-2);
 }
 
 .table > thead > tr > th {
@@ -1189,11 +1079,11 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
    ========================================================================= */
 
 .badge {
-    --ct-badge-font-size: 11px;
-    --ct-badge-font-weight: 600;
-    --ct-badge-padding-x: 0.55em;
-    --ct-badge-padding-y: 0.4em;
-    --ct-badge-border-radius: 6px;
+    --bs-badge-font-size: 11px;
+    --bs-badge-font-weight: 600;
+    --bs-badge-padding-x: 0.55em;
+    --bs-badge-padding-y: 0.4em;
+    --bs-badge-border-radius: 6px;
     letter-spacing: 0.01em;
 }
 
@@ -1476,12 +1366,13 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
    13. CHARTS (ApexCharts)
    =========================================================================
    Three of these fight rules that JS options cannot win:
-     * gridlines are `stroke: ... !important` in the theme;
+     * gridlines need `!important` to beat the stroke Apex writes;
      * axis label colour is a CSS `fill` on `.apexcharts-xaxis text`, and CSS
        beats the SVG presentation attribute Apex writes, so chart.foreColor
        and xaxis.labels.style.colors are both ignored;
      * the legend colour is `!important`.
-   Matching the theme's selectors here works because this file loads later.
+   Matching ApexCharts' own selectors works because this file loads after
+   the stylesheet the library injects.
    ========================================================================= */
 
 .apexcharts-gridline,
@@ -1498,6 +1389,31 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
 
 .apexcharts-legend-text {
     color: var(--rd-ink-muted) !important;
+    font-family: var(--bs-font-sans-serif) !important;
+    font-size: 13px !important;
+    vertical-align: middle;
+}
+
+.apexcharts-legend-series {
+    font-weight: 600;
+}
+
+.apexcharts-legend-marker {
+    margin-right: 5px !important;
+    vertical-align: middle;
+}
+
+/* Apex sets its own font stack on these; keep the console's. */
+.apexcharts-tooltip *,
+.apexcharts-yaxis text,
+.apexcharts-xaxis text,
+.apexcharts-title-text,
+.apexcharts-subtitle-text {
+    font-family: var(--bs-font-sans-serif) !important;
+}
+
+.apexcharts-tooltip * {
+    color: var(--bs-tertiary-color) !important;
 }
 
 .apexcharts-datalabel-label {
@@ -1961,9 +1877,9 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
     flex: 1 1 auto;
 }
 
-/* Clickable table headings. Attex styles th text directly, so the button has
-   to inherit rather than bring btn styling of its own — a stack of utility
-   classes cancelling Bootstrap out reads worse and breaks when Attex moves. */
+/* Clickable table headings. The th text is styled directly (section 7), so
+   the button has to inherit rather than bring btn styling of its own — a
+   stack of utility classes cancelling Bootstrap out reads worse. */
 .rd-sort-btn {
     display: inline-flex;
     align-items: center;
@@ -2028,7 +1944,7 @@ html[data-sidenav-size="sm-hover"]:not([data-layout="topnav"]) .wrapper .leftsid
 
 /* --- Phone card list ----------------------------------------------------
    `.d-md-none` only sets display from md up, so the flex below governs the
-   phone layout and the theme still hides the block on a desktop. */
+   phone layout and Bootstrap still hides the block on a desktop. */
 .rd-cardlist {
     display: flex;
     flex-direction: column;
@@ -2133,9 +2049,9 @@ a.rd-mini-sub:hover {
 
 .rd-tablefoot .pagination {
     margin-bottom: 0;
-    --ct-pagination-font-size: 12px;
-    --ct-pagination-padding-x: 0.6rem;
-    --ct-pagination-padding-y: 0.25rem;
+    --bs-pagination-font-size: 12px;
+    --bs-pagination-padding-x: 0.6rem;
+    --bs-pagination-padding-y: 0.25rem;
 }
 
 /* Laravel's bootstrap paginator prints its own "Showing 1 to 20 of 87 results"
@@ -2181,9 +2097,8 @@ a.rd-mini-sub:hover {
    17. TABS, CHIPS AND OTHER SHARED FURNITURE
    ========================================================================= */
 
-/* Attex's `.nav-bordered` is already an underline tab strip; it just points
-   at the old palette and sits on a 2px rule. Hairline it and switch the
-   active marker to the accent. */
+/* `.nav-bordered` (shell.css) is an underline tab strip on a 2px rule.
+   Hairline it and switch the active marker to the accent. */
 .nav-tabs.nav-bordered {
     border-bottom: 1px solid var(--rd-border);
     gap: 2px;
@@ -2347,7 +2262,7 @@ a.rd-mini-sub:hover {
 }
 
 .rd-scrollbox .table {
-    --ct-table-bg: transparent;
+    --bs-table-bg: transparent;
 }
 
 .rd-scrollbox .table > tbody > tr > td {
@@ -2358,15 +2273,15 @@ a.rd-mini-sub:hover {
 /* --- Master / detail -----------------------------------------------------
    The address-book list beside its entries. */
 .rd-masterlist {
-    --ct-list-group-bg: transparent;
-    --ct-list-group-border-color: var(--rd-border);
-    --ct-list-group-color: var(--rd-ink-muted);
-    --ct-list-group-hover-bg: var(--rd-surface-2);
-    --ct-list-group-action-hover-color: var(--rd-ink);
-    --ct-list-group-active-bg: var(--rd-accent-soft);
-    --ct-list-group-active-border-color: var(--rd-border);
-    --ct-list-group-active-color: var(--rd-accent-ink);
-    --ct-list-group-border-radius: var(--rd-radius-sm);
+    --bs-list-group-bg: transparent;
+    --bs-list-group-border-color: var(--rd-border);
+    --bs-list-group-color: var(--rd-ink-muted);
+    --bs-list-group-hover-bg: var(--rd-surface-2);
+    --bs-list-group-action-hover-color: var(--rd-ink);
+    --bs-list-group-active-bg: var(--rd-accent-soft);
+    --bs-list-group-active-border-color: var(--rd-border);
+    --bs-list-group-active-color: var(--rd-accent-ink);
+    --bs-list-group-border-radius: var(--rd-radius-sm);
 }
 
 .rd-masterlist .list-group-item {
@@ -2421,7 +2336,7 @@ a.rd-mini-sub:hover {
 }
 
 /* --- Alerts --------------------------------------------------------------
-   Tighter than the theme's, and on the same radius as the buttons. */
+   Tighter than the default, and on the same radius as the buttons. */
 /* Equal-height cards across a dashboard row.
    Bootstrap stretches the COLUMNS, not the cards inside them, so a short card
    next to a tall one leaves dead space under it. Making the column a flex
@@ -2461,7 +2376,7 @@ a.rd-mini-sub:hover {
 }
 
 .alert {
-    --ct-alert-border-radius: var(--rd-radius-sm);
+    --bs-alert-border-radius: var(--rd-radius-sm);
     font-size: 13px;
 }
 
@@ -2523,7 +2438,7 @@ a.rd-mini-sub:hover {
 /* Livewire toggles these dialogs by hand, so the backdrop is a sibling div
    (or an inline style) rather than Bootstrap's own. Deepen it either way. */
 .modal-backdrop.show {
-    --ct-backdrop-opacity: 0.6;
+    --bs-backdrop-opacity: 0.6;
 }
 
 /* --- Code / monospace values --------------------------------------------- */
@@ -2562,7 +2477,7 @@ a.rd-mini-sub:hover {
    slightly wider radius.
    ========================================================================= */
 
-.authentication-bg .card {
+.rd-auth-bg .card {
     border-color: var(--rd-border-strong);
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
@@ -2626,7 +2541,7 @@ a.rd-mini-sub:hover {
 
 /* Fields sit a little taller than in the console: a signed-out card is one
    short form and has the room, and the larger target helps on a phone. */
-.authentication-bg .form-control {
+.rd-auth-bg .form-control {
     min-height: 42px;
 }
 
@@ -2640,25 +2555,25 @@ a.rd-mini-sub:hover {
     text-align: center;
 }
 
-.authentication-bg .btn {
+.rd-auth-bg .btn {
     min-height: 42px;
 }
 
 /* The button hierarchy on these screens is: one filled primary action per
    card, an outline button for an alternative route in (SSO), quiet text for
    everything else. */
-.authentication-bg .btn-primary,
-.authentication-bg .btn-outline-primary {
+.rd-auth-bg .btn-primary,
+.rd-auth-bg .btn-outline-primary {
     font-weight: 600;
 }
 
-.authentication-bg .form-text {
+.rd-auth-bg .form-text {
     color: var(--rd-ink-dim);
     font-size: 12px;
 }
 
 /* A disabled field is showing a fact, not inviting an edit. */
-.authentication-bg .form-control:disabled {
+.rd-auth-bg .form-control:disabled {
     background-color: rgba(var(--rd-ink-muted-rgb), 0.08);
     color: var(--rd-ink-muted);
 }
@@ -2676,7 +2591,7 @@ a.rd-mini-sub:hover {
     text-decoration: underline;
 }
 
-.authentication-bg .form-check-label {
+.rd-auth-bg .form-check-label {
     font-size: 12.5px;
     color: var(--rd-ink-muted);
 }
@@ -2860,9 +2775,9 @@ a.rd-mini-sub:hover {
     }
 
     /* Checkboxes and radios only — a switch is already 2em wide and resizing
-       it fights the theme's -2.5em pull into the .form-switch gutter. The
-       margin keeps the larger box optically centred on its label's first
-       line (the theme's 0.25em assumes a 1em box). */
+       it fights the -2.5em pull into the .form-switch gutter. The margin
+       keeps the larger box optically centred on its label's first line
+       (shell.css's 0.1825em assumes a 1.135em box). */
     .form-check-input:not([role="switch"]) {
         width: 1.15em;
         height: 1.15em;
@@ -2879,14 +2794,14 @@ a.rd-mini-sub:hover {
         min-height: 40px;
     }
 
-    /* Sidebar rows in the off-canvas drawer. app.js forces
-       data-sidenav-size=full below 768px, so this is the only sidebar a phone
+    /* Sidebar rows in the off-canvas drawer. Below 768px the sidebar is
+       always off-canvas (shell.js), so this is the only sidebar a phone
        ever sees. */
-    .side-nav .side-nav-link {
+    .rd-nav .rd-nav-link {
         min-height: 44px;
     }
 
-    .side-nav-second-level li a {
+    .rd-nav-sub li a {
         min-height: 40px;
         display: flex;
         align-items: center;
@@ -2925,8 +2840,8 @@ a.rd-mini-sub:hover {
    dvh first-with-fallback: on iOS the URL bar is inside 100vh, so a
    vh-measured cap hides the footer behind it.
 
-   Width is left alone deliberately: below sm the theme already drops
-   --ct-modal-margin to 0.5rem, giving a 374px dialog on a 390px screen, and
+   Width is left alone deliberately: below sm Bootstrap already drops
+   --bs-modal-margin to 0.5rem, giving a 374px dialog on a 390px screen, and
    .modal-dialog-scrollable / .modal-dialog-centered derive their own height
    sums from that same variable. Overriding the margin by hand would desync
    them for eight pixels of nothing. */

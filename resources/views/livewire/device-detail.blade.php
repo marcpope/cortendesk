@@ -194,13 +194,16 @@
                     <div class="card-body pt-0">
                         @forelse ($transfers as $t)
                             <div class="rd-def">
-                                <dt class="fw-normal text-truncate" style="max-width: 70%" title="{{ $t->path }}">
+                                <dt class="fw-normal text-truncate" style="max-width: 70%" title="{{ $t->isClipboard() ? implode(', ', $t->fileNames()) : $t->path }}">
                                     @if ($t->direction === 1)
                                         <i class="ri-arrow-down-line text-warning me-1" title="Receive"></i>
                                     @else
                                         <i class="ri-arrow-up-line text-info me-1" title="Send"></i>
                                     @endif
-                                    {{ $t->path ?: '—' }}
+                                    @if ($t->isClipboard())
+                                        <span class="badge bg-secondary-subtle text-secondary me-1">Clipboard</span>
+                                    @endif
+                                    {{ $t->pathLabel() ?: '—' }}
                                 </dt>
                                 <dd class="text-end text-muted mb-0">{{ $t->created_at->diffForHumans() }}</dd>
                             </div>

@@ -68,7 +68,8 @@ ENV APP_ENV=production \
 ARG SERVER_VERSION=1.1.0
 ENV CORTENDESK_SERVER_VERSION=${SERVER_VERSION}
 
-# 8080 console/API. 21115 NAT test, 21116 tcp+udp signalling, 21118 ws (hbbs);
+# 8080 console/API (CORTENDESK_HTTP_PORT moves it; EXPOSE is only a hint).
+# 21115 NAT test, 21116 tcp+udp signalling, 21118 ws (hbbs);
 # 21117 relay, 21119 ws (hbbr). The ws pair only needs to be reachable from
 # this container — nginx bridges /ws/id and /ws/relay to them over loopback.
 EXPOSE 8080 21115 21116 21116/udp 21117 21118 21119
@@ -80,6 +81,6 @@ VOLUME /data
 # The container check answers "is the app up"; point monitoring at
 # /health/ready for the full dependency picture.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
-    CMD wget -q -O /dev/null http://127.0.0.1:8080/health/live || exit 1
+    CMD wget -q -O /dev/null "http://127.0.0.1:${CORTENDESK_HTTP_PORT:-8080}/health/live" || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

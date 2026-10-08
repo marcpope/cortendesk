@@ -1,5 +1,5 @@
 /* CortenDesk web client — top bar, command dock, side panel, connect overlay.
-   Dark by default; light overrides keyed off Bootstrap's data-bs-theme (Attex).
+   Dark by default; light overrides keyed off the console's data-bs-theme.
    Palette mirrors the console's own tokens so the client reads as the same
    product, not a bolted-on page. */
 
@@ -1331,17 +1331,35 @@
     min-height: 44px;
   }
   #rd-toolbar {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr);
     padding: 0 8px;
     gap: 8px;
   }
   .rd-tb-brandtext {
     display: none;
   }
+  /* The initials avatar is decoration; on a phone the controls need the room. */
+  .rd-tb-user {
+    display: none;
+  }
   .rd-tb-island {
     max-width: none;
+    min-width: 0;
     justify-self: stretch;
     justify-content: space-between;
+    gap: 2px;
+    padding: 4px 4px 4px 8px;
+  }
+  /* Monitor, fullscreen, more, view only and Disconnect must fit at 390px. */
+  .rd-tb-island .rd-ib {
+    width: 30px;
+  }
+  .rd-peer,
+  .rd-peer-sub {
+    max-width: 96px;
+  }
+  .rd-disconnect {
+    padding: 8px 10px;
   }
   .rd-db {
     min-width: 50px;
@@ -1586,6 +1604,15 @@
 }
 .rd-display-slider input { min-width: 90px; accent-color: var(--rd-accent); }
 .rd-display-slider output { text-align: right; font-variant-numeric: tabular-nums; }
+/* The custom slider is what the peer uses (no preset checked). */
+.rd-display-slider.rd-checked { color: var(--rd-fg); }
+.rd-display-slider.rd-checked output { color: var(--rd-accent); font-weight: 600; }
+.rd-pop-note {
+  padding: 2px 12px 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--rd-muted);
+}
 .rd-mon-tile:disabled { opacity: 0.48; cursor: not-allowed; }
 
 .rd-recording-indicator {

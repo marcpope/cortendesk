@@ -720,6 +720,7 @@
                     <div class="card">
                         <div class="card-header"><h5 class="card-title mb-0">Recent deliveries</h5></div>
                         <div class="card-body">
+                            <p class="text-muted fs-13">A send that times out, cannot connect, or gets HTTP 429, 424 (a destination such as Slack failed) or 5xx from Apprise is retried by the scheduler about 1 and 5 minutes later, 3 attempts in all. Other HTTP errors are not retried, and neither is anything older than 30 minutes. A retry is dropped when a newer event replaces it, such as an offline alert after the device came back.</p>
                             @forelse ($notificationDeliveries as $delivery)
                                 <div class="d-flex justify-content-between gap-3 border-bottom py-2">
                                     @php $rdDevice = $notificationDeliveryDevices[$delivery->id] ?? null; @endphp
@@ -732,8 +733,17 @@
                                             · <span title="{{ $delivery->created_at?->format('Y-m-d H:i:s T') }}">{{ $delivery->created_at?->diffForHumans() }}</span>
                                         </div>
                                         @if($delivery->error)<div class="text-danger fs-13 text-break">{{ $delivery->error }}</div>@endif
+                                        @php $maxAttempts = \App\Services\AppriseNotifications::MAX_ATTEMPTS; @endphp
+                                        @if ($delivery->retryPending())
+                                            <div class="text-muted fs-13">Attempt {{ $delivery->attempts }} of {{ $maxAttempts }} · next retry <span title="{{ $delivery->next_retry_at->format('Y-m-d H:i:s T') }}">{{ $delivery->next_retry_at->diffForHumans() }}</span></div>
+                                        @elseif ($delivery->status === 'superseded')
+                                            <div class="text-muted fs-13">Attempt {{ $delivery->attempts }} of {{ $maxAttempts }} · retry dropped, a newer event replaced it</div>
+                                        @elseif ($delivery->attempts > 1)
+                                            <div class="text-muted fs-13">{{ $delivery->status === 'sent' ? 'Sent on attempt' : 'Failed after attempt' }} {{ $delivery->attempts }} of {{ $maxAttempts }}</div>
+                                        @endif
                                     </div>
-                                    <span class="badge {{ $delivery->status === 'sent' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger' }}">{{ $delivery->status }}</span>
+                                    @php $tone = $delivery->retryPending() ? 'warning' : (['sent' => 'success', 'failed' => 'danger'][$delivery->status] ?? 'secondary'); @endphp
+                                    <span class="badge bg-{{ $tone }}-subtle text-{{ $tone }} align-self-start">{{ $delivery->retryPending() ? 'retrying' : $delivery->status }}</span>
                                 </div>
                             @empty
                                 <p class="text-muted mb-0">No delivery attempts yet.</p>

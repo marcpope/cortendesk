@@ -11,10 +11,23 @@ use App\Models\Device;
 use App\Services\AppriseNotifications;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Throwable;
 
 class AuditController extends Controller
 {
+    /**
+     * How long a record's nonce is remembered. The client stops retrying
+     * 120 seconds after the first attempt; this is the window its retry
+     * logic is written against (docs/client-api.md §21).
+     */
+    public const NONCE_TTL_SECONDS = 300;
+
+    /** A "new" for the same connection inside this window is a retry. */
+    public const RETRY_WINDOW_SECONDS = 120;
+
     /**
      * POST /api/audit/conn — spec §21. Three shapes from the controlled side:
      * 1. {"action":"new", ...}            connection opened (pre-auth)
@@ -27,7 +40,7 @@ class AuditController extends Controller
      * "new" is posted before the peer's LoginRequest arrives, so its
      * session_id is always 0. The real one comes with "authorized".
      */
-    public function connection(Request $request): JsonResponse
+    public function connection(Request $request): Response|JsonResponse
     {
         $action = $request->input('action');
         $id = (string) $request->input('id', '');
@@ -35,79 +48,82 @@ class AuditController extends Controller
         $sessionId = $this->sessionId($request);
 
         if ($request->has('note') && ! $request->has('conn_id')) {
-            return $this->legacyNote($id, $sessionId, $request->input('note'));
+            return $this->once($request, 'note', $id, fn () => $this->legacyNote($id, $sessionId, $request->input('note')));
         }
 
         if ($id === '' || $connId === 0) {
-            return response()->json((object) []);
+            return $this->stored();
         }
 
-        if ($action === 'new') {
-            AuditConnection::create([
-                'action' => 'new',
-                'conn_id' => $connId,
-                'rustdesk_id' => $id,
-                'ip' => (string) $request->input('ip', $request->ip()),
-                'session_id' => $sessionId,
-                'uuid' => (string) $request->input('uuid', ''),
-            ]);
+        return $this->once($request, 'conn', $id, function () use ($request, $action, $id, $connId, $sessionId) {
+            if ($action === 'new') {
+                if (! $this->isRetriedNew($id, $connId)) {
+                    AuditConnection::create([
+                        'action' => 'new',
+                        'conn_id' => $connId,
+                        'rustdesk_id' => $id,
+                        'ip' => (string) $request->input('ip', $request->ip()),
+                        'session_id' => $sessionId,
+                        'uuid' => (string) $request->input('uuid', ''),
+                    ]);
+                }
 
-            return response()->json((object) []);
-        }
+                return;
+            }
 
-        $open = AuditConnection::where('rustdesk_id', $id)
-            ->where('conn_id', $connId)
-            ->whereNull('closed_at')
-            ->latest('id')
-            ->first();
+            $open = AuditConnection::where('rustdesk_id', $id)
+                ->where('conn_id', $connId)
+                ->whereNull('closed_at')
+                ->latest('id')
+                ->first();
 
-        if ($action === 'close') {
-            $open?->update(['action' => 'close', 'closed_at' => now()]);
+            if ($action === 'close') {
+                $open?->update(['action' => 'close', 'closed_at' => now()]);
 
-            return response()->json((object) []);
-        }
+                return;
+            }
 
-        // Authorized: no action key; peer is a 2-element [id, name] array.
-        $peer = (array) $request->input('peer', []);
-        $attributes = [
-            'action' => 'authorized',
-            'from_peer' => (string) ($peer[0] ?? ''),
-            'from_name' => (string) ($peer[1] ?? ''),
-            'conn_type' => (int) $request->input('type', 0),
-        ];
+            // Authorized: no action key; peer is a 2-element [id, name] array.
+            $peer = (array) $request->input('peer', []);
+            $attributes = [
+                'action' => 'authorized',
+                'from_peer' => (string) ($peer[0] ?? ''),
+                'from_name' => (string) ($peer[1] ?? ''),
+                'conn_type' => (int) $request->input('type', 0),
+            ];
 
-        // The controlling client looks its session up by this value.
-        if ($sessionId !== '') {
-            $attributes['session_id'] = $sessionId;
-        }
+            // The controlling client looks its session up by this value.
+            if ($sessionId !== '') {
+                $attributes['session_id'] = $sessionId;
+            }
 
-        if ($open !== null) {
-            $open->update($attributes);
-        } else {
-            AuditConnection::create($attributes + [
-                'conn_id' => $connId,
-                'rustdesk_id' => $id,
-                'session_id' => $sessionId,
-                'uuid' => (string) $request->input('uuid', ''),
-                'ip' => $request->ip(),
-            ]);
-        }
-
-        return response()->json((object) []);
+            if ($open !== null) {
+                $open->update($attributes);
+            } else {
+                AuditConnection::create($attributes + [
+                    'conn_id' => $connId,
+                    'rustdesk_id' => $id,
+                    'session_id' => $sessionId,
+                    'uuid' => (string) $request->input('uuid', ''),
+                    'ip' => $request->ip(),
+                ]);
+            }
+        });
     }
 
     /** POST /api/audit/file — spec §21. `info` is a JSON-encoded string. */
-    public function file(Request $request): JsonResponse
+    public function file(Request $request): Response|JsonResponse
     {
         $id = (string) $request->input('id', '');
         if ($id === '') {
-            return response()->json((object) []);
+            return $this->stored();
         }
 
         $info = (string) $request->input('info', '');
-        $decoded = json_decode($info, true) ?: [];
+        $decoded = json_decode($info, true);
+        $decoded = is_array($decoded) ? $decoded : [];
 
-        AuditFileTransfer::create([
+        return $this->once($request, 'file', $id, fn () => AuditFileTransfer::create([
             'rustdesk_id' => $id,
             'from_peer' => (string) $request->input('peer_id', ''),
             'from_name' => (string) ($decoded['name'] ?? ''),
@@ -118,26 +134,32 @@ class AuditController extends Controller
             'file_count' => (int) ($decoded['num'] ?? 0),
             'ip' => (string) ($decoded['ip'] ?? $request->ip()),
             'uuid' => (string) $request->input('uuid', ''),
-        ]);
-
-        return response()->json((object) []);
+        ]));
     }
 
     /** POST /api/audit/alarm — spec §21. */
-    public function alarm(Request $request): JsonResponse
+    public function alarm(Request $request): Response|JsonResponse
     {
         $id = (string) $request->input('id', '');
         if ($id === '') {
-            return response()->json((object) []);
+            return $this->stored();
         }
 
-        $alarm = AlarmLog::create([
-            'rustdesk_id' => $id,
-            'uuid' => (string) $request->input('uuid', ''),
-            'typ' => (int) $request->input('typ', 0),
-            'info' => (string) $request->input('info', ''),
-            'conn_id' => (int) $request->input('conn_id', 0) ?: null,
-        ]);
+        $alarm = null;
+        $response = $this->once($request, 'alarm', $id, function () use ($request, $id, &$alarm) {
+            $alarm = AlarmLog::create([
+                'rustdesk_id' => $id,
+                'uuid' => (string) $request->input('uuid', ''),
+                'typ' => (int) $request->input('typ', 0),
+                'info' => (string) $request->input('info', ''),
+                'conn_id' => (int) $request->input('conn_id', 0) ?: null,
+            ]);
+        });
+
+        // A retry we already stored, or a write that failed: nothing to announce.
+        if ($alarm === null) {
+            return $response;
+        }
 
         $notifications = app(AppriseNotifications::class);
         $device = Device::query()->where('rustdesk_id', $id)->first();
@@ -159,7 +181,7 @@ class AuditController extends Controller
             );
         }
 
-        return response()->json((object) []);
+        return $response;
     }
 
     /**
@@ -249,10 +271,10 @@ class AuditController extends Controller
      * device. Only remote-control sessions have the button. It may clear the
      * note, and never replaces one written by a signed-in user.
      */
-    private function legacyNote(string $id, string $sessionId, mixed $note): JsonResponse
+    private function legacyNote(string $id, string $sessionId, mixed $note): void
     {
         if ($id === '' || $sessionId === '' || $sessionId === '0') {
-            return response()->json((object) []);
+            return;
         }
 
         $row = AuditConnection::query()
@@ -266,8 +288,75 @@ class AuditController extends Controller
             $clean = $this->cleanNote($note);
             $row->update(['note' => $clean, 'noted_at' => $clean === null ? null : now()]);
         }
+    }
 
-        return response()->json((object) []);
+    /**
+     * Run one audit write at most once per client nonce.
+     *
+     * Clients from 1.5.0 retry a post unless it gets a 2xx with an empty body,
+     * and tag every record with a fresh "nonce" so the server can tell a retry
+     * from a new record. A nonce seen in the last five minutes is answered as
+     * stored without writing again. A failed write forgets the nonce and
+     * answers 500, so the client's retry stores the record.
+     *
+     * Posts without a nonce (clients before 1.5.0, the in-session Note button)
+     * are written every time; those clients ignore the response.
+     */
+    private function once(Request $request, string $endpoint, string $id, callable $write): Response|JsonResponse
+    {
+        $nonce = $request->input('nonce');
+        $key = is_string($nonce) && trim($nonce) !== ''
+            ? 'audit-nonce:'.hash('sha256', $endpoint."\n".$id."\n".$nonce)
+            : null;
+
+        if ($key !== null && ! Cache::add($key, true, self::NONCE_TTL_SECONDS)) {
+            return $this->stored();
+        }
+
+        try {
+            $write();
+        } catch (Throwable $e) {
+            report($e);
+
+            if ($key !== null) {
+                try {
+                    Cache::forget($key);
+                } catch (Throwable $forgetFailed) {
+                    report($forgetFailed);
+                }
+            }
+
+            return response()->json(['error' => 'Audit record not stored'], 500);
+        }
+
+        return $this->stored();
+    }
+
+    /**
+     * The success answer for the tokenless audit posts: 200 with an empty
+     * body. 1.5.0 clients treat any non-empty 2xx body, `{}` included, as a
+     * failure and post the record again.
+     */
+    private function stored(): Response
+    {
+        return response('', 200);
+    }
+
+    /**
+     * Is this "new" a retry of one already stored? The client posts a
+     * connection's audits in order, so a retried "new" always arrives before
+     * that connection's "authorized": the row it copies is still open and
+     * still "new". Covers retries that carry no usable nonce.
+     */
+    private function isRetriedNew(string $id, int $connId): bool
+    {
+        return AuditConnection::query()
+            ->where('rustdesk_id', $id)
+            ->where('conn_id', $connId)
+            ->where('action', 'new')
+            ->whereNull('closed_at')
+            ->where('created_at', '>=', now()->subSeconds(self::RETRY_WINDOW_SECONDS))
+            ->exists();
     }
 
     /**

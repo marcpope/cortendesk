@@ -5,6 +5,7 @@ import {
   OptionMessage_BoolOption,
   SupportedDecoding,
 } from '../gen/message';
+import type { InitialSessionOptions } from './contracts';
 import { sha256 as sha256sync } from './sha256';
 
 const utf8 = new TextEncoder();
@@ -44,6 +45,29 @@ export async function loginPasswordHash(
   return loginHashFromH1(await computeLoginH1(password, salt), challenge);
 }
 
+/**
+ * OptionMessage fields for remembered session options (issue #92). Values
+ * outside what the session's own setters accept are dropped rather than sent.
+ * custom_image_quality carries the quality in its upper byte, as the live
+ * setter sends it.
+ */
+export function loginOptionFields(init: InitialSessionOptions | undefined): Partial<OptionMessage> {
+  if (!init) return {};
+  const yes = OptionMessage_BoolOption.Yes;
+  const out: Partial<OptionMessage> = {};
+  if (init.imageQuality === 2 || init.imageQuality === 3 || init.imageQuality === 4) out.image_quality = init.imageQuality;
+  if (Number.isSafeInteger(init.customImageQuality) && init.customImageQuality! >= 10 && init.customImageQuality! <= 100) {
+    out.custom_image_quality = init.customImageQuality! << 8;
+  }
+  if (Number.isSafeInteger(init.customFps) && init.customFps! >= 5 && init.customFps! <= 120) out.custom_fps = init.customFps!;
+  if (init.showRemoteCursor) out.show_remote_cursor = yes;
+  if (init.followRemoteCursor) out.follow_remote_cursor = yes;
+  if (init.followRemoteWindow) out.follow_remote_window = yes;
+  if (init.disableClipboard) out.disable_clipboard = yes;
+  if (init.disableAudio) out.disable_audio = yes;
+  return out;
+}
+
 export function buildLoginRequest(opts: {
   peerId: string;
   passwordHash: Uint8Array;
@@ -58,6 +82,8 @@ export function buildLoginRequest(opts: {
   fileTransfer?: { dir: string; showHidden: boolean };
   viewCamera?: boolean;
   terminal?: { serviceId: string; persistent: boolean };
+  /** Desktop and camera connections only; ignored for file transfer and terminal. */
+  initialOptions?: InitialSessionOptions;
 }): Uint8Array {
   const base = {
     username: opts.peerId,
@@ -95,7 +121,10 @@ export function buildLoginRequest(opts: {
             : {
                 ...base,
                 video_ack_required: opts.videoAckRequired ?? true,
-                option: OptionMessage.fromPartial({ supported_decoding: opts.supportedDecoding }),
+                option: OptionMessage.fromPartial({
+                  ...loginOptionFields(opts.initialOptions),
+                  supported_decoding: opts.supportedDecoding,
+                }),
                 union: opts.viewCamera ? { $case: 'view_camera', view_camera: {} } : undefined,
               },
       ),

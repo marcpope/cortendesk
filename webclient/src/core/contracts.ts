@@ -6,7 +6,11 @@ import type { SupportedDecoding_PreferCodec } from '../gen/message';
 // The shapes below are the frozen boundary between the UI (main thread) and the
 // session worker, and between the sans-IO protocol core and its callers.
 
-export type SessionConfig = { peerId:string; serverKeyB64:string; wsIdUrl:string; wsRelayUrl:string; password:string; myId:string; myName:string; signalToken?:string; savedHashHex?:string; connType?:'default'|'fileTransfer'|'viewCamera'|'terminal'; terminalServiceId?:string; terminalPersistent?:boolean };
+// Remembered display/media options for a desktop connection, sent in the
+// LoginRequest so the peer starts the session with them (issue #92). Absent
+// fields leave the peer's own default in place.
+export type InitialSessionOptions = { imageQuality?:number; customImageQuality?:number; customFps?:number; preferCodec?:SupportedDecoding_PreferCodec; showRemoteCursor?:boolean; followRemoteCursor?:boolean; followRemoteWindow?:boolean; disableClipboard?:boolean; disableAudio?:boolean };
+export type SessionConfig = { peerId:string; serverKeyB64:string; wsIdUrl:string; wsRelayUrl:string; password:string; myId:string; myName:string; signalToken?:string; savedHashHex?:string; connType?:'default'|'fileTransfer'|'viewCamera'|'terminal'; terminalServiceId?:string; terminalPersistent?:boolean; initialOptions?:InitialSessionOptions };
 export type ResolutionInfo = { width:number; height:number };
 export type DisplayInfo = { index:number; x:number; y:number; width:number; height:number; name:string; scale:number; online:boolean; cursorEmbedded:boolean; originalResolution?:ResolutionInfo; resolutions:ResolutionInfo[] };
 export type SessionStats = { codec:string; width:number; height:number; fps:number; mbps:number; framesDropped:number; startedAtMs:number };

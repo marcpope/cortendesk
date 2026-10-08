@@ -1,11 +1,14 @@
 # CortenDesk container nginx — rendered by entrypoint.sh with envsubst
-# (only ${RUSTDESK_WS_HOST}, ${NGINX_RESOLVER}, ${CORTENDESK_UPLOAD_BODY_MB} and
-# ${CORTENDESK_DOWNLOADS_PATH} are substituted; $nginx_vars are untouched).
+# (only the ${...} variables listed there are substituted; $nginx_vars are
+# untouched).
 worker_processes auto;
 pid /run/nginx/nginx.pid;
 error_log /dev/stderr warn;
+# Sized from CORTENDESK_NGINX_WORKER_CONNECTIONS: two descriptors per proxied
+# connection, capped at the container's hard limit.
+worker_rlimit_nofile ${NGINX_WORKER_RLIMIT_NOFILE};
 
-events { worker_connections 1024; }
+events { worker_connections ${NGINX_WORKER_CONNECTIONS}; }
 
 http {
     include /etc/nginx/mime.types;
@@ -30,7 +33,7 @@ http {
     }
 
     server {
-        listen 8080;
+        listen ${CORTENDESK_HTTP_PORT};
         server_name _;
         root /app/public;
         index index.php;

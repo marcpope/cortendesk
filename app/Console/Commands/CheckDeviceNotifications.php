@@ -22,11 +22,22 @@ class CheckDeviceNotifications extends Command
     {
         DevicePresenceSnooze::pruneForSweep();
 
-        if (! $notifications->isEnabledFor('device.offline') && ! $notifications->isEnabledFor('device.online')) {
-            $this->info('Device presence notifications are disabled.');
+        // Nothing here holds up a request, so sends get the longer timeout.
+        $notifications = $notifications->forScheduler();
 
-            return self::SUCCESS;
+        if ($notifications->isEnabledFor('device.offline') || $notifications->isEnabledFor('device.online')) {
+            $this->sweep($notifications);
+        } else {
+            $this->info('Device presence notifications are disabled.');
         }
+
+        $this->retryDeliveries($notifications);
+
+        return self::SUCCESS;
+    }
+
+    private function sweep(AppriseNotifications $notifications): void
+    {
 
         // These inputs are deliberately loaded once. The sweep must not turn
         // grace/state/snooze checks into a query per device.
@@ -43,9 +54,9 @@ class CheckDeviceNotifications extends Command
 
             if ($device->isOnline()) {
                 if (self::consumeRecoveryFor($device)) {
-                    // Recovery is at-most-once: consumeRecoveryFor removes the
-                    // marker before transport, so a failed recovery is never
-                    // retried and concurrent commands cannot duplicate it.
+                    // consumeRecoveryFor removes the marker before transport,
+                    // so concurrent commands cannot duplicate the recovery. A
+                    // failed send is retried from its delivery row instead.
                     if (! $snoozed) {
                         $notifications->send(
                             'device.online',
@@ -103,8 +114,36 @@ class CheckDeviceNotifications extends Command
         });
 
         $this->info("Detected {$offline} offline and {$recovered} recovered device transition(s).");
+    }
 
-        return self::SUCCESS;
+    /**
+     * Retry failed deliveries from any path (issue #87). An offline alert
+     * that gets through on a retry records the outage, the same as a first
+     * send would, so its recovery follows and the sweep does not send the
+     * offline alert again.
+     */
+    private function retryDeliveries(AppriseNotifications $notifications): void
+    {
+        $resent = $notifications->retryDue();
+        if ($resent->isEmpty()) {
+            return;
+        }
+
+        foreach ($resent as $delivery) {
+            if ($delivery->event !== 'device.offline'
+                || $delivery->status !== NotificationDelivery::STATUS_SENT
+                || ! str_starts_with((string) $delivery->subject, 'device:')) {
+                continue;
+            }
+
+            $device = Device::query()->where('rustdesk_id', substr((string) $delivery->subject, 7))->first();
+            if ($device !== null && ! $device->isOnline()) {
+                DevicePresenceNotificationState::recordDeliveredOffline($device);
+            }
+        }
+
+        $sent = $resent->where('status', NotificationDelivery::STATUS_SENT)->count();
+        $this->info("Retried {$resent->count()} notification(s), {$sent} sent.");
     }
 
     /** Notify recovery on the first heartbeat after a confirmed offline delivery. */

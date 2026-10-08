@@ -8,7 +8,7 @@
 
 **It replaces the open-source server, and fixes what that server gets wrong.** The bundled `hbbs`/`hbbr` are [CortenDesk Server](https://github.com/marcpope/cortendesk-server), our AGPL fork of `rustdesk-server`. The headline fix: the open-source `hbbs` never completes the signalling key exchange that RustDesk clients 1.4.1 and newer start whenever they are signed in to a console, so **every connection from a signed-in client fails** with `Failed to secure tcp: deadline has elapsed` — which breaks the address book, the main reason to sign in at all. Upstream treats that as out of scope. We implemented the missing half.
 
-**Note: It is no longer recommended to use the official hbbs/hbbr server from Rust Desk due to bugs not fixed. Use the bundled one instead. **
+**Note: It is no longer recommended to use the official hbbs/hbbr server from Rust Desk due to bugs not fixed. Use the bundled one instead.**
 
 Built on Laravel + Livewire with precompiled assets: **there is no frontend build step**. Clone, configure, migrate, serve.
 
@@ -59,7 +59,7 @@ docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
   -p 8080:8080 -p 21115-21119:21115-21119 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.10.1
+  ghcr.io/marcpope/cortendesk:1.11.0
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and
@@ -99,6 +99,39 @@ to 512 MB. Change that with `-e CORTENDESK_DOWNLOADS_MAX_MB=1024`; the container
 applies it to nginx and PHP at boot, so nothing else needs editing. A reverse
 proxy in front of the container has its own body limit (nginx defaults to 1 MB)
 and must allow the same size.
+
+**Other container settings.**
+
+| Variable | Default | What it does |
+|---|---|---|
+| `CORTENDESK_HTTP_PORT` | `8080` | Port nginx listens on inside the container. The healthcheck and the embedded hbbs follow it. Publish it with `-p <host>:<port>`. |
+| `CORTENDESK_UPDATE_CHECK` | `true` | `false` stops the request to GitHub every 6 hours and hides the "update available" badge and status line. |
+| `CORTENDESK_LOG_LEVEL` | unset | One level for everything: `debug`, `info`, `notice`, `warning`, `error` or `critical`. Sets Laravel's `LOG_LEVEL` and hbbs/hbbr's `RUST_LOG`; `warning` and above also turn off php-fpm's line per request. `LOG_LEVEL` or `RUST_LOG` set on their own still win. |
+| `CORTENDESK_FPM_MAX_CHILDREN` | `24` | PHP workers. See sizing below. |
+| `CORTENDESK_NGINX_WORKER_CONNECTIONS` | `4096` | Connections per nginx worker. See sizing below. |
+
+`RUST_LOG` takes the full filter syntax if you need it, e.g.
+`RUST_LOG=info,hbbs=debug,hbbr=debug`. A plain `RUST_LOG=debug` also logs the
+HTTP client hbbs uses to poll the console.
+
+**Sizing for larger fleets.** Every heartbeat, inventory upload and console
+page takes a PHP worker while it runs. The image starts up to 24 workers, or
+fewer when the container has a memory limit (about one per 80 MB of it, at
+least 5). A worker uses about 35 MB, most of it shared, so 24 need well under
+1 GB. If the log shows `server reached pm.max_children setting`, raise
+`CORTENDESK_FPM_MAX_CHILDREN`; with MySQL, keep it below the database's
+`max_connections`. SQLite commits one write at a time, so for several hundred
+devices or more use MySQL or MariaDB (see `docker-compose.yml`).
+
+nginx runs one worker per CPU with 4096 connections each. Each proxied request
+holds two file descriptors, and the container may open only as many as its
+limit allows. Many Docker hosts start containers with a soft limit of 1024;
+the entrypoint raises it to the hard limit (up to 65536) and logs a warning
+when that is still under 4096. If it does, start the container with
+`--ulimit nofile=65536:65536` (Compose: `ulimits: { nofile: 65536 }`).
+
+A reverse proxy in front of the container has its own connection, file
+descriptor and timeout limits. Raise those too, or it becomes the bottleneck.
 
 **Coming from separate hbbs/hbbr containers.** Stop them, then mount their data
 directory at `/data/rustdesk`. The key pair and peer database are adopted as
@@ -144,6 +177,8 @@ CORTENDESK_SERVER_SECRET=
 CORTENDESK_NATIVE_WEBCLIENT=true
 CORTENDESK_WS_ID_URL=wss://console.example.com/ws/id
 CORTENDESK_WS_RELAY_URL=wss://console.example.com/ws/relay
+# false: no update check against GitHub, no update badge
+CORTENDESK_UPDATE_CHECK=true
 ```
 
 Then migrate and cache:
@@ -256,6 +291,6 @@ npm run build        # or: npm run typecheck
 
 CortenDesk is licensed under the **AGPL-3.0-only** (see `LICENSE`).
 
-The bundled admin theme (files under `public/assets/`) is a commercial product licensed separately and is **not** covered by the AGPL — see `NOTICE`. The vendored RustDesk protocol definitions (`webclient/protos/`) are AGPL, consistent with this repository.
+Third-party front-end files under `public/assets/` (Bootstrap, Remix Icon, ApexCharts, the Figtree font) keep their own permissive licenses; see `NOTICE`. The vendored RustDesk protocol definitions (`webclient/protos/`) are AGPL, consistent with this repository.
 
 CortenDesk is an independent project and is not affiliated with or endorsed by RustDesk / Purslane Ltd.

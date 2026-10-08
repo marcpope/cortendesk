@@ -289,6 +289,13 @@ export class Session {
         } else {
           passwordHash = new Uint8Array(0); // empty password -> interactive accept
         }
+        // A remembered codec preference rides in the login's decoding block,
+        // the same place a live choice goes before login (issue #92).
+        const remembered = this.config.initialOptions?.preferCodec;
+        if (remembered !== undefined) {
+          const preferred = this.decodingWithPreference(remembered);
+          if (preferred) this.decoding = preferred;
+        }
         this.loginSent = true;
         this.sealSend(
           buildLoginRequest({
@@ -309,6 +316,7 @@ export class Session {
                   persistent: this.config.terminalPersistent ?? false,
                 }
               : undefined,
+            initialOptions: this.config.initialOptions,
           }),
         );
         return;
@@ -759,15 +767,21 @@ export class Session {
   }
 
   setPreferredCodec(prefer: SupportedDecoding_PreferCodec): boolean {
+    const sd = this.decodingWithPreference(prefer);
+    if (!sd) return false;
+    this.setSupportedDecoding(sd);
+    return true;
+  }
+
+  /** The current decoding block with `prefer` set, or null when we cannot decode it. */
+  private decodingWithPreference(prefer: SupportedDecoding_PreferCodec): SupportedDecoding | null {
     const supported = prefer === SupportedDecoding_PreferCodec.Auto ||
       (prefer === SupportedDecoding_PreferCodec.VP9 && this.decoding.ability_vp9 > 0) ||
       (prefer === SupportedDecoding_PreferCodec.H264 && this.decoding.ability_h264 > 0) ||
       (prefer === SupportedDecoding_PreferCodec.H265 && this.decoding.ability_h265 > 0) ||
       (prefer === SupportedDecoding_PreferCodec.VP8 && this.decoding.ability_vp8 > 0) ||
       (prefer === SupportedDecoding_PreferCodec.AV1 && this.decoding.ability_av1 > 0);
-    if (!supported) return false;
-    this.setSupportedDecoding(SupportedDecoding.fromPartial({ ...this.decoding, prefer }));
-    return true;
+    return supported ? SupportedDecoding.fromPartial({ ...this.decoding, prefer }) : null;
   }
 
   setRemoteAudioEnabled(enabled: boolean): void {

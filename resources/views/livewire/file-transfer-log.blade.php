@@ -6,7 +6,7 @@
             <div class="rd-toolbar-search">
                 <div class="input-group">
                     <span class="input-group-text"><i class="ri-search-line"></i></span>
-                    <input type="search" class="form-control" placeholder="Search device ID, from, path, IP…"
+                    <input type="search" class="form-control" placeholder="Search device ID, from, path, file name, IP…"
                            wire:model.live.debounce.300ms="search">
                 </div>
             </div>
@@ -58,8 +58,11 @@
                             @endif
                         </td>
                         <td>
+                            @if ($transfer->isClipboard())
+                                <span class="badge bg-secondary-subtle text-secondary me-1" title="Copied and pasted through the clipboard">Clipboard</span>
+                            @endif
                             <span class="d-inline-block text-truncate align-middle rd-mono" style="max-width: 240px;"
-                                  title="{{ $transfer->path }}">{{ $transfer->path ?: '—' }}</span>
+                                  title="{{ $transfer->isClipboard() ? implode(', ', $transfer->fileNames()) : $transfer->path }}">{{ $transfer->pathLabel() ?: '—' }}</span>
                         </td>
                         <td>{{ $transfer->file_count }}</td>
                         <td class="rd-mono">{{ $transfer->ip ?: '—' }}</td>
@@ -98,8 +101,13 @@
                         @endif
                     </div>
                     <div class="mt-2">
-                        <small class="d-block text-truncate rd-mono" title="{{ $transfer->path }}">
-                            <i class="ri-file-line me-1"></i>{{ $transfer->path ?: '—' }}
+                        <small class="d-block text-truncate rd-mono" title="{{ $transfer->isClipboard() ? implode(', ', $transfer->fileNames()) : $transfer->path }}">
+                            @if ($transfer->isClipboard())
+                                <span class="badge bg-secondary-subtle text-secondary me-1">Clipboard</span>
+                            @else
+                                <i class="ri-file-line me-1"></i>
+                            @endif
+                            {{ $transfer->pathLabel() ?: '—' }}
                         </small>
                         <span class="rd-mini-sub">
                             {{ $transfer->file_count }} {{ Str::plural('file', $transfer->file_count) }} ·
