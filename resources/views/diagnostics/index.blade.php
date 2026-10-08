@@ -52,10 +52,16 @@
         <div class="card-header"><h5 class="card-title mb-0">Fleet summary</h5></div>
         <div class="card-body">
             <div class="row g-3 mb-3">
-                @foreach (['total' => 'Devices', 'online' => 'Online', 'offline' => 'Offline', 'silent_over_24h' => 'Silent 24h+', 'pending' => 'Pending'] as $key => $label)
+                @foreach (['total' => 'Devices', 'online' => 'Online', 'offline' => 'Offline', 'silent_over_24h' => 'Silent 24h+', 'pending' => 'Pending', 'possible_duplicates' => 'Possible duplicates'] as $key => $label)
                     <div class="col-6 col-lg">
                         <div class="text-muted fs-13">{{ $label }}</div>
-                        <div class="fs-4 fw-semibold">{{ $report['fleet'][$key] }}</div>
+                        <div class="fs-4 fw-semibold">
+                            @if ($key === 'possible_duplicates' && $report['fleet'][$key] > 0)
+                                <a href="{{ route('devices', ['status' => 'duplicates']) }}" title="List them on the Devices page">{{ $report['fleet'][$key] }}</a>
+                            @else
+                                {{ $report['fleet'][$key] }}
+                            @endif
+                        </div>
                     </div>
                 @endforeach
             </div>

@@ -3,12 +3,14 @@
     $rdVer = @filemtime(public_path('rdclient/app.js')) ?: time();
 @endphp
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+@php($rdTheme = auth()->user()?->themePreference() ?? 'dark')
+<html lang="en" data-bs-theme="{{ $rdTheme === 'light' ? 'light' : 'dark' }}" data-rd-theme-pref="{{ $rdTheme }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{{ $peerId !== '' ? $peerId.' — ' : '' }}CortenDesk Web Client</title>
     <link rel="shortcut icon" href="{{ \App\Support\Asset::url('assets/images/cortendesk-sm.svg') }}">
+    <script src="{{ \App\Support\Asset::url('assets/js/theme-init.js') }}"></script>
     <link rel="stylesheet" href="{{ \App\Support\Asset::url('assets/vendor/remixicon/remixicon.css') }}">
     <link rel="stylesheet" href="/rdclient/app.css?v={{ $rdVer }}">
     <style>

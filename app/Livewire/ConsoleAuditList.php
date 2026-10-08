@@ -35,6 +35,7 @@ class ConsoleAuditList extends Component
         'device.delete' => 'Device deleted',
         'device.restore' => 'Device restored',
         'device.destroy' => 'Device destroyed',
+        'device.duplicate-dismiss' => 'Duplicate flag dismissed',
         'group.create' => 'Group created',
         'group.update' => 'Group updated',
         'group.delete' => 'Group deleted',

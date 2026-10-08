@@ -57,9 +57,9 @@ generates the server key pair on first boot, and wires all three together:
 ```bash
 docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
-  -p 8080:8080 -p 21115-21119:21115-21119 -p 21116:21116/udp \
+  -p 8080:8080 -p 21115-21117:21115-21117 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.11.0
+  ghcr.io/marcpope/cortendesk:1.12.0
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and
@@ -74,9 +74,11 @@ Settings screen, or from `/data/rustdesk/id_ed25519.pub`; it is what you put in
 each client's **Key** field.
 
 Ports: 8080 console and client API; 21115 NAT test; 21116 signalling, TCP **and
-UDP**; 21117 relay; 21118/21119 the WebSocket pair (only needed if something
-outside the container talks to them directly — nginx here already bridges
-`/ws/id` and `/ws/relay` over loopback). Put a TLS reverse proxy in front of
+UDP**; 21117 relay; 21118/21119 the WebSocket pair. Leave those two
+unpublished: nginx here already bridges `/ws/id` and `/ws/relay` over loopback.
+Publish them only for RustDesk clients set to WebSocket mode, and then behind a
+proxy that sets `X-Real-IP`, because hbbs and hbbr trust that header on those
+ports. Put a TLS reverse proxy in front of
 8080 and the web client works with no further configuration.
 
 **Bringing your own server.** Point CortenDesk at `hbbs`/`hbbr` you already run:
@@ -109,6 +111,7 @@ and must allow the same size.
 | `CORTENDESK_LOG_LEVEL` | unset | One level for everything: `debug`, `info`, `notice`, `warning`, `error` or `critical`. Sets Laravel's `LOG_LEVEL` and hbbs/hbbr's `RUST_LOG`; `warning` and above also turn off php-fpm's line per request. `LOG_LEVEL` or `RUST_LOG` set on their own still win. |
 | `CORTENDESK_FPM_MAX_CHILDREN` | `24` | PHP workers. See sizing below. |
 | `CORTENDESK_NGINX_WORKER_CONNECTIONS` | `4096` | Connections per nginx worker. See sizing below. |
+| `CORTENDESK_NOTIFY_TIMEOUT` | `15` | Seconds (1 to 60) a scheduled notification, or a retry of one, waits for Apprise. Sends made while handling a request wait 3. |
 
 `RUST_LOG` takes the full filter syntax if you need it, e.g.
 `RUST_LOG=info,hbbs=debug,hbbr=debug`. A plain `RUST_LOG=debug` also logs the

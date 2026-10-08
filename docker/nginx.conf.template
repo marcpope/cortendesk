@@ -52,6 +52,20 @@ http {
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $connection_upgrade;
+            # hbbs/hbbr take the client address from these headers on ws, so
+            # never pass a client-supplied one through (upstream
+            # rustdesk-server #634). A forwarded address counts only from a
+            # private or loopback proxy, the same default as TRUSTED_PROXIES.
+            set_real_ip_from 10.0.0.0/8;
+            set_real_ip_from 172.16.0.0/12;
+            set_real_ip_from 192.168.0.0/16;
+            set_real_ip_from 127.0.0.0/8;
+            set_real_ip_from fc00::/7;
+            set_real_ip_from ::1;
+            real_ip_header X-Forwarded-For;
+            real_ip_recursive on;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_read_timeout 3600s;
             proxy_send_timeout 3600s;
         }
@@ -60,6 +74,20 @@ http {
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $connection_upgrade;
+            # hbbs/hbbr take the client address from these headers on ws, so
+            # never pass a client-supplied one through (upstream
+            # rustdesk-server #634). A forwarded address counts only from a
+            # private or loopback proxy, the same default as TRUSTED_PROXIES.
+            set_real_ip_from 10.0.0.0/8;
+            set_real_ip_from 172.16.0.0/12;
+            set_real_ip_from 192.168.0.0/16;
+            set_real_ip_from 127.0.0.0/8;
+            set_real_ip_from fc00::/7;
+            set_real_ip_from ::1;
+            real_ip_header X-Forwarded-For;
+            real_ip_recursive on;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_read_timeout 3600s;
             proxy_send_timeout 3600s;
         }

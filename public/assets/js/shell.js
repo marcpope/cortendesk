@@ -70,15 +70,69 @@
 
     // --- Theme ------------------------------------------------------------
 
-    function toggleTheme() {
-        var next = html.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
-        html.setAttribute('data-bs-theme', next);
+    // The choice is saved on the account (POST /account/theme), so it holds in
+    // every tab and browser (issue #94), and in localStorage for the sign-in
+    // page. "system" follows the browser's colour scheme until the user picks.
+    var systemLight = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+
+    function resolveTheme(pref) {
+        if (pref === 'system') {
+            return systemLight && systemLight.matches ? 'light' : 'dark';
+        }
+        return pref === 'light' ? 'light' : 'dark';
+    }
+
+    function applyTheme(pref) {
+        html.setAttribute('data-rd-theme-pref', pref);
+        html.setAttribute('data-bs-theme', resolveTheme(pref));
         try {
-            window.sessionStorage.setItem('rd-theme', next);
+            window.localStorage.setItem('rd-theme', pref);
         } catch (e) {
-            // Storage blocked: the switch still applies to this page.
+            // Storage blocked: the account still keeps the choice.
         }
     }
+
+    function saveTheme(pref) {
+        var token = document.querySelector('meta[name="csrf-token"]');
+        if (!token || !window.fetch) {
+            return;
+        }
+        window.fetch('/account/theme', {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token.getAttribute('content'),
+            },
+            body: JSON.stringify({ theme: pref }),
+        }).catch(function () {
+            // Offline or signed out: this page still switched.
+        });
+    }
+
+    function toggleTheme() {
+        var next = html.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
+        applyTheme(next);
+        saveTheme(next);
+    }
+
+    if (systemLight && systemLight.addEventListener) {
+        systemLight.addEventListener('change', function () {
+            if (html.getAttribute('data-rd-theme-pref') === 'system') {
+                html.setAttribute('data-bs-theme', resolveTheme('system'));
+            }
+        });
+    }
+
+    // My Account saves the choice through Livewire and announces it here.
+    window.addEventListener('rd-theme', function (event) {
+        var pref = event.detail && event.detail.theme;
+        if (pref === 'dark' || pref === 'light' || pref === 'system') {
+            applyTheme(pref);
+        }
+    });
 
     // --- Fullscreen -------------------------------------------------------
 

@@ -1,0 +1,19 @@
+# gitleaks config for the security-scan workflow.
+[extend]
+useDefault = true
+
+# public/rdclient is the esbuild output of webclient/src, which is scanned
+# itself. Its libsodium symbol names (crypto_kdf_KEYBYTES and so on) trip
+# generic-api-key. public/assets/vendor holds minified third-party libraries.
+[allowlist]
+description = "Built bundles, third-party code, and a storage key name"
+regexTarget = "line"
+paths = [
+  '''^vendor/''',
+  '''(^|/)node_modules/''',
+  '''^public/rdclient/''',
+  '''^public/assets/vendor/''',
+]
+regexes = [
+  '''PREFS_KEY = 'cortendesk\.rdprefs\.v1';''',
+]

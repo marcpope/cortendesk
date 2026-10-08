@@ -42,6 +42,63 @@
         </div>
     </div>
 
+    {{-- Possible duplicates (issue #91): the same machine under another
+         RustDesk ID. Each twin gets its facts and the fixes. --}}
+    @if ($twins !== [])
+        @php $first = $twins[0]['device']; @endphp
+        <div class="alert alert-warning" role="status">
+            <div class="d-flex gap-2">
+                <i class="ri-file-copy-2-line fs-18 lh-1 mt-1"></i>
+                <div class="min-width-0 flex-grow-1">
+                    <p class="fw-semibold mb-1">
+                        Possible duplicate of {{ count($twins) === 1 ? $first->rustdesk_id : count($twins).' devices' }}
+                    </p>
+                    <p class="fs-13 mb-2">
+                        RustDesk gives a machine a new ID after a reinstall, a cloned image or a UUID mismatch.
+                        Keep the one that still reports in and delete the other.
+                        If both report in, they are likely two machines cloned from one image: mark them not a duplicate.
+                        This device was {{ $device->isOnline() ? 'online just now' : 'last seen '.($device->last_online_at?->diffForHumans() ?? 'never') }}.
+                    </p>
+                    @foreach ($twins as $twin)
+                        @php $other = $twin['device']; @endphp
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 border-top" wire:key="twin{{ $other->id }}">
+                            <div class="min-width-0">
+                                <a href="{{ route('devices.show', $other->id) }}" class="fw-semibold">{{ $other->rustdesk_id }}</a>
+                                @if ($other->alias || $other->hostname)
+                                    <span>· {{ $other->alias ?: $other->hostname }}</span>
+                                @endif
+                                <span class="d-block fs-13">
+                                    {{ ucfirst($twin['label']) }} ·
+                                    {{ $other->isOnline() ? 'online now' : 'last seen '.($other->last_online_at?->diffForHumans() ?? 'never') }} ·
+                                    first seen {{ $other->created_at?->format('Y-m-d') ?? 'unknown' }}
+                                </span>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="{{ route('devices.show', $other->id) }}" class="btn btn-sm btn-outline-light">Open</a>
+                                @if ($canEdit)
+                                    <button type="button" class="btn btn-sm btn-outline-danger" wire:click="confirmDeleteTwin({{ $other->id }})">
+                                        <i class="ri-delete-bin-line me-1"></i>Delete {{ $other->rustdesk_id }}</button>
+                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="dismissDuplicate({{ $other->id }})"
+                                            wire:confirm="Stop flagging {{ $device->rustdesk_id }} and {{ $other->rustdesk_id }} as the same machine?">
+                                        Not a duplicate</button>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                    @if ($canEdit)
+                        <div class="border-top pt-2">
+                            <button type="button" class="btn btn-sm btn-outline-danger" wire:click="confirmDelete">
+                                <i class="ri-delete-bin-line me-1"></i>Delete this device ({{ $device->rustdesk_id }})</button>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+    @if ($duplicateResult !== '')
+        <div class="fs-13 text-success mb-3"><i class="ri-check-line me-1"></i>{{ $duplicateResult }}</div>
+    @endif
+
     <div class="row g-3">
         <div class="col-lg-5">
             {{-- Facts. Everything the client reports, plus console assignment. --}}

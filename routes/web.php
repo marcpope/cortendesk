@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountThemeController;
 use App\Http\Controllers\Api\ClientOidcController;
 use App\Http\Controllers\Api\WebClientController;
 use App\Http\Controllers\AuthController;
@@ -82,6 +83,9 @@ Route::middleware('auth')->group(function () {
 
     // My Account — own profile, password and 2FA, for every user (PLAN A6).
     Route::view('/account', 'account.index')->name('account');
+    // The topbar theme switch saves here (issue #94).
+    Route::post('/account/theme', [AccountThemeController::class, 'update'])
+        ->middleware('throttle:30,1')->name('account.theme');
 
     // Two-Factor Authentication on its own URL (enrollment wizard, PLAN B6).
     // Kept separate because the enforcement middleware sends un-enrolled users

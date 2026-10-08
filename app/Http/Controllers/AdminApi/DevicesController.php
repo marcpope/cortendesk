@@ -7,6 +7,7 @@ use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\User;
 use App\Services\DeviceAddressBooks;
+use App\Services\DuplicateDevices;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -52,7 +53,10 @@ class DevicesController extends AdminApiController
             ->orderBy('rustdesk_id')
             ->paginate($this->perPage($request));
 
-        return $this->paginated($devices, fn (Device $d) => $this->serialize($d));
+        // One pass for the page, not one per device.
+        $duplicates = DuplicateDevices::in(Device::query()->approved());
+
+        return $this->paginated($devices, fn (Device $d) => $this->serialize($d, $duplicates));
     }
 
     /** GET /api/v1/devices/{device}. */
@@ -161,8 +165,14 @@ class DevicesController extends AdminApiController
         return $this->ok($this->serialize($device->fresh()->load(['user', 'group'])), 'Device assigned.');
     }
 
-    private function serialize(Device $device): array
+    /**
+     * possible_duplicates (issue #91) lists the RustDesk IDs this device looks
+     * like among approved devices. Tokens are fleet-wide, so no viewer scope.
+     */
+    private function serialize(Device $device, ?DuplicateDevices $duplicates = null): array
     {
+        $duplicates ??= DuplicateDevices::of($device, Device::query()->approved());
+
         return [
             'id' => $device->id,
             'rustdesk_id' => $device->rustdesk_id,
@@ -186,6 +196,7 @@ class DevicesController extends AdminApiController
             'user' => $device->user ? ['id' => $device->user->id, 'username' => $device->user->username] : null,
             'device_group' => $device->group ? ['id' => $device->group->id, 'name' => $device->group->name] : null,
             'disabled' => $device->trashed(),
+            'possible_duplicates' => $device->trashed() ? [] : $duplicates->rustdeskIdsOf($device->id),
         ];
     }
 }

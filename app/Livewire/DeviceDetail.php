@@ -11,8 +11,11 @@ use App\Models\AuditConnection;
 use App\Models\AuditFileTransfer;
 use App\Models\ConsoleAudit;
 use App\Models\Device;
+use App\Models\DeviceDuplicateDismissal;
 use App\Models\NotificationDelivery;
 use App\Services\DeviceAddressBooks;
+use App\Services\DuplicateDevices;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 
 /**
@@ -40,6 +43,12 @@ class DeviceDetail extends Component
     /** Outcome of the last address-book change. */
     public string $abResult = '';
 
+    /** Outcome of the last action on a possible duplicate. */
+    public string $duplicateResult = '';
+
+    /** Per-request memo of the viewer's scope; resolving it costs queries. */
+    private ?Builder $visibleScope = null;
+
     public function mount(int $deviceId): void
     {
         $this->authorizeConsole('device', 'r');
@@ -54,10 +63,16 @@ class DeviceDetail extends Component
      */
     private function device(): Device
     {
-        return Device::visibleTo(auth()->user())
+        return $this->visibleDevices()
             ->withTrashed()
             ->with(['group', 'user', 'resolvedStrategy'])
             ->findOrFail($this->deviceId);
+    }
+
+    /** A fresh copy of the viewer's device scope (Device::visibleTo). */
+    private function visibleDevices(): Builder
+    {
+        return clone ($this->visibleScope ??= Device::query()->visibleTo(auth()->user()));
     }
 
     public function editNote(): void
@@ -98,13 +113,74 @@ class DeviceDetail extends Component
         $this->openDeleteConfirm([$this->deviceId]);
     }
 
-    /** Confirmed delete: back to the list, which shows the outcome. */
+    /**
+     * Confirmed delete. A possible duplicate deleted from the callout leaves
+     * this page in place; anything else deletes this device and returns to
+     * the list, which shows the outcome.
+     */
     public function performDelete()
     {
+        $ids = array_map('intval', $this->deleteIds ?? []);
+        if (count($ids) === 1 && $ids[0] !== $this->deviceId && $this->isTwin($ids[0])) {
+            $this->duplicateResult = $this->deleteConfirmed();
+
+            return null;
+        }
+
         $this->deleteIds = [$this->deviceId];
         session()->flash('devices.result', $this->deleteConfirmed());
 
         return $this->redirectRoute('devices');
+    }
+
+    /* ---------------------------------------------------------------------
+     | Possible duplicates (issue #91)
+     * ------------------------------------------------------------------- */
+
+    /**
+     * Devices this one looks like, among those the viewer can see. Scoped by
+     * visibleTo, so the callout never names a device outside their fleet.
+     *
+     * @return list<array{device: Device, reason: string, label: string}>
+     */
+    private function twins(Device $device): array
+    {
+        return DuplicateDevices::of($device, $this->visibleDevices())->twinsOf($device->id);
+    }
+
+    private function isTwin(int $id): bool
+    {
+        return in_array($id, array_map(fn ($t) => $t['device']->id, $this->twins($this->device())), true);
+    }
+
+    /** Callout "Delete": the usual confirm step, for the other device. */
+    public function confirmDeleteTwin(int $id): void
+    {
+        $this->authorizeConsole('device', 'rw');
+        abort_unless($this->isTwin($id), 404);
+
+        $this->duplicateResult = '';
+        $this->openDeleteConfirm([$id]);
+    }
+
+    /** Callout "Not a duplicate": stop pairing these two, and audit it. */
+    public function dismissDuplicate(int $id): void
+    {
+        $this->authorizeConsole('device', 'rw');
+
+        $device = $this->device();
+        $twin = collect($this->twins($device))->firstWhere('device.id', $id)['device'] ?? null;
+        abort_if($twin === null, 404);
+
+        DeviceDuplicateDismissal::dismiss($device->id, $twin->id, auth()->id());
+        ConsoleAudit::record(
+            'device.duplicate-dismiss',
+            'Marked devices '.$device->rustdesk_id.' and '.$twin->rustdesk_id.' as separate machines',
+            'device',
+            $device->rustdesk_id,
+        );
+
+        $this->duplicateResult = 'Devices '.$device->rustdesk_id.' and '.$twin->rustdesk_id.' will no longer be flagged.';
     }
 
     public function openAbPicker(): void
@@ -212,6 +288,7 @@ class DeviceDetail extends Component
             'canEdit' => $user->consoleAllows('device', 'rw'),
             'canWriteBooks' => $canWriteBooks,
             'deleteState' => $this->deleteConfirmState(),
+            'twins' => $this->twins($device),
             'connections' => $canAudit
                 ? AuditConnection::where('rustdesk_id', $device->rustdesk_id)->with('noteUser')->latest()->limit(10)->get()
                 : collect(),

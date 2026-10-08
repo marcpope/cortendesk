@@ -14,7 +14,7 @@
 # fork of rustdesk-server). Pinned to an exact version on purpose: the server
 # has its own release cadence, and a console release should never quietly
 # change which server it ships.
-ARG SERVER_VERSION=1.1.0
+ARG SERVER_VERSION=1.1.1
 FROM ghcr.io/marcpope/cortendesk-server:${SERVER_VERSION} AS server
 
 # ---- stage 1: composer dependencies -----------------------------------------
@@ -65,7 +65,7 @@ ENV APP_ENV=production \
 
 # Carried through so the console can report which server it is running, and so
 # `docker inspect` answers the question without a shell.
-ARG SERVER_VERSION=1.1.0
+ARG SERVER_VERSION=1.1.1
 ENV CORTENDESK_SERVER_VERSION=${SERVER_VERSION}
 
 # 8080 console/API (CORTENDESK_HTTP_PORT moves it; EXPOSE is only a hint).

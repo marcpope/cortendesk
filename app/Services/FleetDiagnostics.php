@@ -79,6 +79,7 @@ class FleetDiagnostics
                 'online' => Device::query()->approved()->online()->count(),
                 'offline' => Device::query()->approved()->offline()->count(),
                 'pending' => Device::query()->pending()->count(),
+                'possible_duplicates' => DuplicateDevices::in(Device::query()->approved())->count(),
                 'silent_over_24h' => Device::query()->approved()
                     ->where(fn ($query) => $query->whereNull('last_online_at')->orWhere('last_online_at', '<', now()->subDay()))
                     ->count(),

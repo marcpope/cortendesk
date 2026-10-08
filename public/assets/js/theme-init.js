@@ -3,9 +3,10 @@
  * stylesheet paints, so the page never flashes the wrong theme or sidebar
  * width on load. Plain script, no build step.
  *
- * Theme: the layouts ship data-bs-theme="dark". A choice made with the topbar
- * toggle is kept in sessionStorage, so it lasts across reloads and page
- * changes in this tab and resets in a new one.
+ * Theme (issue #94): signed-in pages carry the user's saved choice in
+ * data-rd-theme-pref (dark, light or system), rendered by the server. Pages
+ * without it, such as the sign-in page, use the last choice made in this
+ * browser (localStorage "rd-theme"). "system" follows prefers-color-scheme.
  *
  * Sidebar: the width class depends only on the viewport (see shell.js).
  */
@@ -14,13 +15,24 @@
 
     var html = document.documentElement;
 
+    var pref = html.getAttribute('data-rd-theme-pref');
+
     try {
-        var theme = window.sessionStorage.getItem('rd-theme');
-        if (theme === 'light' || theme === 'dark') {
-            html.setAttribute('data-bs-theme', theme);
+        if (pref) {
+            // Keep this browser's sign-in page in step with the account.
+            window.localStorage.setItem('rd-theme', pref);
+        } else {
+            pref = window.localStorage.getItem('rd-theme');
         }
     } catch (e) {
-        // Storage blocked: keep the default the layout declares.
+        // Storage blocked: the server-rendered theme still applies.
+    }
+
+    if (pref === 'system') {
+        pref = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+    if (pref === 'light' || pref === 'dark') {
+        html.setAttribute('data-bs-theme', pref);
     }
 
     var width = window.innerWidth;

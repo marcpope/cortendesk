@@ -11,6 +11,7 @@ use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\User;
 use App\Services\DeviceAddressBooks;
+use App\Services\DuplicateDevices;
 use App\Support\Csv;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
@@ -126,6 +127,9 @@ class DeviceList extends Component
 
     public int $perPage = 20;
 
+    /** Per-request memo of the viewer's duplicate pairs; never sent to the browser. */
+    private ?DuplicateDevices $duplicates = null;
+
     /**
      * Devices needs "View" to open (PLAN D4). Which devices are then listed is
      * still decided entirely by Device::scopeVisibleTo — a role never widens
@@ -217,7 +221,8 @@ class DeviceList extends Component
 
     /**
      * The summary chips double as filters (issue #26): Online and Offline set
-     * the status the toolbar select already drives, Devices clears it, and the
+     * the status the toolbar select already drives, Devices clears it,
+     * Possible duplicates (issue #91) narrows to flagged devices, and the
      * Pending chip opens the approval tab. Clicking a chip always returns to
      * the live list first — a filter chosen while looking at the recycle bin
      * or the pending tab means "show me those devices", not "stay here".
@@ -226,7 +231,7 @@ class DeviceList extends Component
     {
         $this->trashed = false;
         $this->pendingTab = false;
-        $this->status = in_array($status, ['online', 'offline'], true) ? $status : 'all';
+        $this->status = in_array($status, ['online', 'offline', 'duplicates'], true) ? $status : 'all';
         $this->resetPage();
         $this->clearSelection();
     }
@@ -605,9 +610,26 @@ class DeviceList extends Component
         ConsoleAudit::record('device.destroy', 'Permanently deleted device '.$rustdeskId, 'device', $rustdeskId);
     }
 
+    /**
+     * Likely duplicates among the devices this viewer can see (issue #91).
+     * Scoped through visibleTo, so a badge never names a device outside the
+     * viewer's fleet.
+     */
+    private function duplicates(): DuplicateDevices
+    {
+        return $this->duplicates ??= DuplicateDevices::in(Device::query()->visibleTo(auth()->user()));
+    }
+
+    private function duplicatesMode(): bool
+    {
+        return ! $this->trashed && $this->status === 'duplicates';
+    }
+
     public function render()
     {
         $user = auth()->user();
+        // Actions earlier in this request may have deleted a twin.
+        $this->duplicates = null;
 
         $pendingCount = Device::query()->ownershipVisibleTo($user)->pending()->count();
 
@@ -640,6 +662,7 @@ class DeviceList extends Component
             'onlineCount' => Device::visibleTo($user)->online()->count(),
             'trashedCount' => Device::visibleTo($user)->onlyTrashed()->count(),
             'pendingCount' => $pendingCount,
+            'duplicates' => $this->trashed ? null : $this->duplicates(),
         ]);
     }
 
@@ -666,9 +689,22 @@ class DeviceList extends Component
             })
             ->when(! $this->trashed && $this->status === 'online', fn ($q) => $q->online())
             ->when(! $this->trashed && $this->status === 'offline', fn ($q) => $q->offline())
+            ->when($this->duplicatesMode(), fn ($q) => $q->whereIn('devices.id', $this->duplicates()->ids()))
             ->when($this->group > 0, fn ($q) => $q->where('device_group_id', $this->group))
             ->when($this->owner === -1, fn ($q) => $q->whereNull('user_id'))
             ->when($this->owner > 0, fn ($q) => $q->where('user_id', $this->owner));
+
+        // Possible duplicates: twins sit together, the chosen sort applies
+        // within each set.
+        if ($this->duplicatesMode() && ($order = $this->duplicates()->clusterOrder()) !== []) {
+            // Integers from our own query, cast again, so inlining is safe and
+            // keeps a large fleet clear of placeholder limits.
+            $cases = '';
+            foreach ($order as $id => $position) {
+                $cases .= ' WHEN '.(int) $id.' THEN '.(int) $position;
+            }
+            $query->orderByRaw('CASE devices.id'.$cases.' ELSE '.count($order).' END');
+        }
 
         return $this->applySort($query);
     }

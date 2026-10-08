@@ -122,4 +122,23 @@
             </div>
         </div>
     @endif
+
+    {{-- ------------------------------------------------------------- Appearance --}}
+    <div class="card">
+        <div class="card-header">
+            <h4 class="header-title">Appearance</h4>
+        </div>
+        <div class="card-body">
+            <div class="btn-group" role="group" aria-label="Theme">
+                <input type="radio" class="btn-check" id="theme-dark" value="dark" wire:model.live="theme">
+                <label class="btn btn-outline-primary" for="theme-dark"><i class="ri-moon-line me-1"></i>Dark</label>
+                <input type="radio" class="btn-check" id="theme-light" value="light" wire:model.live="theme">
+                <label class="btn btn-outline-primary" for="theme-light"><i class="ri-sun-line me-1"></i>Light</label>
+                <input type="radio" class="btn-check" id="theme-system" value="system" wire:model.live="theme">
+                <label class="btn btn-outline-primary" for="theme-system"><i class="ri-computer-line me-1"></i>Match system</label>
+            </div>
+            @error('theme') <div class="text-danger fs-13 mt-2">{{ $message }}</div> @enderror
+            <p class="text-muted fs-13 mb-0 mt-2">Saved to your account, so it applies in every browser you sign in from. The switch in the top bar changes it too.</p>
+        </div>
+    </div>
 </div>

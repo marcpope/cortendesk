@@ -22,6 +22,14 @@
             <span class="rd-chip-value">{{ $totalCount - $onlineCount }}</span>
             <span class="rd-chip-label">Offline</span>
         </button>
+        @if ($duplicates && ($duplicates->count() > 0 || $status === 'duplicates'))
+            <button type="button" class="rd-chip rd-chip-btn rd-tone-amber @if(! $trashed && ! $pendingTab && $status === 'duplicates') rd-chip-active @endif"
+                    wire:click="filterByChip('duplicates')" title="Devices that look like another device under a new ID">
+                <i class="ri-file-copy-2-line rd-chip-icon"></i>
+                <span class="rd-chip-value">{{ $duplicates->count() }}</span>
+                <span class="rd-chip-label">Possible duplicates</span>
+            </button>
+        @endif
         @if ($pendingCount > 0)
             <button type="button" class="rd-chip rd-chip-btn rd-tone-amber @if($pendingTab) rd-chip-active @endif"
                     wire:click="openPending" title="Devices waiting for approval">
@@ -47,6 +55,7 @@
                 <option value="all">All statuses</option>
                 <option value="online">Online</option>
                 <option value="offline">Offline</option>
+                <option value="duplicates">Duplicates</option>
             </select>
             <select class="form-select rd-toolbar-filter" wire:model.live="group">
                 <option value="0">All groups</option>
@@ -320,6 +329,7 @@
                             @if ($device->isIncomingOnly())
                                 <span class="badge bg-info-subtle text-info ms-1" title="Can be controlled, cannot start sessions">Incoming only</span>
                             @endif
+                            @include('livewire.partials.device-duplicate-badge', ['class' => 'ms-1'])
                         </td>
                         <td class="text-end rd-rowact">
                             @if ($trashed)
@@ -411,8 +421,13 @@
                             <span class="badge bg-secondary-subtle text-secondary flex-shrink-0">Offline</span>
                         @endif
                     </div>
-                    @if ($device->isIncomingOnly())
-                        <div class="mb-1"><span class="badge bg-info-subtle text-info" title="Can be controlled, cannot start sessions">Incoming only</span></div>
+                    @if ($device->isIncomingOnly() || $duplicates?->has($device->id))
+                        <div class="mb-1 d-flex flex-wrap gap-1">
+                            @if ($device->isIncomingOnly())
+                                <span class="badge bg-info-subtle text-info" title="Can be controlled, cannot start sessions">Incoming only</span>
+                            @endif
+                            @include('livewire.partials.device-duplicate-badge')
+                        </div>
                     @endif
                     <div class="rd-mini-foot">
                         <span class="rd-mini-sub min-width-0">

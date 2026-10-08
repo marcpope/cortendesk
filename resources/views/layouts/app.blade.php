@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark" data-rd-sidebar="expanded">
+@php($rdTheme = auth()->user()?->themePreference() ?? 'dark')
+<html lang="en" data-bs-theme="{{ $rdTheme === 'light' ? 'light' : 'dark' }}" data-rd-theme-pref="{{ $rdTheme }}" data-rd-sidebar="expanded">
 <head>
     <meta charset="utf-8"/>
     <title>@yield('title', 'Console') | {{ config('app.name') }}</title>

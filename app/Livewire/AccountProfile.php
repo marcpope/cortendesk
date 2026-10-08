@@ -37,12 +37,16 @@ class AccountProfile extends Component
 
     public bool $passwordSaved = false;
 
+    /** dark, light or system (issue #94). */
+    public string $theme = 'dark';
+
     public function mount(): void
     {
         $user = $this->user();
 
         $this->name = (string) ($user->name ?? '');
         $this->email = (string) ($user->email ?? '');
+        $this->theme = $user->themePreference();
     }
 
     public function saveProfile(): void
@@ -118,6 +122,15 @@ class AccountProfile extends Component
     private function user(): User
     {
         return Auth::user();
+    }
+
+    /** Saved as soon as it is picked, and applied to the open page. */
+    public function updatedTheme(): void
+    {
+        $this->validate(['theme' => ['required', Rule::in(User::THEMES)]]);
+
+        $this->user()->forceFill(['theme' => $this->theme])->save();
+        $this->dispatch('rd-theme', theme: $this->theme);
     }
 
     public function render()
