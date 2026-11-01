@@ -17,3 +17,11 @@ NOTE ON PINNING
 REGENERATE the TypeScript types after any re-vendor:
   npm run gen        # runs protoc / ts-proto per buf.gen.yaml settings
   (see webclient/README.md → "Regenerating protobuf types")
+
+WEBRTC FIELDS (2026-11-01)
+  The RustDesk 1.5 WebRTC fields were added by hand, by field number, rather
+  than by re-vendoring (message.proto now lives in the AGPL client repo):
+  rendezvous PunchHoleRequest.webrtc_sdp_offer=12, PunchHole.webrtc_sdp_offer=10,
+  PunchHoleResponse.webrtc_sdp_answer=12, RelayResponse.webrtc_sdp_answer=12,
+  IceCandidate (union 29); message IdPk.dtls_fingerprint=3, IdPk.kx_version=4,
+  PublicKey.kx_version=3. Matches hbb_common 229b904 (RustDesk 1.5.0).

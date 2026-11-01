@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => 'Zum Kopieren von Backups wird ein FTP-Host benötigt.',
     'grant_one_permission' => 'Erteilen Sie mindestens eine Ressourcenberechtigung.',
     'group_gone' => 'Diese Gerätegruppe existiert nicht mehr.',
+    'ice_server_invalid' => 'Der Client kann „:entry“ nicht verwenden. Nutzen Sie stun:host:port oder turn://benutzer:passwort@host:port mit prozentkodierten Sonderzeichen.',
+    'ice_servers_too_many' => 'Höchstens :max Server.',
     'idp_no_user' => 'Der Identitätsanbieter hat den Benutzer nicht identifiziert.',
     'idp_rejected' => 'Der Identitätsanbieter hat die Anmeldung abgelehnt.',
     'idp_rejected_detail' => 'Der Identitätsanbieter hat die Anmeldung abgelehnt: :detail',

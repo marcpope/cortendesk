@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => 'Se necesita un host FTP para copiar ahí las copias de seguridad.',
     'grant_one_permission' => 'Concede al menos un permiso sobre un recurso.',
     'group_gone' => 'Ese grupo de dispositivos ya no existe.',
+    'ice_server_invalid' => 'El cliente no puede usar «:entry». Usa stun:host:puerto o turn://usuario:contraseña@host:puerto con los caracteres especiales codificados en porcentaje.',
+    'ice_servers_too_many' => 'Como máximo :max servidores.',
     'idp_no_user' => 'El proveedor de identidad no identificó al usuario.',
     'idp_rejected' => 'El proveedor de identidad rechazó el inicio de sesión.',
     'idp_rejected_detail' => 'El proveedor de identidad rechazó el inicio de sesión: :detail',

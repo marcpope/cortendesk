@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => 'Er is een FTP-host nodig om back-ups daarheen te kopiëren.',
     'grant_one_permission' => 'Geef minimaal één machtiging voor een resource.',
     'group_gone' => 'Die apparaatgroep bestaat niet meer.',
+    'ice_server_invalid' => 'De client kan ":entry" niet gebruiken. Gebruik stun:host:poort of turn://gebruiker:wachtwoord@host:poort met speciale tekens procent-gecodeerd.',
+    'ice_servers_too_many' => 'Maximaal :max servers.',
     'idp_no_user' => 'De identiteitsprovider heeft de gebruiker niet geïdentificeerd.',
     'idp_rejected' => 'De identiteitsprovider heeft het inloggen geweigerd.',
     'idp_rejected_detail' => 'De identiteitsprovider heeft het inloggen geweigerd: :detail',

@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => 'An FTP host is needed to copy backups there.',
     'grant_one_permission' => 'Grant at least one resource permission.',
     'group_gone' => 'That device group no longer exists.',
+    'ice_server_invalid' => 'The client cannot use ":entry". Use stun:host:port, or turn://user:password@host:port with special characters percent-encoded.',
+    'ice_servers_too_many' => 'At most :max servers.',
     'idp_no_user' => 'The identity provider did not identify the user.',
     'idp_rejected' => 'The identity provider rejected the sign-in.',
     'idp_rejected_detail' => 'The identity provider rejected the sign-in: :detail',

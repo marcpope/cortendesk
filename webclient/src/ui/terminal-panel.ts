@@ -1,6 +1,7 @@
 import type { SessionConfig, SessionEvent, UiCommand } from '../core/contracts';
 import { disconnectIndependentWorker } from './advanced-worker-lifecycle';
 import { htl, tl, tn } from '../i18n';
+import { isRtcEvent, webRtcFor, type WebRtcHost } from './webrtc-host';
 
 const MAX_TERMINAL_TEXT = 1_000_000;
 const utf8 = new TextEncoder();
@@ -105,6 +106,7 @@ type TerminalPanelDeps = {
 
 export class TerminalPanel {
   private worker: Worker | undefined;
+  private rtc: WebRtcHost | undefined;
   private shell: HTMLElement | undefined;
   private output: HTMLPreElement | undefined;
   private input: HTMLInputElement | undefined;
@@ -194,7 +196,11 @@ export class TerminalPanel {
     this.byteNormalizer.reset();
     this.controlStripper.reset();
     this.worker = new Worker(this.deps.workerUrl, { type: 'module' });
-    this.worker.onmessage = (event: MessageEvent<SessionEvent>) => this.onEvent(event.data);
+    const rtc = webRtcFor(this.worker);
+    this.rtc = rtc;
+    this.worker.onmessage = (event: MessageEvent<SessionEvent>) => {
+      if (!isRtcEvent(rtc, event.data)) this.onEvent(event.data);
+    };
     this.worker.onerror = () => this.fail(tl('terminal_worker_failed'));
     this.worker.postMessage({ c: 'connectTerminal', config: terminalConfig } satisfies UiCommand);
   }
@@ -319,6 +325,8 @@ export class TerminalPanel {
       worker.postMessage({ c: 'terminalClose', terminalId: this.terminalId } satisfies UiCommand);
     }
     disconnectIndependentWorker(worker);
+    this.rtc?.close();
+    this.rtc = undefined;
   }
 
   private fail(message: string): void {

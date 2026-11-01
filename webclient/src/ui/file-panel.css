@@ -626,3 +626,9 @@ tr .rd-ft-ic:has(svg) {
     height: 140px;
   }
 }
+
+/* iOS zooms the page when a field under 16px takes focus. iPhone and iPad only. */
+@supports (-webkit-touch-callout: none) {
+  .rd-ft-path,
+  .rd-ft-dlg-input { font-size: 16px; }
+}

@@ -45,6 +45,8 @@ export interface PunchHoleRequest {
   upnp_port: number;
   socket_addr_v6: Uint8Array;
   switch_code: string;
+  /** RustDesk 1.5 WebRTC: "webrtc://" + base64 JSON {type, sdp, ice_policy}. */
+  webrtc_sdp_offer: string;
 }
 
 export interface ControlPermissions {
@@ -81,6 +83,7 @@ export interface PunchHole {
   socket_addr_v6: Uint8Array;
   control_permissions?: ControlPermissions | undefined;
   controlled_context?: ControlledContext | undefined;
+  webrtc_sdp_offer: string;
 }
 
 export interface TestNatRequest {
@@ -139,6 +142,7 @@ export interface PunchHoleResponse {
   is_udp: boolean;
   upnp_port: number;
   socket_addr_v6: Uint8Array;
+  webrtc_sdp_answer: string;
 }
 
 export enum PunchHoleResponse_Failure {
@@ -177,6 +181,19 @@ export interface RelayResponse {
   feedback: number;
   socket_addr_v6: Uint8Array;
   upnp_port: number;
+  webrtc_sdp_answer: string;
+}
+
+/**
+ * RustDesk 1.5 WebRTC trickle ICE, relayed by the ID server. To the device it
+ * is addressed by id, to the controller by socket_addr; candidate is a JSON
+ * RTCIceCandidateInit and session_key the offer's DTLS fingerprint.
+ */
+export interface IceCandidate {
+  id: string;
+  socket_addr: Uint8Array;
+  session_key: string;
+  candidate: string;
 }
 
 export interface SoftwareUpdate {
@@ -277,6 +294,7 @@ export interface RendezvousMessage {
     | { $case: "hc"; hc: HealthCheck }
     | { $case: "http_proxy_request"; http_proxy_request: HttpProxyRequest }
     | { $case: "http_proxy_response"; http_proxy_response: HttpProxyResponse }
+    | { $case: "ice_candidate"; ice_candidate: IceCandidate }
     | undefined;
 }
 
@@ -397,6 +415,7 @@ function createBasePunchHoleRequest(): PunchHoleRequest {
     upnp_port: 0,
     socket_addr_v6: new Uint8Array(0),
     switch_code: "",
+    webrtc_sdp_offer: "",
   };
 }
 
@@ -434,6 +453,9 @@ export const PunchHoleRequest: MessageFns<PunchHoleRequest> = {
     }
     if (message.switch_code !== "") {
       writer.uint32(90).string(message.switch_code);
+    }
+    if (message.webrtc_sdp_offer !== "") {
+      writer.uint32(98).string(message.webrtc_sdp_offer);
     }
     return writer;
   },
@@ -533,6 +555,14 @@ export const PunchHoleRequest: MessageFns<PunchHoleRequest> = {
           message.switch_code = reader.string();
           continue;
         }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.webrtc_sdp_offer = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -558,6 +588,7 @@ export const PunchHoleRequest: MessageFns<PunchHoleRequest> = {
     message.upnp_port = object.upnp_port ?? 0;
     message.socket_addr_v6 = object.socket_addr_v6 ?? new Uint8Array(0);
     message.switch_code = object.switch_code ?? "";
+    message.webrtc_sdp_offer = object.webrtc_sdp_offer ?? "";
     return message;
   },
 };
@@ -670,6 +701,7 @@ function createBasePunchHole(): PunchHole {
     socket_addr_v6: new Uint8Array(0),
     control_permissions: undefined,
     controlled_context: undefined,
+    webrtc_sdp_offer: "",
   };
 }
 
@@ -701,6 +733,9 @@ export const PunchHole: MessageFns<PunchHole> = {
     }
     if (message.controlled_context !== undefined) {
       ControlledContext.encode(message.controlled_context, writer.uint32(74).fork()).join();
+    }
+    if (message.webrtc_sdp_offer !== "") {
+      writer.uint32(82).string(message.webrtc_sdp_offer);
     }
     return writer;
   },
@@ -784,6 +819,14 @@ export const PunchHole: MessageFns<PunchHole> = {
           message.controlled_context = ControlledContext.decode(reader, reader.uint32());
           continue;
         }
+        case 10: {
+          if (tag !== 82) {
+            break;
+          }
+
+          message.webrtc_sdp_offer = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -811,6 +854,7 @@ export const PunchHole: MessageFns<PunchHole> = {
     message.controlled_context = (object.controlled_context !== undefined && object.controlled_context !== null)
       ? ControlledContext.fromPartial(object.controlled_context)
       : undefined;
+    message.webrtc_sdp_offer = object.webrtc_sdp_offer ?? "";
     return message;
   },
 };
@@ -1209,6 +1253,7 @@ function createBasePunchHoleResponse(): PunchHoleResponse {
     is_udp: false,
     upnp_port: 0,
     socket_addr_v6: new Uint8Array(0),
+    webrtc_sdp_answer: "",
   };
 }
 
@@ -1248,6 +1293,9 @@ export const PunchHoleResponse: MessageFns<PunchHoleResponse> = {
     }
     if (message.socket_addr_v6.length !== 0) {
       writer.uint32(90).bytes(message.socket_addr_v6);
+    }
+    if (message.webrtc_sdp_answer !== "") {
+      writer.uint32(98).string(message.webrtc_sdp_answer);
     }
     return writer;
   },
@@ -1347,6 +1395,14 @@ export const PunchHoleResponse: MessageFns<PunchHoleResponse> = {
           message.socket_addr_v6 = reader.bytes();
           continue;
         }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.webrtc_sdp_answer = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1384,6 +1440,7 @@ export const PunchHoleResponse: MessageFns<PunchHoleResponse> = {
     message.is_udp = object.is_udp ?? false;
     message.upnp_port = object.upnp_port ?? 0;
     message.socket_addr_v6 = object.socket_addr_v6 ?? new Uint8Array(0);
+    message.webrtc_sdp_answer = object.webrtc_sdp_answer ?? "";
     return message;
   },
 };
@@ -1639,6 +1696,7 @@ function createBaseRelayResponse(): RelayResponse {
     feedback: 0,
     socket_addr_v6: new Uint8Array(0),
     upnp_port: 0,
+    webrtc_sdp_answer: "",
   };
 }
 
@@ -1675,6 +1733,9 @@ export const RelayResponse: MessageFns<RelayResponse> = {
     }
     if (message.upnp_port !== 0) {
       writer.uint32(88).int32(message.upnp_port);
+    }
+    if (message.webrtc_sdp_answer !== "") {
+      writer.uint32(98).string(message.webrtc_sdp_answer);
     }
     return writer;
   },
@@ -1766,6 +1827,14 @@ export const RelayResponse: MessageFns<RelayResponse> = {
           message.upnp_port = reader.int32();
           continue;
         }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.webrtc_sdp_answer = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1802,6 +1871,89 @@ export const RelayResponse: MessageFns<RelayResponse> = {
     message.feedback = object.feedback ?? 0;
     message.socket_addr_v6 = object.socket_addr_v6 ?? new Uint8Array(0);
     message.upnp_port = object.upnp_port ?? 0;
+    message.webrtc_sdp_answer = object.webrtc_sdp_answer ?? "";
+    return message;
+  },
+};
+
+function createBaseIceCandidate(): IceCandidate {
+  return { id: "", socket_addr: new Uint8Array(0), session_key: "", candidate: "" };
+}
+
+export const IceCandidate: MessageFns<IceCandidate> = {
+  encode(message: IceCandidate, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.socket_addr.length !== 0) {
+      writer.uint32(18).bytes(message.socket_addr);
+    }
+    if (message.session_key !== "") {
+      writer.uint32(26).string(message.session_key);
+    }
+    if (message.candidate !== "") {
+      writer.uint32(34).string(message.candidate);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IceCandidate {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseIceCandidate();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.socket_addr = reader.bytes();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.session_key = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.candidate = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<IceCandidate>, I>>(base?: I): IceCandidate {
+    return IceCandidate.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<IceCandidate>, I>>(object: I): IceCandidate {
+    const message = createBaseIceCandidate();
+    message.id = object.id ?? "";
+    message.socket_addr = object.socket_addr ?? new Uint8Array(0);
+    message.session_key = object.session_key ?? "";
+    message.candidate = object.candidate ?? "";
     return message;
   },
 };
@@ -2681,6 +2833,9 @@ export const RendezvousMessage: MessageFns<RendezvousMessage> = {
       case "http_proxy_response":
         HttpProxyResponse.encode(message.union.http_proxy_response, writer.uint32(226).fork()).join();
         break;
+      case "ice_candidate":
+        IceCandidate.encode(message.union.ice_candidate, writer.uint32(234).fork()).join();
+        break;
     }
     return writer;
   },
@@ -2903,6 +3058,14 @@ export const RendezvousMessage: MessageFns<RendezvousMessage> = {
           };
           continue;
         }
+        case 29: {
+          if (tag !== 234) {
+            break;
+          }
+
+          message.union = { $case: "ice_candidate", ice_candidate: IceCandidate.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3106,6 +3269,15 @@ export const RendezvousMessage: MessageFns<RendezvousMessage> = {
           message.union = {
             $case: "http_proxy_response",
             http_proxy_response: HttpProxyResponse.fromPartial(object.union.http_proxy_response),
+          };
+        }
+        break;
+      }
+      case "ice_candidate": {
+        if (object.union?.ice_candidate !== undefined && object.union?.ice_candidate !== null) {
+          message.union = {
+            $case: "ice_candidate",
+            ice_candidate: IceCandidate.fromPartial(object.union.ice_candidate),
           };
         }
         break;

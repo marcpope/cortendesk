@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\IceServers;
 use App\Support\Label;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\ConsoleAudit;
@@ -130,13 +131,18 @@ class StrategyList extends Component
             'icon' => 'ri-refresh-line',
             'help' => 'How the RustDesk client maintains itself. Unlike the groups above, these are not about an incoming session.',
         ],
+        'network' => [
+            'title' => 'Network',
+            'icon' => 'ri-route-line',
+            'help' => 'How the client reaches other devices. Read at the start of each connection.',
+        ],
     ];
 
     /**
      * Labels, help text and enum wording. Keyed by the option key so a key that
      * is not in the allowlist can never gain a control by being described here.
      *
-     * @var array<string,array{label:string,help?:string,choices?:array<string,string>}>
+     * @var array<string,array{label:string,help?:string,choices?:array<string,string>,wide?:bool}>
      */
     private const OPTION_META = [
         'access-mode' => [
@@ -219,6 +225,12 @@ class StrategyList extends Component
         'allow-auto-record-incoming' => ['label' => 'Record incoming sessions automatically'],
         'keep-awake-during-incoming-sessions' => ['label' => 'Keep the device awake during a session'],
         'enable-lan-discovery' => ['label' => 'Answer LAN discovery'],
+
+        'ice-servers' => [
+            'wide' => true,
+            'label' => 'WebRTC ICE servers',
+            'help' => 'Comma-separated STUN and TURN servers for WebRTC connections, e.g. stun:stun.example.com:3478, turn://user:password@turn.example.com:3478. Listing a STUN server replaces the client\'s built-in public ones; TURN alone keeps them. Every device in the strategy receives the TURN password. Needs RustDesk 1.5.0 or later.',
+        ],
     ];
 
     /**
@@ -668,6 +680,19 @@ class StrategyList extends Component
                 continue;
             }
 
+            if ($spec['type'] === 'ice') {
+                $normalized = IceServers::normalize($value);
+                if ($normalized === null) {
+                    $bad = IceServers::firstInvalid($value);
+                    $this->addError('formOptions.'.$key, $bad === null
+                        ? __('messages.ice_servers_too_many', ['max' => IceServers::MAX_ENTRIES])
+                        : __('messages.ice_server_invalid', ['entry' => $bad]));
+
+                    continue;
+                }
+                $value = $normalized;
+            }
+
             $options[$key] = $value;
         }
 
@@ -708,6 +733,7 @@ class StrategyList extends Component
                     'label' => Label::get('strategy_opt', $key, $meta['label'] ?? $key),
                     'help' => isset($meta['help']) ? Label::get('strategy_help', $key, $meta['help']) : null,
                     'choices' => $choices,
+                    'wide' => $meta['wide'] ?? false,
                 ];
             }
 

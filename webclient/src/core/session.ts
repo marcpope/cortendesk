@@ -28,11 +28,23 @@ import {
   VideoFrame,
 } from '../gen/message';
 import { ConnType } from '../gen/rendezvous';
-import { StreamCipher, decodeB64 } from './crypto';
+import { PlainChannel, StreamCipher, decodeB64 } from './crypto';
 import { buildPublicKeyMessage, verifyPeerSignedId, verifyServerRelayPk } from './handshake';
 import { buildLoginRequest, computeLoginH1, loginHashFromH1 } from './auth';
 import { buildPunchHoleRequest, parseRendezvous } from './signaling';
 import { buildRequestRelay } from './relay';
+import {
+  CANDIDATE_RESEND_MS,
+  MAX_PENDING_REMOTE_CANDIDATES,
+  RELAY_FALLBACK_DELAY_MS,
+  applicationMid,
+  buildIceCandidate,
+  decodeEndpoint,
+  parseRemoteCandidate,
+  sdpFingerprint,
+  shouldSendCandidate,
+  type CandidateInit,
+} from './webrtc';
 import {
   buildBlockInputOption,
   buildDirectElevation,
@@ -72,7 +84,29 @@ export interface SessionSinks {
   onClipboard?(clipboard: Clipboard): void; // compressed or non-text payloads the worker must decode
   onFileResponse?(fr: FileResponse): void; // file-transfer connections: dir/block/digest/done/error
   onFileSendConfirm?(c: FileTransferSendConfirmRequest): void; // upload go-ahead from the peer
+  // RustDesk 1.5 WebRTC, all optional: without them the session is relay-only.
+  webrtcAnswer?(sdp: string): void; // apply the device's answer
+  webrtcRemoteCandidate?(c: CandidateInit): void; // after the answer, in order
+  webrtcClose?(): void; // WebRTC lost the race or failed: close the peer connection
+  selectTransport?(t: 'relay' | 'webrtc'): void; // where sendRelay() goes from now on
+  closeRelay?(): void; // WebRTC is secured; the raced relay is no longer needed
 }
+
+/** An offer made by the page before start(): its envelope and session key. */
+export type WebRtcOffer = { endpoint: string; sessionKey: string };
+
+type RtcRace = {
+  sessionKey: string;
+  /** The device's own fingerprint, from its answer; the signed one must match. */
+  answerFp: string;
+  mid: string | null;
+  answered: boolean;
+  /** Race decided or WebRTC abandoned: no more candidates either way. */
+  done: boolean;
+  localQueue: string[];
+  remoteQueue: string[];
+  timers: Array<ReturnType<typeof setTimeout>>;
+};
 
 const utf8Enc = new TextEncoder();
 const utf8Dec = new TextDecoder();
@@ -157,6 +191,20 @@ export class Session {
   /** Only an exact response to this controller-generated timestamp can start capture. */
   private pendingVoiceCallTimestamp: bigint | null = null;
   private voiceCallAccepted = false;
+  // WebRTC race state; undefined when no offer was made.
+  private rtc: RtcRace | undefined;
+  /** The path the handshake runs on; undefined while the race is open. */
+  private transport: 'relay' | 'webrtc' | undefined;
+  /** The relay paired (the device's SignedId arrived) while WebRTC could still win. */
+  private heldRelayFrame: Uint8Array | undefined;
+  /** Arrival order of the held results (0 = none); the first one wins. */
+  private heldRelayAt = 0;
+  /** WebRTC connected through TURN, which waits like a relay. */
+  private heldTurnAt = 0;
+  private heldSeq = 0;
+  private heldRtcFrame: Uint8Array | undefined;
+  private raceTimer: ReturnType<typeof setTimeout> | undefined;
+  private relayGone = false;
 
   constructor(config: SessionConfig, sinks: SessionSinks) {
     this.config = config;
@@ -182,7 +230,19 @@ export class Session {
     }
   }
 
-  start(): void {
+  start(offer?: WebRtcOffer): void {
+    if (offer) {
+      this.rtc = {
+        sessionKey: offer.sessionKey,
+        answerFp: '',
+        mid: null,
+        answered: false,
+        done: false,
+        localQueue: [],
+        remoteQueue: [],
+        timers: [],
+      };
+    }
     this.sinks.sendSignaling(
       buildPunchHoleRequest({
         peerId: this.config.peerId,
@@ -190,6 +250,7 @@ export class Session {
         version: CLIENT_VERSION,
         connType: this.connType,
         token: this.config.signalToken,
+        webrtcOffer: offer?.endpoint,
       }),
     );
     this.setState('rendezvous');
@@ -216,11 +277,16 @@ export class Session {
           this.fail(tl('error_server_trust_failed', { message: (e as Error).message }));
           return;
         }
+        if (this.uuid !== '') return; // a retried request's second reply
         this.uuid = parsed.uuid;
+        this.applyAnswer(parsed.webrtcAnswer);
         this.setState('relay');
         this.sinks.openRelay(parsed.relayServer);
         return;
       }
+      case 'iceCandidate':
+        this.onRemoteCandidate(parsed.sessionKey, parsed.candidate);
+        return;
       case 'punchHoleResponse':
         // The server's own text when it sends one: it says why (e.g. not approved).
         if (parsed.failure) {
@@ -236,6 +302,12 @@ export class Session {
   }
 
   relayOpened(): void {
+    // WebRTC already won: a relay socket that finishes opening only now is
+    // not wanted, and its RequestRelay must not go down the data channel.
+    if (this.transport === 'webrtc') {
+      this.sinks.closeRelay?.();
+      return;
+    }
     this.sinks.sendRelay(
       buildRequestRelay({
         licenceKey: this.config.serverKeyB64,
@@ -249,10 +321,37 @@ export class Session {
 
   async onRelayBytes(b: Uint8Array): Promise<void> {
     if (this.state === 'error' || this.state === 'closed') return;
+    if (this.transport === 'webrtc') return; // the raced relay, kept only as a fallback
     if (!this.cipher) {
+      if (this.rtc && !this.rtc.done) {
+        this.holdRelay(b);
+        return;
+      }
       this.onFirstRelayFrame(b);
       return;
     }
+    await this.onSessionBytes(b);
+  }
+
+  /** A reassembled data-channel message (core/webrtc.ts Reassembler). */
+  async onWebRtcMessage(b: Uint8Array): Promise<void> {
+    if (this.state === 'error' || this.state === 'closed') return;
+    if (this.transport === undefined && this.rtc && !this.rtc.done) {
+      // The device sends its SignedId the moment the channel opens, which
+      // can be before the race is decided.
+      this.heldRtcFrame ??= b;
+      return;
+    }
+    if (this.transport !== 'webrtc') return;
+    if (!this.cipher) {
+      this.onFirstWebRtcFrame(b);
+      return;
+    }
+    await this.onSessionBytes(b);
+  }
+
+  private async onSessionBytes(b: Uint8Array): Promise<void> {
+    if (!this.cipher) return;
     let pt: Uint8Array;
     try {
       pt = this.cipher.open(b);
@@ -303,6 +402,220 @@ export class Session {
     const { bytes, key } = buildPublicKeyMessage(boxPk);
     this.sinks.sendRelay(bytes);
     this.cipher = new StreamCipher(key);
+    this.sinks.emit({ t: 'transport', kind: 'relay' });
+  }
+
+  // ---- RustDesk 1.5 WebRTC ----
+  //
+  // The browser asks for a relay (it cannot punch holes) and offers WebRTC
+  // alongside. The device answers in its RelayResponse, so both paths open
+  // at once and race, as in the desktop client: a direct WebRTC connection
+  // wins outright; a relay that pairs first waits RELAY_FALLBACK_DELAY_MS
+  // for it, and so does WebRTC through TURN. If the WebRTC handshake then
+  // fails, the session carries on over the relay.
+
+  /** A local ICE candidate from the page, as JSON RTCIceCandidateInit. */
+  onLocalCandidate(json: string): void {
+    const rtc = this.rtc;
+    if (!rtc || rtc.done) return;
+    let c: CandidateInit;
+    try {
+      c = JSON.parse(json) as CandidateInit;
+    } catch {
+      return;
+    }
+    if (!shouldSendCandidate(c)) return;
+    // The device only knows our session key once it has the offer, so
+    // nothing goes out before its answer is back.
+    if (rtc.answered) this.sendCandidate(json);
+    else rtc.localQueue.push(json);
+  }
+
+  /** The data channel opened; viaTurn when the selected pair is relayed. */
+  onWebRtcOpen(viaTurn: boolean): void {
+    const rtc = this.rtc;
+    if (!rtc || rtc.done || this.state === 'error' || this.state === 'closed') return;
+    if (!viaTurn) {
+      this.commitWebRtc('webrtc');
+      return;
+    }
+    this.heldTurnAt = ++this.heldSeq;
+    this.armRaceTimer();
+  }
+
+  /** The peer connection failed or closed. */
+  onWebRtcClosed(): void {
+    if (this.state === 'error' || this.state === 'closed' || !this.rtc) return;
+    if (this.transport === 'webrtc') {
+      if (this.cipher) this.fail(tl('connection_lost', { which: 'WebRTC' }));
+      else this.fallBackToRelay();
+      return;
+    }
+    if (this.transport === 'relay') return;
+    this.endRace();
+    this.heldTurnAt = 0;
+    if (this.relayGone) {
+      this.fail(tl('connection_lost_relay'));
+      return;
+    }
+    if (this.heldRelayFrame) this.commitRelay();
+  }
+
+  /** The relay socket closed. True when that ends the session. */
+  onRelayClosed(): boolean {
+    this.relayGone = true;
+    if (this.transport === 'webrtc') return false;
+    if (this.transport === undefined && this.rtc && !this.rtc.done) return false;
+    return true;
+  }
+
+  private applyAnswer(endpoint: string): void {
+    const rtc = this.rtc;
+    if (!rtc || rtc.answered) return;
+    let sdp = '';
+    try {
+      if (endpoint) sdp = decodeEndpoint(endpoint).sdp;
+    } catch {
+      sdp = '';
+    }
+    rtc.answerFp = sdpFingerprint(sdp);
+    if (!sdp || !rtc.answerFp) {
+      // No answer: the device has WebRTC off, is behind a proxy, or is too
+      // old. The relay goes ahead alone.
+      this.endRace();
+      return;
+    }
+    rtc.answered = true;
+    rtc.mid = applicationMid(sdp);
+    this.sinks.webrtcAnswer?.(sdp);
+    for (const json of rtc.remoteQueue.splice(0)) this.deliverRemoteCandidate(json);
+    for (const json of rtc.localQueue.splice(0)) this.sendCandidate(json);
+  }
+
+  private onRemoteCandidate(sessionKey: string, json: string): void {
+    const rtc = this.rtc;
+    if (!rtc || rtc.done || sessionKey !== rtc.sessionKey || json === '') return;
+    if (rtc.answered) {
+      this.deliverRemoteCandidate(json);
+      return;
+    }
+    if (rtc.remoteQueue.length >= MAX_PENDING_REMOTE_CANDIDATES) rtc.remoteQueue.shift();
+    rtc.remoteQueue.push(json);
+  }
+
+  private deliverRemoteCandidate(json: string): void {
+    const c = parseRemoteCandidate(json, this.rtc?.mid ?? null);
+    if (c) this.sinks.webrtcRemoteCandidate?.(c);
+  }
+
+  private sendCandidate(json: string): void {
+    const rtc = this.rtc;
+    if (!rtc) return;
+    const bytes = buildIceCandidate({ peerId: this.config.peerId, sessionKey: rtc.sessionKey, candidate: json });
+    this.sinks.sendSignaling(bytes);
+    rtc.timers.push(setTimeout(() => {
+      if (!rtc.done && this.state !== 'error' && this.state !== 'closed') this.sinks.sendSignaling(bytes);
+    }, CANDIDATE_RESEND_MS));
+  }
+
+  private holdRelay(b: Uint8Array): void {
+    if (this.heldRelayFrame) return;
+    this.heldRelayFrame = b;
+    this.heldRelayAt = ++this.heldSeq;
+    this.armRaceTimer();
+  }
+
+  private armRaceTimer(): void {
+    if (this.raceTimer !== undefined) return;
+    this.raceTimer = setTimeout(() => {
+      this.raceTimer = undefined;
+      if (this.transport !== undefined || this.state === 'error' || this.state === 'closed') return;
+      // The first result to arrive wins once the window is up.
+      if (this.heldRelayFrame && (!this.heldTurnAt || this.heldRelayAt <= this.heldTurnAt)) this.commitRelay();
+      else if (this.heldTurnAt) this.commitWebRtc('webrtc-turn');
+    }, this.config.webrtc?.relayHoldMs ?? RELAY_FALLBACK_DELAY_MS);
+  }
+
+  /** Stop exchanging candidates; the outcome is settled. */
+  private endRace(): void {
+    const rtc = this.rtc;
+    if (!rtc || rtc.done) return;
+    rtc.done = true;
+    for (const t of rtc.timers.splice(0)) clearTimeout(t);
+    if (this.raceTimer !== undefined) {
+      clearTimeout(this.raceTimer);
+      this.raceTimer = undefined;
+    }
+  }
+
+  private webRtcKind: 'webrtc' | 'webrtc-turn' = 'webrtc';
+
+  private commitWebRtc(kind: 'webrtc' | 'webrtc-turn'): void {
+    this.endRace();
+    this.transport = 'webrtc';
+    this.webRtcKind = kind;
+    this.sinks.selectTransport?.('webrtc');
+    this.setState('handshake');
+    // The device speaks first: its SignedId arrives on the channel.
+    const held = this.heldRtcFrame;
+    this.heldRtcFrame = undefined;
+    if (held) this.onFirstWebRtcFrame(held);
+  }
+
+  private commitRelay(): void {
+    this.endRace();
+    this.transport = 'relay';
+    this.sinks.webrtcClose?.();
+    this.sinks.selectTransport?.('relay');
+    const held = this.heldRelayFrame;
+    this.heldRelayFrame = undefined;
+    if (held) this.onFirstRelayFrame(held);
+  }
+
+  /** WebRTC won but could not be secured: use the relay that raced it. */
+  private fallBackToRelay(): void {
+    if (this.relayGone) {
+      this.fail(tl('connection_lost_relay'));
+      return;
+    }
+    this.commitRelay();
+  }
+
+  // Over WebRTC the device signs its own DTLS fingerprint into the SignedId.
+  // DTLS has already checked the channel against the fingerprint in the
+  // answer; matching the two binds the channel to the device's identity, so
+  // a server that swapped the SDP cannot sit in the middle. No secretbox
+  // layer follows: the PublicKey only completes the device's handshake.
+  private onFirstWebRtcFrame(b: Uint8Array): void {
+    let msg: Message;
+    try {
+      msg = Message.decode(b);
+    } catch {
+      this.fallBackToRelay();
+      return;
+    }
+    if (msg.union?.$case !== 'signed_id' || !this.peerEdPk || !this.rtc) {
+      this.fallBackToRelay();
+      return;
+    }
+    let id: string;
+    let boxPk: Uint8Array;
+    let dtlsFingerprint: string;
+    try {
+      ({ id, boxPk, dtlsFingerprint } = verifyPeerSignedId(msg.union.signed_id.id, this.peerEdPk));
+    } catch {
+      this.fallBackToRelay();
+      return;
+    }
+    if (id.split('\0')[0] !== this.config.peerId || !dtlsFingerprint || dtlsFingerprint !== this.rtc.answerFp) {
+      this.fallBackToRelay();
+      return;
+    }
+    const { bytes } = buildPublicKeyMessage(boxPk);
+    this.sinks.sendRelay(bytes);
+    this.cipher = new PlainChannel();
+    this.sinks.closeRelay?.();
+    this.sinks.emit({ t: 'transport', kind: this.webRtcKind });
   }
 
   private async dispatch(msg: Message): Promise<void> {

@@ -32,6 +32,18 @@ export function buildNonce(seq: bigint): Uint8Array {
   return n;
 }
 
+// RustDesk 1.5 WebRTC: DTLS encrypts the data channel and the protocol adds
+// no secretbox layer on top, so messages pass through as they are.
+export class PlainChannel implements Encryptor {
+  seal(pt: Uint8Array): Uint8Array {
+    return pt;
+  }
+
+  open(ct: Uint8Array): Uint8Array {
+    return ct;
+  }
+}
+
 export class StreamCipher implements Encryptor {
   private sendSeq = 0n;
   private recvSeq = 0n;

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Services\ServerLink;
+use App\Support\IceServers;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -45,6 +46,8 @@ class WebClientPageController extends Controller
             // Lets the ID server tell this page from an unknown device when
             // only approved devices may connect (docs/server-link.md).
             'signalToken' => ServerLink::webTicket($user),
+            // RustDesk 1.5 WebRTC: null when the console has it off.
+            'webrtc' => IceServers::forWebClient(),
         ]);
     }
 

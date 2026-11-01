@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => 'A mentések másolásához meg kell adni egy FTP-kiszolgálót.',
     'grant_one_permission' => 'Adjon meg legalább egy erőforrás-jogosultságot.',
     'group_gone' => 'Ez az eszközcsoport már nem létezik.',
+    'ice_server_invalid' => 'A kliens nem tudja használni ezt: „:entry”. Használja a stun:gép:port vagy a turn://felhasznalo:jelszo@gép:port formát, a különleges karaktereket százalékkódolva.',
+    'ice_servers_too_many' => 'Legfeljebb :max kiszolgáló.',
     'idp_no_user' => 'Az identitásszolgáltató nem azonosította a felhasználót.',
     'idp_rejected' => 'Az identitásszolgáltató elutasította a bejelentkezést.',
     'idp_rejected_detail' => 'Az identitásszolgáltató elutasította a bejelentkezést: :detail',

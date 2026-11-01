@@ -112,6 +112,23 @@
                                 </div>
                                 <div class="mb-3">
                                     <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="webClientWebRtc"
+                                               wire:model.live="webClientWebRtc">
+                                        <label class="form-check-label" for="webClientWebRtc">{{ __('settings.webclient_webrtc') }}</label>
+                                    </div>
+                                    <div class="form-text">{{ __('settings.webclient_webrtc_help') }}</div>
+                                </div>
+                                @if ($webClientWebRtc)
+                                    <div class="mb-3">
+                                        <label class="form-label" for="webClientIceServers">{{ __('settings.webclient_ice_servers') }}</label>
+                                        <input type="text" id="webClientIceServers" class="form-control rd-mono @error('webClientIceServers') is-invalid @enderror"
+                                               wire:model="webClientIceServers" placeholder="stun:stun.example.com:3478, turn://user:password@turn.example.com:3478">
+                                        @error('webClientIceServers') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        <div class="form-text">{{ __('settings.webclient_ice_servers_help') }}</div>
+                                    </div>
+                                @endif
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
                                         <input class="form-check-input" type="checkbox" role="switch" id="downloadsOnLogin"
                                                wire:model="downloadsOnLogin">
                                         <label class="form-check-label" for="downloadsOnLogin">{{ __('settings.link_to_client_downloads_on') }}</label>

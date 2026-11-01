@@ -2,6 +2,7 @@ import type { DisplayInfo, SessionConfig, SessionEvent, UiCommand } from '../cor
 import { disconnectIndependentWorker } from './advanced-worker-lifecycle';
 import { MseVideoPlayer } from '../media/mse-video';
 import { htl, tl } from '../i18n';
+import { isRtcEvent, webRtcFor, type WebRtcHost } from './webrtc-host';
 
 export function buildCameraConfig(source: SessionConfig): SessionConfig {
   return { ...source, connType: 'viewCamera' };
@@ -19,6 +20,7 @@ type CameraWorkerEvent = SessionEvent | { t: 'h264'; data: Uint8Array; key: bool
 export class CameraPanel {
   private shell: HTMLElement | undefined;
   private worker: Worker | undefined;
+  private rtc: WebRtcHost | undefined;
   private canvas: HTMLCanvasElement | undefined;
   private video: HTMLVideoElement | undefined;
   private status: HTMLElement | undefined;
@@ -64,7 +66,11 @@ export class CameraPanel {
 
     const offscreen = this.canvas.transferControlToOffscreen();
     this.worker = new Worker(this.deps.workerUrl, { type: 'module' });
-    this.worker.onmessage = (event: MessageEvent<CameraWorkerEvent>) => this.onEvent(event.data);
+    const rtc = webRtcFor(this.worker);
+    this.rtc = rtc;
+    this.worker.onmessage = (event: MessageEvent<CameraWorkerEvent>) => {
+      if (!isRtcEvent(rtc, event.data)) this.onEvent(event.data);
+    };
     this.worker.onerror = () => this.fail(tl('camera_worker_failed'));
     this.worker.postMessage(
       { c: 'connect', config: buildCameraConfig(config), canvas: offscreen } satisfies UiCommand,
@@ -135,6 +141,8 @@ export class CameraPanel {
     const worker = this.worker;
     this.worker = undefined;
     if (worker) disconnectIndependentWorker(worker);
+    this.rtc?.close();
+    this.rtc = undefined;
     this.mse?.close();
     this.mse = undefined;
     this.connected = false;

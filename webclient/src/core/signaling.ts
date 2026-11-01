@@ -14,6 +14,8 @@ export function buildPunchHoleRequest(o: {
   connType?: ConnType;
   /** Console-signed ticket; lets the ID server admit this client in approved-only mode. */
   token?: string;
+  /** RustDesk 1.5 WebRTC offer envelope (core/webrtc.ts). */
+  webrtcOffer?: string;
 }): Uint8Array {
   return RendezvousMessage.encode({
     union: {
@@ -26,6 +28,7 @@ export function buildPunchHoleRequest(o: {
         force_relay: true,
         version: o.version,
         token: o.token ?? '',
+        webrtc_sdp_offer: o.webrtcOffer ?? '',
       }),
     },
   }).finish();
@@ -34,7 +37,8 @@ export function buildPunchHoleRequest(o: {
 export type RendezvousFailure = 'ID_NOT_EXIST' | 'OFFLINE' | 'LICENSE_MISMATCH' | 'LICENSE_OVERUSE' | 'OTHER';
 
 export type RendezvousParsed =
-  | { kind: 'relayResponse'; uuid: string; relayServer: string; pk?: Uint8Array }
+  | { kind: 'relayResponse'; uuid: string; relayServer: string; pk?: Uint8Array; webrtcAnswer: string }
+  | { kind: 'iceCandidate'; sessionKey: string; candidate: string }
   | { kind: 'punchHoleResponse'; failure?: RendezvousFailure; message?: string }
   | { kind: 'onlineResponse'; states: Uint8Array }
   | { kind: 'other'; $case: string };
@@ -64,6 +68,7 @@ export function parseRendezvous(bytes: Uint8Array): RendezvousParsed {
         uuid: rr.uuid,
         relayServer: rr.relay_server,
         pk: rr.union?.$case === 'pk' ? rr.union.pk : undefined,
+        webrtcAnswer: rr.webrtc_sdp_answer,
       };
     }
     case 'punch_hole_response': {
@@ -73,6 +78,10 @@ export function parseRendezvous(bytes: Uint8Array): RendezvousParsed {
       if (pr.socket_addr.length > 0) return { kind: 'punchHoleResponse' };
       if (pr.other_failure !== '') return { kind: 'punchHoleResponse', failure: 'OTHER', message: pr.other_failure };
       return { kind: 'punchHoleResponse', failure: mapFailure(pr.failure) };
+    }
+    case 'ice_candidate': {
+      const ic = rmsg.union.ice_candidate;
+      return { kind: 'iceCandidate', sessionKey: ic.session_key, candidate: ic.candidate };
     }
     case 'online_response':
       return { kind: 'onlineResponse', states: rmsg.union.online_response.states };

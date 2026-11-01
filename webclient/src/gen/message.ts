@@ -172,6 +172,12 @@ export interface VideoFrame {
 export interface IdPk {
   id: string;
   pk: Uint8Array;
+  /**
+   * RustDesk 1.5 WebRTC: the signer's DTLS fingerprint, binding the data
+   * channel to the signed identity. Empty on other transports.
+   */
+  dtls_fingerprint: string;
+  kx_version: number;
 }
 
 export interface DisplayInfo {
@@ -742,6 +748,7 @@ export interface TestDelay {
 export interface PublicKey {
   asymmetric_value: Uint8Array;
   symmetric_value: Uint8Array;
+  kx_version: number;
 }
 
 export interface SignedId {
@@ -1428,7 +1435,7 @@ export const VideoFrame: MessageFns<VideoFrame> = {
 };
 
 function createBaseIdPk(): IdPk {
-  return { id: "", pk: new Uint8Array(0) };
+  return { id: "", pk: new Uint8Array(0), dtls_fingerprint: "", kx_version: 0 };
 }
 
 export const IdPk: MessageFns<IdPk> = {
@@ -1438,6 +1445,12 @@ export const IdPk: MessageFns<IdPk> = {
     }
     if (message.pk.length !== 0) {
       writer.uint32(18).bytes(message.pk);
+    }
+    if (message.dtls_fingerprint !== "") {
+      writer.uint32(26).string(message.dtls_fingerprint);
+    }
+    if (message.kx_version !== 0) {
+      writer.uint32(32).uint32(message.kx_version);
     }
     return writer;
   },
@@ -1465,6 +1478,22 @@ export const IdPk: MessageFns<IdPk> = {
           message.pk = reader.bytes();
           continue;
         }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.dtls_fingerprint = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.kx_version = reader.uint32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1481,6 +1510,8 @@ export const IdPk: MessageFns<IdPk> = {
     const message = createBaseIdPk();
     message.id = object.id ?? "";
     message.pk = object.pk ?? new Uint8Array(0);
+    message.dtls_fingerprint = object.dtls_fingerprint ?? "";
+    message.kx_version = object.kx_version ?? 0;
     return message;
   },
 };
@@ -7639,7 +7670,7 @@ export const TestDelay: MessageFns<TestDelay> = {
 };
 
 function createBasePublicKey(): PublicKey {
-  return { asymmetric_value: new Uint8Array(0), symmetric_value: new Uint8Array(0) };
+  return { asymmetric_value: new Uint8Array(0), symmetric_value: new Uint8Array(0), kx_version: 0 };
 }
 
 export const PublicKey: MessageFns<PublicKey> = {
@@ -7649,6 +7680,9 @@ export const PublicKey: MessageFns<PublicKey> = {
     }
     if (message.symmetric_value.length !== 0) {
       writer.uint32(18).bytes(message.symmetric_value);
+    }
+    if (message.kx_version !== 0) {
+      writer.uint32(24).uint32(message.kx_version);
     }
     return writer;
   },
@@ -7676,6 +7710,14 @@ export const PublicKey: MessageFns<PublicKey> = {
           message.symmetric_value = reader.bytes();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.kx_version = reader.uint32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7692,6 +7734,7 @@ export const PublicKey: MessageFns<PublicKey> = {
     const message = createBasePublicKey();
     message.asymmetric_value = object.asymmetric_value ?? new Uint8Array(0);
     message.symmetric_value = object.symmetric_value ?? new Uint8Array(0);
+    message.kx_version = object.kx_version ?? 0;
     return message;
   },
 };

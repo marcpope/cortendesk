@@ -95,6 +95,7 @@ import {
   type CodecName,
   type SessionPrefs,
 } from './session-prefs';
+import { isRtcEvent, webRtcFor, type WebRtcHost } from './webrtc-host';
 
 // Back-compat: everything that used to live here is re-exported for tests and
 // external importers.
@@ -141,6 +142,7 @@ type Els = {
   voiceCallButton: HTMLButtonElement;
   voiceCallStatus: HTMLElement;
   statCodec: HTMLElement;
+  statTransport: HTMLElement;
   statRes: HTMLElement;
   statFps: HTMLElement;
   statBitrate: HTMLElement;
@@ -190,6 +192,7 @@ export class RdApp {
   private el!: Els;
   private canvas!: HTMLCanvasElement;
   private worker: Worker | undefined;
+  private rtc: WebRtcHost | undefined;
   private detach: (() => void) | undefined;
   private workerUrl = '';
   private fixedPeerId = '';
@@ -616,8 +619,8 @@ export class RdApp {
 
   private renderDock(): void {
     const db = (id: string, icon: IconName, label: string, title = label): string =>
-      `<button type="button" class="rd-db" id="${id}" title="${title}" aria-label="${title}">` +
-      `${iconHtml(icon)}<span>${label}</span></button>`;
+      `<button type="button" class="rd-db" id="${id}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">` +
+      `${iconHtml(icon)}<span>${escapeHtml(label)}</span></button>`;
     this.el.dock.innerHTML = `
       <div class="rd-dock-group" role="group" aria-label="${htl('keyboard')}">
         ${db('rd-lat-ctrl', 'keyboard', 'Ctrl', tl('hold_ctrl_for_clicks_and'))}
@@ -698,7 +701,7 @@ export class RdApp {
   private renderSide(): void {
     const tab = (id: SideTab, icon: IconName, label: string): string =>
       `<button type="button" class="rd-tab" data-tab="${id}" role="tab" aria-selected="false">` +
-      `${iconHtml(icon)}<span>${label}</span><i class="rd-badge" hidden></i></button>`;
+      `${iconHtml(icon)}<span>${escapeHtml(label)}</span><i class="rd-badge" hidden></i></button>`;
     this.el.side.innerHTML = `
       <header class="rd-side-head">
         <div class="rd-side-tabs" role="tablist">
@@ -728,6 +731,7 @@ export class RdApp {
             <div class="rd-stat-row"><dt>${htl('platform')}</dt><dd id="rd-stat-platform">—</dd></div>
             <div class="rd-stat-row"><dt>${htl('peer_version')}</dt><dd id="rd-stat-version">—</dd></div>
             <div class="rd-stat-row"><dt>${htl('codec')}</dt><dd id="rd-stat-codec">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('transport')}</dt><dd id="rd-stat-transport">—</dd></div>
             <div class="rd-stat-row"><dt>${htl('resolution')}</dt><dd id="rd-stat-res">—</dd></div>
             <div class="rd-stat-row"><dt>${htl('fps')}</dt><dd id="rd-stat-fps">—</dd></div>
             <div class="rd-stat-row"><dt>${htl('bitrate')}</dt><dd id="rd-stat-bitrate">—</dd></div>
@@ -752,6 +756,7 @@ export class RdApp {
     this.el.statPlatform = q(s, '#rd-stat-platform');
     this.el.statVersion = q(s, '#rd-stat-version');
     this.el.statCodec = q(s, '#rd-stat-codec');
+    this.el.statTransport = q(s, '#rd-stat-transport');
     this.el.statRes = q(s, '#rd-stat-res');
     this.el.statFps = q(s, '#rd-stat-fps');
     this.el.statBitrate = q(s, '#rd-stat-bitrate');
@@ -1941,7 +1946,11 @@ export class RdApp {
     const offscreen = canvas.transferControlToOffscreen();
     const worker = new Worker(this.workerUrl, { type: 'module' });
     this.worker = worker;
-    worker.onmessage = (e: MessageEvent<UiWorkerEvent>) => this.onEvent(e.data);
+    const rtc = webRtcFor(worker);
+    this.rtc = rtc;
+    worker.onmessage = (e: MessageEvent<UiWorkerEvent>) => {
+      if (!isRtcEvent(rtc, e.data)) this.onEvent(e.data);
+    };
     worker.onerror = (e: ErrorEvent) => this.setState('error', e.message || 'session worker failed');
     const cmd: UiCommand = { c: 'connect', config: { ...config, messages: (window as unknown as { __RD__?: { messages?: Record<string, string> } }).__RD__?.messages }, canvas: offscreen };
     worker.postMessage(cmd, [offscreen]);
@@ -1951,6 +1960,7 @@ export class RdApp {
     });
     this.el.peerLabel.textContent = this.peerId;
     this.el.statDevice.textContent = this.peerId;
+    this.el.statTransport.textContent = '—';
     this.resetPermissions();
     this.setState('connecting');
   }
@@ -1986,6 +1996,8 @@ export class RdApp {
     this.teardownMse();
     const w = this.worker;
     this.worker = undefined;
+    this.rtc?.close();
+    this.rtc = undefined;
     if (w) {
       w.onmessage = null;
       w.onerror = null;
@@ -2139,6 +2151,10 @@ export class RdApp {
         break;
       case 'stats':
         this.onStats(ev.stats);
+        break;
+      case 'transport':
+        this.el.statTransport.textContent = tl(`transport_${ev.kind.replace('-', '_')}`);
+        this.dbg('transport', ev.kind);
         break;
       case 'audioPcm':
         if (this.remoteAudioEnabled && this.permissions.Audio !== false) {

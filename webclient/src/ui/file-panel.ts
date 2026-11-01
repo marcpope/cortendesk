@@ -33,6 +33,7 @@ import {
 } from '../core/file-transfer';
 import { escapeHtml, iconHtml } from './common';
 import { htl, tl, tn } from '../i18n';
+import { isRtcEvent, webRtcFor, type WebRtcHost } from './webrtc-host';
 
 type PickerWindow = Window & {
   showDirectoryPicker?(opts?: { mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
@@ -143,6 +144,7 @@ export class FilePanel {
   private readonly opts: FilePanelOpts;
   private el!: Els;
   private worker: Worker | undefined;
+  private rtc: WebRtcHost | undefined;
   private state: SessionState = 'closed';
   private peerLabel = '';
   private sep: '\\' | '/' = '/';
@@ -225,7 +227,11 @@ export class FilePanel {
     this.teardown();
     const worker = new Worker(this.opts.workerUrl, { type: 'module' });
     this.worker = worker;
-    worker.onmessage = (e: MessageEvent) => this.onEvent(e.data as SessionEvent);
+    const rtc = webRtcFor(worker);
+    this.rtc = rtc;
+    worker.onmessage = (e: MessageEvent) => {
+      if (!isRtcEvent(rtc, e.data)) this.onEvent(e.data as SessionEvent);
+    };
     worker.onerror = (e: ErrorEvent) => {
       this.state = 'error';
       this.setStatus('error', e.message || 'session worker failed');
@@ -239,6 +245,8 @@ export class FilePanel {
     const w = this.worker;
     this.worker = undefined;
     if (w) setTimeout(() => w.terminate(), 250);
+    this.rtc?.close();
+    this.rtc = undefined;
     for (const job of this.jobs) {
       if (job.status === 'running' || job.status === 'starting') {
         job.status = 'error';
@@ -287,7 +295,7 @@ export class FilePanel {
       </section>`;
 
     const sBtn = (id: string, icon: string, title: string): string =>
-      `<button type="button" class="rd-btn" id="${id}" title="${title}">${icon}</button>`;
+      `<button type="button" class="rd-btn" id="${id}" title="${escapeHtml(title)}">${icon}</button>`;
 
     const panel = document.createElement('div');
     panel.id = 'rd-ft-overlay';

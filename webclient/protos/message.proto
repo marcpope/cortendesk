@@ -38,6 +38,10 @@ message VideoFrame {
 message IdPk {
   string id = 1;
   bytes pk = 2;
+  // RustDesk 1.5 WebRTC: the signer's DTLS fingerprint, binding the data
+  // channel to the signed identity. Empty on other transports.
+  string dtls_fingerprint = 3;
+  uint32 kx_version = 4;
 }
 
 message DisplayInfo {
@@ -708,6 +712,7 @@ message TestDelay {
 message PublicKey {
   bytes asymmetric_value = 1;
   bytes symmetric_value = 2;
+  uint32 kx_version = 3;
 }
 
 message SignedId { bytes id = 1; }

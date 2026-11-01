@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => 'É necessário um host FTP para copiar backups para lá.',
     'grant_one_permission' => 'Conceda pelo menos uma permissão de recurso.',
     'group_gone' => 'Esse grupo de dispositivos não existe mais.',
+    'ice_server_invalid' => 'O cliente não consegue usar ":entry". Use stun:host:porta ou turn://usuario:senha@host:porta com caracteres especiais codificados em porcentagem.',
+    'ice_servers_too_many' => 'No máximo :max servidores.',
     'idp_no_user' => 'O provedor de identidade não identificou o usuário.',
     'idp_rejected' => 'O provedor de identidade rejeitou o login.',
     'idp_rejected_detail' => 'O provedor de identidade rejeitou o login: :detail',

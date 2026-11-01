@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\IceServers;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -62,7 +63,9 @@ class Strategy extends Model
      * Scope = docs/strategy-protocol.md §3.1 (permissions) + §3.2 (security /
      * password), minus `2fa`, `bot` and `allow-hide-cm`, plus the live /
      * next-session subset of §3.4 (capture & display). §3.3 (network/server) is
-     * excluded on purpose and permanently. The rest of §3.4 (the `restart`-only
+     * excluded on purpose and permanently, except `ice-servers`: a bad value
+     * there costs WebRTC only, and the client falls back to its other
+     * transports, so it cannot cut a device off. The rest of §3.4 (the `restart`-only
      * keys, which the strategy path cannot make take effect — §2.5 — and the
      * Android-only one) and all of §3.5 (`preset-*`) are still not exposed.
      *
@@ -71,6 +74,7 @@ class Strategy extends Model
      *       enum   → one of `values`
      *       int    → digits, range-checked
      *       string → free text
+     *       ice    → an ICE server list (App\Support\IceServers), stored canonical
      *
      * "" is legal for every key and means "reset to the client's built-in
      * default" (§2.3).
@@ -134,6 +138,11 @@ class Strategy extends Model
         // is the client updating itself, so it gets its own group rather than
         // being filed under something it is not.
         'allow-auto-update' => ['group' => 'client', 'type' => 'bool'],
+
+        // --- network (§3.3) ---------------------------------------------------
+        // RustDesk 1.5 WebRTC. Read for each new connection; older clients
+        // ignore it.
+        'ice-servers' => ['group' => 'network', 'type' => 'ice'],
     ];
 
     /** Group keys in the order the editor shows them (mirrors the doc's §3 order). */
@@ -231,6 +240,15 @@ class Strategy extends Model
             }
 
             $value = trim($value);
+
+            if ($spec['type'] === 'ice') {
+                $value = IceServers::normalize($value);
+                if ($value !== null) {
+                    $clean[$key] = $value;
+                }
+
+                continue;
+            }
 
             $ok = match ($spec['type']) {
                 'bool' => in_array($value, ['Y', 'N', ''], true),

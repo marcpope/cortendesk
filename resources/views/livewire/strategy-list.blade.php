@@ -240,7 +240,7 @@
 
                                 <div class="row">
                                     @foreach ($group['options'] as $key => $opt)
-                                        <div class="col-12 col-md-6 mb-3" wire:key="opt-{{ $key }}">
+                                        <div class="col-12 {{ $opt['wide'] ? '' : 'col-md-6' }} mb-3" wire:key="opt-{{ $key }}">
                                             <label class="form-label mb-1" for="sl-opt-{{ $key }}">{{ $opt['label'] }}</label>
                                             @if ($opt['choices'] !== null)
                                                 <select id="sl-opt-{{ $key }}" class="form-select"
@@ -317,7 +317,7 @@
                         <div class="table-responsive mb-3"><table class="table table-sm mb-0">
                             <thead><tr><th>{{ __('strategies.setting') }}</th><th>{{ __('strategies.before') }}</th><th>{{ __('strategies.after') }}</th></tr></thead><tbody>
                             @forelse (($impactPreview['option_changes'] ?? []) as $key => $change)
-                                <tr><td><code>{{ $key }}</code></td><td>{{ $change['before'] ?? __('strategies.not_managed') }}</td><td>{{ $change['after'] ?? __('strategies.not_managed') }}</td></tr>
+                                <tr><td><code>{{ $key }}</code></td><td class="text-break">{{ $change['before'] ?? __('strategies.not_managed') }}</td><td class="text-break">{{ $change['after'] ?? __('strategies.not_managed') }}</td></tr>
                             @empty
                                 <tr><td colspan="3" class="text-muted">{{ __('strategies.no_option_changes') }}</td></tr>
                             @endforelse
@@ -541,7 +541,7 @@
                                 <div class="table-responsive mb-4">
                                     <table class="table table-sm"><thead><tr><th>{{ __('strategies.field') }}</th><th>{{ __('strategies.compare_from') }}</th><th>{{ __('strategies.compare_to') }}</th></tr></thead><tbody>
                                     @forelse ($revisionComparison as $change)
-                                        <tr><td><code>{{ $change['key'] }}</code></td><td>{{ is_bool($change['before']) ? ($change['before'] ? __('strategies.yes') : 'No') : ($change['before'] ?? __('strategies.not_managed')) }}</td><td>{{ is_bool($change['after']) ? ($change['after'] ? __('strategies.yes') : 'No') : ($change['after'] ?? __('strategies.not_managed')) }}</td></tr>
+                                        <tr><td><code>{{ $change['key'] }}</code></td><td class="text-break">{{ is_bool($change['before']) ? ($change['before'] ? __('strategies.yes') : 'No') : ($change['before'] ?? __('strategies.not_managed')) }}</td><td class="text-break">{{ is_bool($change['after']) ? ($change['after'] ? __('strategies.yes') : 'No') : ($change['after'] ?? __('strategies.not_managed')) }}</td></tr>
                                     @empty
                                         <tr><td colspan="3" class="text-muted">{{ __('strategies.these_revisions_are_identical') }}</td></tr>
                                     @endforelse

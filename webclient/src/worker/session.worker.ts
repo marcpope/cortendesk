@@ -25,9 +25,10 @@ import {
   type VideoFrame,
 } from '../gen/message';
 import { sodiumReady } from '../core/crypto';
-import { Session, type SessionSinks } from '../core/session';
+import { Session, type SessionSinks, type WebRtcOffer } from '../core/session';
 import { fileResponseToEvents } from '../core/file-transfer';
 import { WsStream } from '../transport/ws-stream';
+import { Reassembler, fragment, type CandidateInit, type IceServerConfig } from '../core/webrtc';
 import { AudioPipeline } from '../media/audio';
 import { VideoPipeline, mseH264Available, probeSupportedDecoding, type EncodedCase } from '../media/video';
 import { ForwardingVideoPipeline } from '../media/mse-video';
@@ -39,7 +40,16 @@ import { setCatalog, tl } from '../i18n';
 // feeds it to an AudioWorklet ring buffer and ignores unknown `t` otherwise.
 export type WorkerOutMessage =
   | SessionEvent
-  | { t: 'audioPcm'; pcm: Float32Array; sampleRate: number; channels: number };
+  | { t: 'audioPcm'; pcm: Float32Array; sampleRate: number; channels: number }
+  // RustDesk 1.5 WebRTC, to the page that owns the peer connection.
+  | { t: 'rtcOffer'; iceServers: IceServerConfig[] }
+  | { t: 'rtcAnswer'; sdp: string }
+  | { t: 'rtcCandidate'; candidate: CandidateInit }
+  | { t: 'rtcSend'; frags: ArrayBuffer[] }
+  | { t: 'rtcClose' };
+
+/** How long the page gets to produce an offer before we connect without one. */
+const RTC_OFFER_TIMEOUT_MS = 3000;
 
 export function codecNames(sd: SupportedDecoding): Array<'auto'|'vp9'|'h264'|'h265'|'vp8'|'av1'> {
   const codecs: Array<'auto'|'vp9'|'h264'|'h265'|'vp8'|'av1'> = ['auto'];
@@ -53,7 +63,12 @@ export function codecNames(sd: SupportedDecoding): Array<'auto'|'vp9'|'h264'|'h2
 
 export interface SessionLike {
   readonly currentState: SessionState;
-  start(): void;
+  start(offer?: WebRtcOffer): void;
+  onLocalCandidate?(json: string): void;
+  onWebRtcOpen?(viaTurn: boolean): void;
+  onWebRtcMessage?(b: Uint8Array): Promise<void>;
+  onWebRtcClosed?(): void;
+  onRelayClosed?(): boolean;
   onSignalingBytes(b: Uint8Array): void;
   onRelayBytes(b: Uint8Array): Promise<void>;
   relayOpened(): void;
@@ -162,6 +177,14 @@ export class WorkerHost {
   private connectStarted = false;
   private tornDown = false;
   private connectTimer: ReturnType<typeof setTimeout> | null = null;
+  // RustDesk 1.5 WebRTC
+  private transport: 'relay' | 'webrtc' = 'relay';
+  private rtcActive = false;
+  private rtcOfferWaiter: ((offer: WebRtcOffer | undefined) => void) | null = null;
+  private readonly reassembler = new Reassembler();
+  private rtcBuffered = 0;
+  private rtcSentSinceReport = 0;
+  private relayClosedByUs = false;
 
   constructor(deps: WorkerDeps) {
     this.deps = {
@@ -400,6 +423,29 @@ export class WorkerHost {
         this.session?.disconnect(); // emits 'closed' + closeAll -> teardown
         this.teardown();
         return;
+      case 'rtcOffer': {
+        const waiter = this.rtcOfferWaiter;
+        this.rtcOfferWaiter = null;
+        waiter?.(cmd.endpoint && cmd.sessionKey ? { endpoint: cmd.endpoint, sessionKey: cmd.sessionKey } : undefined);
+        return;
+      }
+      case 'rtcLocalCandidate':
+        this.session?.onLocalCandidate?.(cmd.json);
+        return;
+      case 'rtcOpen':
+        this.session?.onWebRtcOpen?.(cmd.viaTurn);
+        return;
+      case 'rtcData':
+        this.onRtcData(new Uint8Array(cmd.data));
+        return;
+      case 'rtcBuffered':
+        this.rtcBuffered = cmd.bytes;
+        this.rtcSentSinceReport = 0;
+        return;
+      case 'rtcClosed':
+        this.rtcActive = false;
+        this.session?.onWebRtcClosed?.();
+        return;
       default:
         return;
     }
@@ -459,8 +505,28 @@ export class WorkerHost {
 
       const session = this.deps.createSession({ ...config, videoAck }, {
         sendSignaling: (b) => this.ws1?.send(b),
-        sendRelay: (b) => this.ws2?.send(b),
-        relayBuffered: () => this.ws2?.buffered?.() ?? 0,
+        sendRelay: (b) => {
+          if (this.transport === 'webrtc') this.sendRtc(b);
+          else this.ws2?.send(b);
+        },
+        relayBuffered: () =>
+          this.transport === 'webrtc' ? this.rtcBuffered + this.rtcSentSinceReport : this.ws2?.buffered?.() ?? 0,
+        webrtcAnswer: (sdp) => this.deps.post({ t: 'rtcAnswer', sdp }),
+        webrtcRemoteCandidate: (candidate) => this.deps.post({ t: 'rtcCandidate', candidate }),
+        webrtcClose: () => this.closeRtc(),
+        selectTransport: (t) => {
+          this.transport = t;
+        },
+        closeRelay: () => {
+          this.relayClosedByUs = true;
+          const w2 = this.ws2;
+          this.ws2 = null;
+          try {
+            w2?.close();
+          } catch {
+            // already closed
+          }
+        },
         emit: (ev) => {
           // Clear the connect watchdog once we reach a settled state or enter
           // explicit manual-accept waiting; that wait is controlled by the
@@ -533,7 +599,9 @@ export class WorkerHost {
 
       ws1.onMessage((b) => session.onSignalingBytes(b));
       ws1.onClose(() => this.onIdSocketClosed());
-      session.start();
+      const offer = config.webrtc ? await this.requestRtcOffer(config.webrtc.iceServers) : undefined;
+      if (this.tornDown) return;
+      session.start(offer);
 
       // Watchdog: if pairing/handshake/login stalls (busy relay, peer offline,
       // controller already attached), fail with a reason instead of spinning.
@@ -562,7 +630,7 @@ export class WorkerHost {
   private async openRelay(url: string): Promise<void> {
     try {
       const ws2 = await this.deps.openWs(url);
-      if (this.tornDown) {
+      if (this.tornDown || this.relayClosedByUs) {
         ws2.close();
         return;
       }
@@ -572,7 +640,15 @@ export class WorkerHost {
       ws2.onMessage((b) => {
         void this.session?.onRelayBytes(b);
       });
-      ws2.onClose(() => this.onSocketClosed('relay'));
+      ws2.onClose(() => {
+        if (this.relayClosedByUs) return;
+        // While WebRTC can still carry the session, losing the relay is not fatal.
+        if (this.session?.onRelayClosed?.() === false) {
+          this.ws2 = null;
+          return;
+        }
+        this.onSocketClosed('relay');
+      });
       this.session?.relayOpened();
     } catch (e) {
       this.deps.post({ t: 'state', state: 'error', detail: `relay connect failed: ${errMsg(e)}` });
@@ -729,6 +805,49 @@ export class WorkerHost {
     this.teardown();
   }
 
+  // ---- RustDesk 1.5 WebRTC ----
+
+  private requestRtcOffer(iceServers: IceServerConfig[]): Promise<WebRtcOffer | undefined> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.rtcOfferWaiter = null;
+        resolve(undefined);
+      }, RTC_OFFER_TIMEOUT_MS);
+      this.rtcOfferWaiter = (offer) => {
+        clearTimeout(timer);
+        this.rtcActive = offer !== undefined;
+        resolve(offer);
+      };
+      this.deps.post({ t: 'rtcOffer', iceServers });
+    });
+  }
+
+  /** One message onto the data channel, fragmented, in a single post so fragments never interleave. */
+  private sendRtc(b: Uint8Array): void {
+    if (!this.rtcActive) return;
+    const frags = fragment(b).map((f) => f.buffer as ArrayBuffer);
+    this.rtcSentSinceReport += b.length;
+    this.deps.post({ t: 'rtcSend', frags }, frags);
+  }
+
+  private onRtcData(frag: Uint8Array): void {
+    let msg: Uint8Array | null;
+    try {
+      msg = this.reassembler.push(frag);
+    } catch {
+      this.closeRtc();
+      this.session?.onWebRtcClosed?.();
+      return;
+    }
+    if (msg) void this.session?.onWebRtcMessage?.(msg);
+  }
+
+  private closeRtc(): void {
+    if (!this.rtcActive) return;
+    this.rtcActive = false;
+    this.deps.post({ t: 'rtcClose' });
+  }
+
   private clearConnectTimer(): void {
     if (this.connectTimer !== null) {
       clearTimeout(this.connectTimer);
@@ -740,6 +859,8 @@ export class WorkerHost {
     if (this.tornDown) return;
     this.tornDown = true;
     this.clearConnectTimer();
+    this.closeRtc();
+    this.rtcOfferWaiter?.(undefined);
     // The host's cursor cache is per-connection and starts empty, so it will
     // resend every bitmap on the next one. Keeping ours would risk answering a
     // reused id with the previous session's shape.

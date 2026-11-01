@@ -4,6 +4,7 @@
 import type { DisplayInfo, SessionConfig, SessionState, UiCommand } from '../core/contracts';
 import type { DisplayRect } from '../input/mouse-keyboard';
 import { tl } from '../i18n';
+import { DEFAULT_ICE_SERVERS, parseIceServers } from '../core/webrtc';
 
 export type RdGlobalConfig = {
   peerId?: string;
@@ -17,6 +18,8 @@ export type RdGlobalConfig = {
   /** Console version, injected per request — see OVERLAY_VERSION. */
   version?: string;
   workerUrl?: string;
+  /** RustDesk 1.5 WebRTC: present when the console allows it; iceServers in the client option's format, "" for the defaults. */
+  webrtc?: { iceServers: string } | null;
 };
 
 export const QUALITY = { best: 4, balanced: 3, speed: 2 } as const; // ImageQuality enum values
@@ -168,7 +171,25 @@ export function buildSessionConfig(
     ...(g.signalToken ? { signalToken: g.signalToken } : {}),
     savedHashHex,
     ...(connType ? { connType } : {}),
+    ...(g.webrtc && webRtcAvailable() ? { webrtc: { iceServers: iceServersFor(g.webrtc.iceServers), ...relayHold() } } : {}),
   };
+}
+
+/** Diagnostics: ?rtcwait=<ms> holds a paired relay longer, so a slow WebRTC can still win. */
+function relayHold(): { relayHoldMs?: number } {
+  if (typeof location === 'undefined') return {};
+  const ms = Number(new URLSearchParams(location.search).get('rtcwait'));
+  return Number.isFinite(ms) && ms > 0 ? { relayHoldMs: Math.min(ms, 15000) } : {};
+}
+
+export function webRtcAvailable(): boolean {
+  return typeof RTCPeerConnection !== 'undefined';
+}
+
+function iceServersFor(list: string) {
+  const servers = parseIceServers(list);
+  // Like the RustDesk client: without a STUN server of our own, keep public ones.
+  return servers.some((s) => s.urls.startsWith('stun')) ? servers : [...DEFAULT_ICE_SERVERS, ...servers];
 }
 
 export function displayToRect(d: DisplayInfo): DisplayRect {

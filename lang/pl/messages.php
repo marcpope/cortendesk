@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => 'Aby kopiować tam kopie zapasowe, potrzebny jest host FTP.',
     'grant_one_permission' => 'Przyznaj co najmniej jedno uprawnienie do zasobu.',
     'group_gone' => 'Ta grupa urządzeń już nie istnieje.',
+    'ice_server_invalid' => 'Klient nie może użyć „:entry”. Użyj stun:host:port lub turn://uzytkownik:haslo@host:port ze znakami specjalnymi zakodowanymi procentowo.',
+    'ice_servers_too_many' => 'Najwyżej :max serwerów.',
     'idp_no_user' => 'Dostawca tożsamości nie zidentyfikował użytkownika.',
     'idp_rejected' => 'Dostawca tożsamości odrzucił logowanie.',
     'idp_rejected_detail' => 'Dostawca tożsamości odrzucił logowanie: :detail',

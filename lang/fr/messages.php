@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => 'Un hôte FTP est nécessaire pour y copier les sauvegardes.',
     'grant_one_permission' => 'Accordez au moins une autorisation sur une ressource.',
     'group_gone' => 'Ce groupe d’appareils n’existe plus.',
+    'ice_server_invalid' => 'Le client ne peut pas utiliser « :entry ». Utilisez stun:hôte:port ou turn://utilisateur:motdepasse@hôte:port avec les caractères spéciaux encodés en pourcentage.',
+    'ice_servers_too_many' => ':max serveurs au maximum.',
     'idp_no_user' => 'Le fournisseur d’identité n’a pas identifié l’utilisateur.',
     'idp_rejected' => 'Le fournisseur d’identité a refusé la connexion.',
     'idp_rejected_detail' => 'Le fournisseur d’identité a refusé la connexion : :detail',

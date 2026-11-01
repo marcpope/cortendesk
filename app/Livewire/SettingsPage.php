@@ -17,6 +17,7 @@ use App\Services\MailSettings;
 use App\Services\OidcService;
 use App\Services\ServerLink;
 use App\Support\ClientLink;
+use App\Support\IceServers;
 use App\Support\LoginEmailVerification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
@@ -57,6 +58,10 @@ class SettingsPage extends Component
     public bool $autoApproveSignedIn = false;
 
     public bool $newDevicesIncomingOnly = false;
+
+    public bool $webClientWebRtc = true;
+
+    public string $webClientIceServers = '';
 
     /** Device group every first-seen device lands in; 0 = none (issue #97). */
     public int $defaultDeviceGroupId = 0;
@@ -217,6 +222,8 @@ class SettingsPage extends Component
         $this->requireDeviceApproval = (bool) Setting::get('require_device_approval', '0');
         $this->autoApproveSignedIn = DeviceEnrollment::autoApproveSignedIn();
         $this->newDevicesIncomingOnly = DeviceEnrollment::newDevicesIncomingOnly();
+        $this->webClientWebRtc = Setting::get(IceServers::SETTING_WEB_CLIENT, '1') === '1';
+        $this->webClientIceServers = (string) Setting::get(IceServers::SETTING_WEB_CLIENT_SERVERS, '');
         $this->defaultDeviceGroupId = DeviceEnrollment::defaultGroup()?->id ?? 0;
         $this->serverAccessMode = ServerLink::mode();
         $this->serverIpMatch = ServerLink::ipMatch();
@@ -305,7 +312,7 @@ class SettingsPage extends Component
             str_starts_with($root, 'apprise') => 'notifications',
             $root === 'logRetentionDays' => 'maintenance',
             in_array($root, ['twoFactorRequired', 'twoFactorRequiredAdmins', 'emailLoginVerification', 'emailTrustedDeviceDays'], true) => 'security',
-            in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'clientUrlScheme', 'downloadsOnLogin', 'relayServers', 'requireDeviceApproval', 'autoApproveSignedIn', 'newDevicesIncomingOnly', 'defaultDeviceGroupId', 'serverAccessMode', 'serverIpMatch'], true) => 'server',
+            in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'clientUrlScheme', 'downloadsOnLogin', 'relayServers', 'requireDeviceApproval', 'autoApproveSignedIn', 'newDevicesIncomingOnly', 'defaultDeviceGroupId', 'serverAccessMode', 'serverIpMatch', 'webClientWebRtc', 'webClientIceServers'], true) => 'server',
             default => null,
         };
     }
@@ -356,6 +363,16 @@ class SettingsPage extends Component
             $this->tab = self::tabForField((string) array_key_first($e->errors())) ?? $this->tab;
 
             throw $e;
+        }
+
+        if (IceServers::normalize($this->webClientIceServers) === null) {
+            $this->tab = 'server';
+            $bad = IceServers::firstInvalid($this->webClientIceServers);
+            $this->addError('webClientIceServers', $bad === null
+                ? __('messages.ice_servers_too_many', ['max' => IceServers::MAX_ENTRIES])
+                : __('messages.ice_server_invalid', ['entry' => $bad]));
+
+            return;
         }
 
         if (trim($this->clientUrlScheme) !== '' && ClientLink::normalize($this->clientUrlScheme) === '') {
@@ -419,6 +436,9 @@ class SettingsPage extends Component
         Setting::put('require_device_approval', $this->requireDeviceApproval ? '1' : '0');
         Setting::put(DeviceEnrollment::SETTING_AUTO_APPROVE, $this->autoApproveSignedIn ? '1' : '0');
         Setting::put(DeviceEnrollment::SETTING_NEW_INCOMING_ONLY, $this->newDevicesIncomingOnly ? '1' : '0');
+        Setting::put(IceServers::SETTING_WEB_CLIENT, $this->webClientWebRtc ? '1' : '0');
+        $this->webClientIceServers = (string) IceServers::normalize($this->webClientIceServers);
+        Setting::put(IceServers::SETTING_WEB_CLIENT_SERVERS, $this->webClientIceServers);
         Setting::put(DeviceEnrollment::SETTING_DEFAULT_GROUP, (string) $this->defaultDeviceGroupId);
         if ($this->serverAccessMode !== ServerLink::mode()) {
             Setting::put('server_access_mode', $this->serverAccessMode);

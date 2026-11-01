@@ -3005,3 +3005,17 @@ a.rd-mini-sub:hover {
     white-space: pre-line;
     overflow-wrap: anywhere;
 }
+
+/* iOS zooms the page when a field under 16px takes focus, then leaves it
+   zoomed and panning sideways. 16px on iPhone and iPad only; desktop and
+   Android keep the smaller type. The one-time-code input stays at 20px. */
+@supports (-webkit-touch-callout: none) {
+    .form-control:not(.rd-code-input),
+    .form-select,
+    .rd-toolbar .form-control,
+    .rd-toolbar .form-select,
+    .input-group-sm > .form-control,
+    .input-group-sm > .form-select {
+        font-size: 16px;
+    }
+}

@@ -1672,3 +1672,10 @@
   .rd-clipboard-sync-offer { bottom: 82px; flex-wrap: wrap; justify-content: center; width: calc(100% - 24px); }
   .rd-clipboard-sync-offer span { flex-basis: 100%; text-align: center; }
 }
+
+/* iOS zooms the page when a field under 16px takes focus. iPhone and iPad only. */
+@supports (-webkit-touch-callout: none) {
+  .rd-chat-compose input,
+  .rd-pop-type textarea,
+  .rd-terminal-input-row input { font-size: 16px; }
+}

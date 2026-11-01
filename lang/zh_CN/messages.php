@@ -36,6 +36,8 @@ return [
     'ftp_host_needed' => '需要填写 FTP 主机才能将备份复制过去。',
     'grant_one_permission' => '请至少授予一项资源权限。',
     'group_gone' => '该设备组已不存在。',
+    'ice_server_invalid' => '客户端无法使用“:entry”。请使用 stun:host:port，或 turn://user:password@host:port，特殊字符需进行百分号编码。',
+    'ice_servers_too_many' => '最多 :max 个服务器。',
     'idp_no_user' => '身份提供商未能识别用户。',
     'idp_rejected' => '身份提供商拒绝了此次登录。',
     'idp_rejected_detail' => '身份提供商拒绝了此次登录：:detail',

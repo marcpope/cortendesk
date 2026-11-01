@@ -10,7 +10,7 @@ import type { SupportedDecoding_PreferCodec } from '../gen/message';
 // LoginRequest so the peer starts the session with them (issue #92). Absent
 // fields leave the peer's own default in place.
 export type InitialSessionOptions = { imageQuality?:number; customImageQuality?:number; customFps?:number; preferCodec?:SupportedDecoding_PreferCodec; showRemoteCursor?:boolean; followRemoteCursor?:boolean; followRemoteWindow?:boolean; disableClipboard?:boolean; disableAudio?:boolean };
-export type SessionConfig = { peerId:string; serverKeyB64:string; wsIdUrl:string; wsRelayUrl:string; password:string; myId:string; myName:string; signalToken?:string; savedHashHex?:string; sessionId?:string; videoAck?:boolean; connType?:'default'|'fileTransfer'|'viewCamera'|'terminal'; terminalServiceId?:string; terminalPersistent?:boolean; initialOptions?:InitialSessionOptions; messages?:Record<string,string> };
+export type SessionConfig = { peerId:string; serverKeyB64:string; wsIdUrl:string; wsRelayUrl:string; password:string; myId:string; myName:string; signalToken?:string; savedHashHex?:string; sessionId?:string; videoAck?:boolean; connType?:'default'|'fileTransfer'|'viewCamera'|'terminal'; terminalServiceId?:string; terminalPersistent?:boolean; initialOptions?:InitialSessionOptions; messages?:Record<string,string>; webrtc?:{ iceServers:{ urls:string; username?:string; credential?:string }[]; relayHoldMs?:number } };
 export type ResolutionInfo = { width:number; height:number };
 export type DisplayInfo = { index:number; x:number; y:number; width:number; height:number; name:string; scale:number; online:boolean; cursorEmbedded:boolean; originalResolution?:ResolutionInfo; resolutions:ResolutionInfo[] };
 export type SessionStats = { codec:string; width:number; height:number; fps:number; mbps:number; framesDropped:number; startedAtMs:number };
@@ -32,6 +32,8 @@ export type SessionEvent =                       // worker -> main
   | { t:'followDisplay'; index:number }
   | { t:'codecSupport'; codecs:Array<'auto'|'vp9'|'h264'|'h265'|'vp8'|'av1'> }
   | { t:'stats'; stats:SessionStats }
+  // Which path the session runs on: the relay, or RustDesk 1.5 WebRTC (direct, or through a TURN server).
+  | { t:'transport'; kind:'relay'|'webrtc'|'webrtc-turn' }
   | { t:'cursor'; pngDataUrl:string; hotx:number; hoty:number } | { t:'cursorPos'; x:number; y:number }
   | { t:'clipboard'; text:string } | { t:'permission'; kind:string; enabled:boolean }
   | { t:'privacyMode'; state:number; details:string; implKey:string }
@@ -72,6 +74,14 @@ export type UiCommand =                           // main -> worker
   | { c:'displayResolution'; display:number; width:number; height:number }
   | { c:'virtualDisplay'; display:number; on:boolean }
   | { c:'customQuality'; quality:number } | { c:'customFps'; fps:number }
+  // RustDesk 1.5 WebRTC: the page owns the RTCPeerConnection (workers cannot
+  // create one) and reports to the session here.
+  | { c:'rtcOffer'; endpoint?:string; sessionKey?:string }
+  | { c:'rtcLocalCandidate'; json:string }
+  | { c:'rtcOpen'; viaTurn:boolean }
+  | { c:'rtcData'; data:ArrayBuffer }
+  | { c:'rtcBuffered'; bytes:number }
+  | { c:'rtcClosed' }
   | { c:'preferredCodec'; prefer:SupportedDecoding_PreferCodec }
   | { c:'displayOption'; option:'showRemoteCursor'|'followRemoteCursor'|'followRemoteWindow'; enabled:boolean }
   | { c:'remoteAudio'; enabled:boolean }

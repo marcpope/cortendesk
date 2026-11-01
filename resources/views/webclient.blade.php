@@ -38,6 +38,7 @@
             myId: @json($myId),
             myName: @json($myName),
             signalToken: @json($signalToken ?? ''),
+            webrtc: @json($webrtc ?? null),
             version: @json(config('cortendesk.api_version')),
             messages: @json($messages),
             workerUrl: '/rdclient/session.worker.js?v={{ $rdVer }}'
