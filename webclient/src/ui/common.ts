@@ -3,6 +3,7 @@
 // config plumbing. app.ts re-exports everything here for back-compat.
 import type { DisplayInfo, SessionConfig, SessionState, UiCommand } from '../core/contracts';
 import type { DisplayRect } from '../input/mouse-keyboard';
+import { tl } from '../i18n';
 
 export type RdGlobalConfig = {
   peerId?: string;
@@ -38,15 +39,15 @@ export function overlayVersion(cfg?: { version?: string } | null): string {
 }
 
 export const STATE_LABEL: Record<SessionState, string> = {
-  connecting: 'Connecting',
-  rendezvous: 'Contacting server',
-  relay: 'Opening relay',
-  handshake: 'Securing channel',
-  login: 'Authenticating',
-  streaming: 'Connected',
-  error: 'Error',
-  closed: 'Disconnected',
-  needAccept: 'Waiting for remote user to accept',
+  connecting: tl('connecting'),
+  rendezvous: tl('contacting_server'),
+  relay: tl('opening_relay'),
+  handshake: tl('securing_channel'),
+  login: tl('authenticating'),
+  streaming: tl('connected'),
+  error: tl('error'),
+  closed: tl('disconnected'),
+  needAccept: tl('waiting_for_remote_user_accept'),
 };
 
 export function formatDuration(ms: number): string {
@@ -133,6 +134,20 @@ export function clearSavedHash(peerId: string): void {
   } catch {
     /* non-fatal */
   }
+}
+
+/**
+ * A LoginRequest session_id, as a decimal string so it survives postMessage.
+ * Every connection of one desktop session (files, terminal, camera) sends the
+ * same id: the host then lets them in on the password that session logged in
+ * with. RustDesk 1.5 rotates the temporary password as soon as a peer is let
+ * in, so a second connection with its own id gets "Wrong password" (#122).
+ */
+export function newSessionId(): string {
+  const b = new Uint8Array(8);
+  globalThis.crypto.getRandomValues(b);
+  b[0]! &= 0x7f; // below 2^63, as the session core's own ids
+  return new DataView(b.buffer).getBigUint64(0).toString();
 }
 
 export function buildSessionConfig(

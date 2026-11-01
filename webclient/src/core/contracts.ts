@@ -10,7 +10,7 @@ import type { SupportedDecoding_PreferCodec } from '../gen/message';
 // LoginRequest so the peer starts the session with them (issue #92). Absent
 // fields leave the peer's own default in place.
 export type InitialSessionOptions = { imageQuality?:number; customImageQuality?:number; customFps?:number; preferCodec?:SupportedDecoding_PreferCodec; showRemoteCursor?:boolean; followRemoteCursor?:boolean; followRemoteWindow?:boolean; disableClipboard?:boolean; disableAudio?:boolean };
-export type SessionConfig = { peerId:string; serverKeyB64:string; wsIdUrl:string; wsRelayUrl:string; password:string; myId:string; myName:string; signalToken?:string; savedHashHex?:string; connType?:'default'|'fileTransfer'|'viewCamera'|'terminal'; terminalServiceId?:string; terminalPersistent?:boolean; initialOptions?:InitialSessionOptions };
+export type SessionConfig = { peerId:string; serverKeyB64:string; wsIdUrl:string; wsRelayUrl:string; password:string; myId:string; myName:string; signalToken?:string; savedHashHex?:string; sessionId?:string; videoAck?:boolean; connType?:'default'|'fileTransfer'|'viewCamera'|'terminal'; terminalServiceId?:string; terminalPersistent?:boolean; initialOptions?:InitialSessionOptions; messages?:Record<string,string> };
 export type ResolutionInfo = { width:number; height:number };
 export type DisplayInfo = { index:number; x:number; y:number; width:number; height:number; name:string; scale:number; online:boolean; cursorEmbedded:boolean; originalResolution?:ResolutionInfo; resolutions:ResolutionInfo[] };
 export type SessionStats = { codec:string; width:number; height:number; fps:number; mbps:number; framesDropped:number; startedAtMs:number };
@@ -63,7 +63,7 @@ export type SessionEvent =                       // worker -> main
 export type UiCommand =                           // main -> worker
   | { c:'connect'; config:SessionConfig; canvas:OffscreenCanvas }
   | { c:'mouse'; mask:number; x:number; y:number; modifiers:number[] }
-  | { c:'key'; down:boolean; press:boolean; keyKind:'chr'|'control'|'unicode'; value:number; modifiers:number[] }
+  | { c:'key'; down:boolean; press:boolean; keyKind:'chr'|'control'|'unicode'|'map'; value:number; modifiers:number[] }
   | { c:'switchDisplay'; index:number } | { c:'ctrlAltDel' } | { c:'refresh' }
   | { c:'quality'; imageQuality:number } | { c:'clipboardText'; text:string } | { c:'disconnect' }
   | { c:'restartRemoteDevice' } | { c:'requestElevation' }

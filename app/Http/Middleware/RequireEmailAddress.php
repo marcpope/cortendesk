@@ -41,7 +41,7 @@ class RequireEmailAddress
             && ! $this->isAllowed($request)) {
             return redirect()->route('account')->with(
                 'email_required',
-                'Sign-in verification is enabled on this console, so your account needs an email address. Add one to continue.',
+                __('messages.email_required'),
             );
         }
 

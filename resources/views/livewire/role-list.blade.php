@@ -2,17 +2,14 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
             <div>
-                <h4 class="header-title">Roles</h4>
+                <h4 class="header-title">{{ __('common.roles') }}</h4>
                 <p class="rd-card-sub mb-0">
-                    A role opens console sections for a non-administrator. It never widens which
-                    devices or address books a user can see — that stays with their device-group
-                    and sharing grants, so a role can only ever narrow what they already had.
-                    Administrators are unaffected: they always see everything.
+                    {{ __('roles.role_opens_console_sections_for') }}
                 </p>
             </div>
             <div class="rd-card-actions">
                 <button type="button" class="btn btn-primary" wire:click="create">
-                    <i class="ri-add-line"></i>New Role
+                    <i class="ri-add-line"></i>{{ __('roles.new_role') }}
                 </button>
             </div>
         </div>
@@ -22,11 +19,11 @@
                 <table class="table table-hover table-centered mb-0">
                     <thead>
                     <tr>
-                        <th>Role</th>
-                        <th>Permissions</th>
-                        <th>2FA</th>
-                        <th>Users</th>
-                        <th class="text-end">Action</th>
+                        <th>{{ __('common.role') }}</th>
+                        <th>{{ __('common.permissions') }}</th>
+                        <th>{{ __('common.2fa') }}</th>
+                        <th>{{ __('common.users') }}</th>
+                        <th class="text-end">{{ __('common.action') }}</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -48,22 +45,22 @@
                                         {{ $resourceLabels[$res] ?? $res }}: {{ $levelLabels[$role->levelFor($res)] }}
                                     </span>
                                 @empty
-                                    <span class="text-muted">No permissions</span>
+                                    <span class="text-muted">{{ __('roles.no_permissions') }}</span>
                                 @endforelse
                             </td>
                             <td>
                                 @if ($role->require_two_factor)
-                                    <span class="badge bg-info-subtle text-info"><i class="ri-shield-keyhole-line"></i> Required</span>
+                                    <span class="badge bg-info-subtle text-info"><i class="ri-shield-keyhole-line"></i> {{ __('roles.required') }}</span>
                                 @else
                                     <span class="text-muted">—</span>
                                 @endif
                             </td>
                             <td>{{ $role->users_count }}</td>
                             <td class="text-end rd-rowact">
-                                <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $role->id }})">Edit</a>
+                                <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $role->id }})">{{ __('common.edit') }}</a>
                                 <a href="javascript:void(0);" class="text-danger"
                                    wire:click="deleteRole({{ $role->id }})"
-                                   wire:confirm="Delete this role? {{ $role->users_count }} user(s) will revert to standard user access.">Delete</a>
+                                   wire:confirm="{{ trans_choice('roles.delete_this_role_count_user', $role->users_count) }}">{{ __('common.delete') }}</a>
                             </td>
                         </tr>
                     @empty
@@ -72,10 +69,10 @@
                                 <div class="rd-empty">
                                     <div class="rd-empty-icon"><i class="ri-shield-user-line"></i></div>
                                     <p class="rd-empty-title">
-                                        No roles yet. Every non-administrator has standard user access.
+                                        {{ __('roles.no_roles_yet_every_non') }}
                                     </p>
-                                    <p class="rd-empty-text">Create one to let a colleague run the helpdesk without handing over the whole console.</p>
-                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="create">New Role</button>
+                                    <p class="rd-empty-text">{{ __('roles.create_one_to_let_colleague') }}</p>
+                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="create">{{ __('roles.new_role') }}</button>
                                 </div>
                             </td>
                         </tr>
@@ -94,7 +91,7 @@
                                     <span class="rd-mini-sub text-truncate">{{ $role->description ?: '—' }}</span>
                                 </div>
                                 <span class="badge bg-secondary-subtle text-secondary flex-shrink-0">
-                                    {{ $role->users_count }} {{ Str::plural('user', $role->users_count) }}
+                                    {{ trans_choice('common.count_users', $role->users_count) }}
                                 </span>
                             </div>
                             <div class="mt-2">
@@ -104,26 +101,26 @@
                                         {{ $resourceLabels[$res] ?? $res }}: {{ $levelLabels[$role->levelFor($res)] }}
                                     </span>
                                 @empty
-                                    <small class="text-muted">No permissions</small>
+                                    <small class="text-muted">{{ __('roles.no_permissions') }}</small>
                                 @endforelse
                                 @if ($role->require_two_factor)
-                                    <span class="badge bg-info-subtle text-info"><i class="ri-shield-keyhole-line"></i> 2FA</span>
+                                    <span class="badge bg-info-subtle text-info"><i class="ri-shield-keyhole-line"></i> {{ __('common.2fa') }}</span>
                                 @endif
                             </div>
                             <div class="rd-mini-acts justify-content-end mt-2">
-                                <a href="javascript:void(0);" class="rd-iconbtn" title="Edit" wire:click="edit({{ $role->id }})"><i class="ri-pencil-line"></i></a>
-                                <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="Delete"
+                                <a href="javascript:void(0);" class="rd-iconbtn" title="{{ __('common.edit') }}" wire:click="edit({{ $role->id }})"><i class="ri-pencil-line"></i></a>
+                                <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="{{ __('common.delete') }}"
                                    wire:click="deleteRole({{ $role->id }})"
-                                   wire:confirm="Delete this role? {{ $role->users_count }} user(s) will revert to standard user access."><i class="ri-delete-bin-line"></i></a>
+                                   wire:confirm="{{ trans_choice('roles.delete_this_role_count_user', $role->users_count) }}"><i class="ri-delete-bin-line"></i></a>
                             </div>
                     </div>
                 @empty
                     <div class="rd-empty">
                         <div class="rd-empty-icon"><i class="ri-shield-user-line"></i></div>
                         <p class="rd-empty-title">
-                            No roles yet. Every non-administrator has standard user access.
+                            {{ __('roles.no_roles_yet_every_non') }}
                         </p>
-                        <button type="button" class="btn btn-sm btn-outline-light" wire:click="create">New Role</button>
+                        <button type="button" class="btn btn-sm btn-outline-light" wire:click="create">{{ __('roles.new_role') }}</button>
                     </div>
                 @endforelse
             </div>
@@ -136,25 +133,25 @@
                 <div class="modal-content">
                     <form wire:submit="save">
                         <div class="modal-header">
-                            <h5 class="modal-title">{{ $editing ? 'Edit Role' : 'New Role' }}</h5>
-                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="Close"></button>
+                            <h5 class="modal-title">{{ $editing ? __('roles.edit_role') : __('roles.new_role') }}</h5>
+                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="{{ __('common.close') }}"></button>
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label class="form-label" for="rl-name">Name <span class="text-danger">*</span></label>
+                                <label class="form-label" for="rl-name">{{ __('common.name') }} <span class="text-danger">*</span></label>
                                 <input type="text" id="rl-name" class="form-control @error('name') is-invalid @enderror"
-                                       wire:model="name" autocomplete="off" placeholder="Helpdesk">
+                                       wire:model="name" autocomplete="off" placeholder="{{ __('roles.helpdesk') }}">
                                 @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" for="rl-description">Description</label>
+                                <label class="form-label" for="rl-description">{{ __('roles.description') }}</label>
                                 <input type="text" id="rl-description" class="form-control @error('description') is-invalid @enderror"
-                                       wire:model="description" autocomplete="off" placeholder="Optional">
+                                       wire:model="description" autocomplete="off" placeholder="{{ __('common.optional') }}">
                                 @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
-                            <label class="form-label">Permissions</label>
+                            <label class="form-label">{{ __('common.permissions') }}</label>
                             @error('permissions.*') <div class="text-danger fs-13 mb-1">{{ $message }}</div> @enderror
 
                             {{-- Desktop: radio grid --}}
@@ -162,7 +159,7 @@
                                 <table class="table table-sm table-centered mb-0">
                                     <thead>
                                     <tr>
-                                        <th>Area</th>
+                                        <th>{{ __('roles.area') }}</th>
                                         @foreach ($levels as $lvl)
                                             <th class="text-center">{{ $levelLabels[$lvl] }}</th>
                                         @endforeach
@@ -206,18 +203,17 @@
                             <div class="form-check form-switch mt-3">
                                 <input class="form-check-input" type="checkbox" role="switch" id="rl-2fa"
                                        wire:model="require_two_factor">
-                                <label class="form-check-label" for="rl-2fa">Require two-factor authentication</label>
+                                <label class="form-check-label" for="rl-2fa">{{ __('roles.require_two_factor_authentication') }}</label>
                                 <small class="text-muted d-block">
-                                    Holders of this role must enrol an authenticator before they can use the console.
-                                    Accounts that sign in through the identity provider are exempt, as everywhere else.
+                                    {{ __('roles.holders_of_this_role_must') }}
                                 </small>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
+                            <button type="button" class="btn btn-light" wire:click="closeModal">{{ __('common.cancel') }}</button>
                             <button type="submit" class="btn btn-primary">
-                                <span wire:loading.remove wire:target="save"><i class="ri-save-line me-1"></i>{{ $editing ? 'Save Role' : 'Create Role' }}</span>
-                                <span wire:loading wire:target="save">Saving…</span>
+                                <span wire:loading.remove wire:target="save"><i class="ri-save-line me-1"></i>{{ $editing ? __('roles.save_role') : __('roles.create_role') }}</span>
+                                <span wire:loading wire:target="save">{{ __('common.saving') }}</span>
                             </button>
                         </div>
                     </form>

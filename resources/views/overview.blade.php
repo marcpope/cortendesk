@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Overview')
+@section('title', __('common.overview'))
 
 @section('content')
     @if (\App\Livewire\SetupWizard::shouldPrompt(auth()->user()))
         <div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
             <i class="ri-guide-line fs-20"></i>
-            <div class="flex-grow-1"><strong>Connect your first device.</strong> The setup guide provides the exact RustDesk network values and confirms the first heartbeat.</div>
-            <a href="{{ route('setup') }}" class="btn btn-sm btn-primary">Open setup guide</a>
+            <div class="flex-grow-1"><strong>{{ __('overview.connect_your_first_device') }}</strong> {{ __('overview.setup_guide_provides_exact_rustdesk') }}</div>
+            <a href="{{ route('setup') }}" class="btn btn-sm btn-primary">{{ __('overview.open_setup_guide') }}</a>
         </div>
     @endif
     {{-- Only shown to someone who can actually fix it. Everything listed here
@@ -16,10 +16,9 @@
         <div class="alert alert-warning d-flex align-items-start gap-2">
             <i class="ri-mail-close-line fs-20"></i>
             <div class="flex-grow-1">
-                <strong>Email is not configured.</strong>
-                User invitations cannot be sent, and emailed sign-in verification codes cannot
-                be delivered, so anyone locked out has to be recovered by an administrator by hand.
-                <a href="{{ route('settings', ['tab' => 'email']) }}" class="alert-link">Set up SMTP</a>.
+                <strong>{{ __('overview.email_is_not_configured') }}</strong>
+                {{ __('overview.user_invitations_cannot_be_sent') }}
+                <a href="{{ route('settings', ['tab' => 'email']) }}" class="alert-link">{{ __('overview.set_up_smtp') }}</a>.
             </div>
         </div>
     @endif
@@ -32,18 +31,18 @@
             <div class="card">
                 <div class="card-header d-flex flex-wrap align-items-center gap-2">
                     <div class="min-width-0">
-                        <h5 class="card-title">Connections</h5>
-                        <div class="rd-card-sub">Sessions per day by type · last {{ $range }} days</div>
+                        <h5 class="card-title">{{ __('common.connections') }}</h5>
+                        <div class="rd-card-sub">{{ __('overview.sessions_per_day_by_type', ['days' => $range]) }}</div>
                     </div>
                     <div class="rd-card-actions">
-                        <div class="rd-seg" role="group" aria-label="Chart range">
+                        <div class="rd-seg" role="group" aria-label="{{ __('overview.chart_range') }}">
                             @foreach ($ranges as $r)
                                 <a href="{{ route('overview', ['range' => $r]) }}"
                                    class="rd-seg-item {{ $r === $range ? 'active' : '' }}"
                                    @if ($r === $range) aria-current="true" @endif>{{ $r }}D</a>
                             @endforeach
                         </div>
-                        <a href="{{ route('logs.connections') }}" class="fs-13">View log</a>
+                        <a href="{{ route('logs.connections') }}" class="fs-13">{{ __('overview.view_log') }}</a>
                     </div>
                 </div>
                 <div class="card-body">
@@ -61,8 +60,8 @@
             @endphp
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title">Device Platforms</h5>
-                    <div class="rd-card-sub">Share of {{ $platformTotal }} {{ Str::plural('device', $platformTotal) }}</div>
+                    <h5 class="card-title">{{ __('overview.device_platforms') }}</h5>
+                    <div class="rd-card-sub">{{ trans_choice('overview.share_of_count_device', $platformTotal) }}</div>
                 </div>
                 <div class="card-body">
                     @if ($platformTotal > 0)
@@ -85,9 +84,9 @@
                         <div id="chart-platforms" class="d-none"></div>
                         <div class="rd-empty">
                             <div class="rd-empty-icon"><i class="ri-computer-line"></i></div>
-                            <p class="rd-empty-title">No devices yet</p>
-                            <p class="rd-empty-text">The platform mix appears once a RustDesk client checks in.</p>
-                            <a href="{{ route('devices') }}" class="btn btn-sm btn-outline-light">Go to devices</a>
+                            <p class="rd-empty-title">{{ __('overview.no_devices_yet') }}</p>
+                            <p class="rd-empty-text">{{ __('overview.platform_mix_appears_once_rustdesk') }}</p>
+                            <a href="{{ route('devices') }}" class="btn btn-sm btn-outline-light">{{ __('overview.go_to_devices') }}</a>
                         </div>
                     @endif
                 </div>
@@ -116,11 +115,11 @@
             <div class="card">
                 <div class="card-header d-flex flex-wrap align-items-center gap-2">
                     <div class="min-width-0">
-                        <h5 class="card-title">Client Versions</h5>
-                        <div class="rd-card-sub">{{ $versionTotal > 0 ? 'Top '.count($versionCounts['labels']).' in use' : 'Reported on each heartbeat' }}</div>
+                        <h5 class="card-title">{{ __('overview.client_versions') }}</h5>
+                        <div class="rd-card-sub">{{ $versionTotal > 0 ? __('overview.top_versions_in_use', ['count' => count($versionCounts['labels'])]) : __('overview.reported_on_each_heartbeat') }}</div>
                     </div>
                     <div class="rd-card-actions">
-                        <a href="{{ route('devices') }}" class="fs-13">All devices</a>
+                        <a href="{{ route('devices') }}" class="fs-13">{{ __('overview.all_devices') }}</a>
                     </div>
                 </div>
                 <div class="card-body">
@@ -144,8 +143,8 @@
                         @else
                             <div class="rd-empty">
                                 <div class="rd-empty-icon"><i class="ri-download-2-line"></i></div>
-                                <p class="rd-empty-title">No client versions reported</p>
-                                <p class="rd-empty-text">Clients report their version on their first heartbeat.</p>
+                                <p class="rd-empty-title">{{ __('overview.no_client_versions_reported') }}</p>
+                                <p class="rd-empty-text">{{ __('overview.clients_report_their_version_on') }}</p>
                             </div>
                         @endif
                     </div>
@@ -159,11 +158,11 @@
                 <div class="card">
                     <div class="card-header d-flex flex-wrap align-items-center gap-2">
                         <div class="min-width-0">
-                            <h5 class="card-title">Alerts</h5>
-                            <div class="rd-card-sub">Last 24 hours</div>
+                            <h5 class="card-title">{{ __('overview.alerts') }}</h5>
+                            <div class="rd-card-sub">{{ __('overview.last_24_hours') }}</div>
                         </div>
                         <div class="rd-card-actions">
-                            <a href="{{ route('logs.alarms') }}" class="fs-13">Alarm log</a>
+                            <a href="{{ route('logs.alarms') }}" class="fs-13">{{ __('overview.alarm_log') }}</a>
                         </div>
                     </div>
                     <div class="card-body">
@@ -182,7 +181,7 @@
                                         <div class="min-width-0">
                                             <span class="rd-cell-title text-truncate">{{ $alarm->typeLabel() }}</span>
                                             <span class="rd-cell-sub">
-                                                {{ $alarm->rustdesk_id === \App\Models\AlarmLog::CONSOLE_SOURCE ? 'Console' : $alarm->rustdesk_id }}
+                                                {{ $alarm->rustdesk_id === \App\Models\AlarmLog::CONSOLE_SOURCE ? __('common.console') : $alarm->rustdesk_id }}
                                                 · <span title="{{ $alarm->created_at }}">{{ $alarm->created_at?->diffForHumans(short: true) }}</span>
                                             </span>
                                         </div>
@@ -192,9 +191,9 @@
                         @else
                             <div class="rd-empty">
                                 <div class="rd-empty-icon"><i class="ri-shield-check-line"></i></div>
-                                <p class="rd-empty-title">Nothing to report</p>
-                                <p class="rd-empty-text">No alarms have been raised in the last 24 hours.</p>
-                                <a href="{{ route('logs.alarms') }}" class="btn btn-sm btn-outline-light">Open the alarm log</a>
+                                <p class="rd-empty-title">{{ __('overview.nothing_to_report') }}</p>
+                                <p class="rd-empty-text">{{ __('overview.no_alarms_have_been_raised') }}</p>
+                                <a href="{{ route('logs.alarms') }}" class="btn btn-sm btn-outline-light">{{ __('overview.open_alarm_log') }}</a>
                             </div>
                         @endif
                     </div>

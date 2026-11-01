@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Label;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,9 +52,15 @@ class AuditConnection extends Model
     ];
 
     /** Human label for a session type; "Type N" when unknown, so nothing is lost. */
-    public static function typeLabel(int $type): string
+    /** The English name, for CSV exports, which stay English in every language. */
+    public static function englishTypeLabel(int $type): string
     {
         return self::TYPE_LABELS[$type] ?? 'Type '.$type;
+    }
+
+    public static function typeLabel(int $type): string
+    {
+        return Label::get('conn_type', $type, self::TYPE_LABELS[$type] ?? __('labels.misc_type_n', ['n' => $type]));
     }
 
     /** Remix icon class for a session type. */

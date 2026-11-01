@@ -33,6 +33,11 @@ export type SessionPrefs = {
   audioMuted: boolean;
   /** Playback volume, 0-1. */
   audioVolume: number;
+  /**
+   * 'map' sends physical keys and lets the host's layout type them (same
+   * layout on both sides); 'legacy' sends the characters the browser typed.
+   */
+  keyboardMode: 'map' | 'legacy';
 };
 
 export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
@@ -51,6 +56,7 @@ export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   remoteAudio: true,
   audioMuted: false,
   audioVolume: 1,
+  keyboardMode: 'map',
 });
 
 export const PREFS_KEY = 'cortendesk.rdprefs.v1';
@@ -98,6 +104,7 @@ export function validatePrefs(raw: unknown): SessionPrefs {
     audioVolume: typeof r.audioVolume === 'number' && Number.isFinite(r.audioVolume) && r.audioVolume >= 0 && r.audioVolume <= 1
       ? r.audioVolume
       : d.audioVolume,
+    keyboardMode: r.keyboardMode === 'map' || r.keyboardMode === 'legacy' ? r.keyboardMode : d.keyboardMode,
   };
 }
 

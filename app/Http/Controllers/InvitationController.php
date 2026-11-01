@@ -40,8 +40,8 @@ class InvitationController extends Controller
             'password' => ['required', 'string', 'min:8', 'same:password_confirmation'],
             'password_confirmation' => ['required', 'string'],
         ], [
-            'password.same' => 'The passwords do not match.',
-            'password_confirmation.required' => 'Please confirm your password.',
+            'password.same' => __('messages.passwords_mismatch'),
+            'password_confirmation.required' => __('messages.confirm_your_password'),
         ]);
 
         // Re-check uniqueness at redemption, not just at invite time: the
@@ -50,7 +50,7 @@ class InvitationController extends Controller
         if (User::where('username', $invitation->username)->exists()
             || User::where('email', $invitation->email)->exists()) {
             return back()->withErrors([
-                'password' => 'An account already uses this username or email. Contact your administrator.',
+                'password' => __('messages.account_exists'),
             ]);
         }
 
@@ -67,7 +67,7 @@ class InvitationController extends Controller
                 ->update(['accepted_at' => now()]);
 
             if ($claimed === 0) {
-                abort(410, 'This invitation has already been used.');
+                abort(410, __('messages.invite_used'));
             }
 
             $user = User::create([
@@ -142,7 +142,7 @@ class InvitationController extends Controller
             && (! $invitation->is_admin || $inviter->is_admin);
 
         if (! $stillAuthorised) {
-            abort(403, 'This invitation is no longer valid. Ask an administrator for a new one.');
+            abort(403, __('messages.invite_invalid'));
         }
 
         return $invitation;

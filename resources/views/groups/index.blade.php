@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Groups')
-@section('subtitle', 'Manage')
+@section('title', __('common.groups'))
+@section('subtitle', __('common.manage'))
 
 @section('content')
     @livewire(App\Livewire\GroupList::class)

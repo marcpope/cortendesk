@@ -40,6 +40,9 @@ class AccountProfile extends Component
     /** dark, light or system (issue #94). */
     public string $theme = 'dark';
 
+    /** Console language: a code from User::LOCALES, or '' to follow the browser. */
+    public string $locale = '';
+
     public function mount(): void
     {
         $user = $this->user();
@@ -47,6 +50,7 @@ class AccountProfile extends Component
         $this->name = (string) ($user->name ?? '');
         $this->email = (string) ($user->email ?? '');
         $this->theme = $user->themePreference();
+        $this->locale = (string) $user->locale;
     }
 
     public function saveProfile(): void
@@ -76,7 +80,7 @@ class AccountProfile extends Component
         // form isn't rendered for them — guard the action too, since a Livewire
         // call doesn't have to come from the rendered UI.
         if ($user->isSsoProvisioned()) {
-            $this->addError('currentPassword', 'This account signs in through single sign-on.');
+            $this->addError('currentPassword', __('messages.sso_only_account'));
 
             return;
         }
@@ -86,14 +90,14 @@ class AccountProfile extends Component
             'password' => ['required', 'string', 'min:8', 'same:passwordConfirmation'],
             'passwordConfirmation' => ['required', 'string'],
         ], [
-            'password.same' => 'The new passwords do not match.',
-            'passwordConfirmation.required' => 'Please confirm the new password.',
+            'password.same' => __('messages.new_passwords_mismatch'),
+            'passwordConfirmation.required' => __('messages.confirm_new_password'),
         ]);
 
         // Proving knowledge of the current password is what stops a hijacked
         // session from locking the real owner out.
         if (! Hash::check($this->currentPassword, $user->password)) {
-            $this->addError('currentPassword', 'That is not your current password.');
+            $this->addError('currentPassword', __('messages.wrong_current_password'));
 
             return;
         }
@@ -131,6 +135,18 @@ class AccountProfile extends Component
 
         $this->user()->forceFill(['theme' => $this->theme])->save();
         $this->dispatch('rd-theme', theme: $this->theme);
+    }
+
+    /** Saved as soon as it is picked; the reload re-renders the page in the new language. */
+    public function updatedLocale(): void
+    {
+        $this->validate(['locale' => ['nullable', Rule::in(array_keys(User::LOCALES))]]);
+
+        $this->user()->forceFill(['locale' => $this->locale ?: null])->save();
+
+        // "Match browser" must not be overridden by an earlier menu pick.
+        $this->locale === '' ? session()->forget('locale') : session()->put('locale', $this->locale);
+        $this->redirectRoute('account', navigate: false);
     }
 
     public function render()

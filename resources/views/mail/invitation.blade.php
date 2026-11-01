@@ -1,25 +1,23 @@
 @component('mail.layout')
-    <p style="margin:0 0 12px;font-size:17px;font-weight:600;">You have been invited to {{ config('app.name') }}.</p>
+    <p style="margin:0 0 12px;font-size:17px;font-weight:600;">{{ __('mail.you_have_been_invited_to_2', ['app' => config('app.name')]) }}</p>
 
-    <p style="margin:0 0 12px;">{{ $invitedBy }} invited you to the remote-support console. Your username is
+    <p style="margin:0 0 12px;">{{ __('mail.name_invited_you_to_remote', ['name' => $invitedBy]) }}
         <strong style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">{{ $invitation->username }}</strong>.
-        Choose a password to finish setting up your account.</p>
+        {{ __('mail.choose_password_to_finish') }}</p>
 
     <p style="margin:20px 0;">
         <a href="{{ $acceptUrl }}"
            style="display:inline-block;background:#e2652e;color:#ffffff;text-decoration:none;padding:11px 22px;border-radius:6px;font-weight:600;">
-            Accept invitation
+            {{ __('mail.accept_invitation') }}
         </a>
     </p>
 
-    <p style="margin:0 0 12px;font-size:13px;color:#7b8794;">If the button does not work, copy this link into your browser:</p>
+    <p style="margin:0 0 12px;font-size:13px;color:#7b8794;">{{ __('mail.if_button_does_not_work') }}</p>
     <p style="margin:0 0 16px;font-size:12px;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#26303e;">
         {{ $acceptUrl }}
     </p>
 
     <p style="margin:0;font-size:13px;color:#7b8794;">
-        The link works once and expires {{ $invitation->expires_at->diffForHumans() }}
-        ({{ $invitation->expires_at->format('Y-m-d H:i') }} UTC). If you were not expecting this, ignore the message —
-        no account is created until someone follows the link.
+        {{ __('mail.link_works_once_and_expires', ['when' => $invitation->expires_at->diffForHumans(), 'date' => $invitation->expires_at->format('Y-m-d H:i')]) }}
     </p>
 @endcomponent

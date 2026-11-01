@@ -153,7 +153,7 @@ class ClientPlatform
             'linux' => 'Linux',
             'android' => 'Android',
             'ios' => 'iOS',
-            default => 'Other',
+            default => __('labels.misc_platform_other'),
         };
     }
 
@@ -164,7 +164,7 @@ class ClientPlatform
             'armv7' => 'ARMv7',
             'x86_64' => '64-bit',
             'x86' => '32-bit',
-            'universal' => 'Universal',
+            'universal' => __('labels.misc_arch_universal'),
             default => '',
         };
     }

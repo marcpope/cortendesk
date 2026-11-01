@@ -38,7 +38,7 @@ class OidcUserResolver
         $iss = trim((string) ($claims['iss'] ?? ''));
 
         if ($sub === '' || $iss === '') {
-            return $this->deny('The identity provider did not identify the user.');
+            return $this->deny(__('messages.idp_no_user'));
         }
 
         $email = strtolower(trim((string) ($claims['email'] ?? '')));
@@ -46,7 +46,7 @@ class OidcUserResolver
         $emailVerified = $verification === 'verified';
 
         if (! $this->domainAllowed($email)) {
-            return $this->deny('Your email domain is not permitted to sign in to this console.');
+            return $this->deny(__('messages.email_domain_denied'));
         }
 
         // 1. Known identity.
@@ -70,7 +70,7 @@ class OidcUserResolver
 
                 // Someone else already owns this account's SSO identity.
                 if ($existing->oidc_sub && $existing->oidc_sub !== $sub) {
-                    return $this->deny('This account is already linked to a different SSO identity.');
+                    return $this->deny(__('messages.sso_linked_other'));
                 }
 
                 $existing->forceFill([
@@ -100,11 +100,11 @@ class OidcUserResolver
     {
         if ($user->oidc_status === 'pending') {
             return ['status' => 'pending', 'user' => null, 'message' =>
-                'Your account is waiting for administrator approval.'];
+                __('messages.awaiting_approval')];
         }
 
         if (! $user->is_active) {
-            return $this->deny('This account is disabled. Contact your administrator.');
+            return $this->deny(__('messages.account_disabled_contact'));
         }
 
         // Keep the profile roughly in sync with the directory, but never
@@ -136,7 +136,7 @@ class OidcUserResolver
         $policy = Setting::get('oidc_new_user_policy', 'deny');
 
         if ($policy !== 'pending' && $policy !== 'active') {
-            return $this->deny('No console account matches this sign-in. Contact your administrator.');
+            return $this->deny(__('messages.no_matching_account'));
         }
 
         // Provisioning writes an email onto a brand-new account, which becomes
@@ -177,7 +177,7 @@ class OidcUserResolver
 
         if ($status === 'pending') {
             return ['status' => 'pending', 'user' => null, 'message' =>
-                'Your account has been created and is waiting for administrator approval.'];
+                __('messages.account_created_pending')];
         }
 
         return ['status' => 'ok', 'user' => $user, 'message' => ''];
@@ -284,14 +284,10 @@ class OidcUserResolver
     private function verificationRefusal(string $verification): string
     {
         if ($verification === 'unknown') {
-            return 'Your identity provider did not say whether this email address is verified, and '
-                .'this console is set to require that. An administrator can turn the requirement off '
-                .'under Settings → SSO.';
+            return __('messages.email_verification_unknown');
         }
 
-        return 'Your identity provider reports this email address as unverified, and this console '
-            .'is set to require verification. Verify it with the provider, or ask an administrator '
-            .'to turn the requirement off under Settings → SSO.';
+        return __('messages.email_unverified');
     }
 
     /** @return array{status: 'denied', user: null, message: string} */

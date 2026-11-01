@@ -165,7 +165,7 @@ class AuditController extends Controller
         $device = Device::query()->where('rustdesk_id', $id)->first();
         $notifications->sendAfterResponse(
             'security.alarm',
-            $alarm->typeLabel(),
+            $alarm->englishTypeLabel(),
             'Device '.$id.' reported a security alarm.',
             'alarm:'.$alarm->id,
             $device,

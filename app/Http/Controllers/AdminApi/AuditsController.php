@@ -90,7 +90,7 @@ class AuditsController extends AdminApiController
             'id' => $r->id,
             'rustdesk_id' => $r->rustdesk_id,
             'typ' => $r->typ,
-            'type_label' => $r->typeLabel(),
+            'type_label' => $r->englishTypeLabel(),
             'info' => $r->info,
             'created_at' => $r->created_at?->toIso8601String(),
         ]);

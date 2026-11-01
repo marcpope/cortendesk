@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Point a client at this console',
+    '2_confirm_first_heartbeat' => '2. Confirm the first heartbeat',
+    '3_recommended_security' => '3. Recommended security',
+    'administrator_2fa' => 'Administrator 2FA',
+    'and_enter_your_id_server' => 'and enter your ID server, relay server, key and API server.',
+    'complete_server_settings' => 'Complete Server settings',
+    'copy_them_from_client_setup' => 'Copy them from Client Setup',
+    'device_approval' => 'Device approval',
+    'device_has_checked_in' => 'A device has checked in.',
+    'do_this_later' => 'Do this later',
+    'finish_setup' => 'Finish setup',
+    'first' => 'first.',
+    'first_run_setup' => 'First-run setup',
+    'hold_new_devices_for_review' => 'Hold new devices for review before they appear in the fleet.',
+    'in_rustdesk_open' => 'In RustDesk, open',
+    'one_or_more_of_those' => 'One or more of those values is not set yet.',
+    'protect_console_access_with_authenticato' => 'Protect console access with an authenticator and recovery codes.',
+    'review_security_settings' => 'Review security settings',
+    'set_up_your_first_rustdesk' => 'Set up your first RustDesk device',
+    'two_steps_configure_client_then' => 'Two steps: configure a client, then confirm it checks in.',
+    'waiting_for_device_to_check' => 'Waiting for a device to check in. This page checks every 10 seconds.',
+];

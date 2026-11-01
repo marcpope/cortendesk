@@ -88,9 +88,9 @@ class DashboardController extends Controller
         return [
             'labels' => $labels,
             'series' => [
-                ['name' => AuditConnection::TYPE_LABELS[0], 'data' => $remote],
-                ['name' => 'File Transfer', 'data' => $file],
-                ['name' => 'Other', 'data' => $other],
+                ['name' => AuditConnection::typeLabel(0), 'data' => $remote],
+                ['name' => AuditConnection::typeLabel(1), 'data' => $file],
+                ['name' => __('labels.misc_platform_other'), 'data' => $other],
             ],
         ];
     }
@@ -104,7 +104,7 @@ class DashboardController extends Controller
             'linux' => 'Linux',
             'android' => 'Android',
             'ios' => 'iOS',
-            'unknown' => 'Unknown',
+            'unknown' => __('labels.misc_platform_unknown'),
         ];
 
         $counts = Device::query()->visibleTo($user)->get()

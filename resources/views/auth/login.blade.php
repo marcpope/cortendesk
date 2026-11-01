@@ -1,6 +1,6 @@
 @extends('layouts.guest')
 
-@section('title', 'Sign In')
+@section('title', __('common.sign_in'))
 
 @section('content')
     <div class="card">
@@ -21,18 +21,21 @@
             @endphp
 
             <div class="text-center mb-4">
-                <h4 class="rd-auth-title">Sign In</h4>
+                <h4 class="rd-auth-title">{{ __('common.sign_in') }}</h4>
                 <p class="rd-auth-sub">
                     {{ $passwordDisabled
-                        ? 'Use your organisation account to access the console.'
-                        : 'Enter your username and password to access the console.' }}
+                        ? __('auth.use_your_organisation_account_to')
+                        : __('auth.enter_your_username_and_password') }}
                 </p>
             </div>
 
             @if ($httpsOnly ?? false)
                 <div class="alert alert-warning" role="alert">
-                    Sign-in only works over HTTPS here (<code>SESSION_SECURE_COOKIE=true</code>), and this page was opened over HTTP.
-                    Open the console's <code>https://</code> address, or remove <code>SESSION_SECURE_COOKIE</code> to allow sign-in over HTTP.
+                    {!! __('auth.sign_in_only_works_over', [
+                        'setting' => '<code>SESSION_SECURE_COOKIE=true</code>',
+                        'address' => '<code>https://</code>',
+                        'remove' => '<code>SESSION_SECURE_COOKIE</code>',
+                    ]) !!}
                 </div>
             @endif
 
@@ -58,7 +61,7 @@
                 @unless ($passwordDisabled)
                     <div class="rd-auth-or">
                         <hr class="flex-grow-1 my-0">
-                        <span>or</span>
+                        <span>{{ __('auth.or') }}</span>
                         <hr class="flex-grow-1 my-0">
                     </div>
                 @endunless
@@ -69,17 +72,17 @@
                 @csrf
 
                 <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
+                    <label for="username" class="form-label">{{ __('common.username') }}</label>
                     <input class="form-control" type="text" id="username" name="username"
                            value="{{ old('username') }}" required autofocus autocomplete="username"
-                           placeholder="Enter your username">
+                           placeholder="{{ __('auth.enter_your_username') }}">
                 </div>
 
                 <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
+                    <label for="password" class="form-label">{{ __('common.password') }}</label>
                     <div class="input-group input-group-merge">
                         <input type="password" id="password" name="password" class="form-control"
-                               required autocomplete="current-password" placeholder="Enter your password">
+                               required autocomplete="current-password" placeholder="{{ __('auth.enter_your_password') }}">
                         <div class="input-group-text" data-password="false">
                             <span class="rd-password-eye"></span>
                         </div>
@@ -89,17 +92,17 @@
                 <div class="mb-3 d-flex justify-content-between align-items-center">
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" id="remember" name="remember" checked>
-                        <label class="form-check-label" for="remember">Remember me</label>
+                        <label class="form-check-label" for="remember">{{ __('auth.remember_me') }}</label>
                     </div>
                     {{-- Only offered when a relay exists to deliver the link. --}}
                     @if (app(\App\Services\MailSettings::class)->isEnabled())
-                        <a href="{{ route('password.request') }}" class="rd-auth-quiet">Forgot password?</a>
+                        <a href="{{ route('password.request') }}" class="rd-auth-quiet">{{ __('auth.forgot_password') }}</a>
                     @endif
                 </div>
 
                 <div class="mb-0 d-grid">
                     <button class="btn btn-primary" type="submit">
-                        <i class="ri-login-circle-fill me-1"></i> Log In
+                        <i class="ri-login-circle-fill me-1"></i> {{ __('auth.log_in') }}
                     </button>
                 </div>
             </form>
@@ -119,7 +122,7 @@
             @if ($showDownloads)
                 <div class="text-center mt-4">
                     <a href="{{ route('downloads.index') }}" class="rd-auth-quiet">
-                        <i class="ri-download-2-line me-1"></i>Download the client
+                        <i class="ri-download-2-line me-1"></i>{{ __('auth.download_client') }}
                     </a>
                 </div>
             @endif

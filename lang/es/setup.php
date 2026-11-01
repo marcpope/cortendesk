@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Apunta un cliente a esta consola',
+    '2_confirm_first_heartbeat' => '2. Confirma el primer heartbeat',
+    '3_recommended_security' => '3. Seguridad recomendada',
+    'administrator_2fa' => '2FA del administrador',
+    'and_enter_your_id_server' => 'e introduce tu servidor de IDs, servidor Relay, clave y servidor API.',
+    'complete_server_settings' => 'Completa los ajustes del servidor',
+    'copy_them_from_client_setup' => 'Cópialos de «Configuración del cliente»',
+    'device_approval' => 'Aprobación de dispositivos',
+    'device_has_checked_in' => 'Un dispositivo se ha registrado.',
+    'do_this_later' => 'Hacerlo más tarde',
+    'finish_setup' => 'Terminar la configuración',
+    'first' => 'primero.',
+    'first_run_setup' => 'Configuración inicial',
+    'hold_new_devices_for_review' => 'Retén los dispositivos nuevos para revisarlos antes de que aparezcan en la flota.',
+    'in_rustdesk_open' => 'En RustDesk, abre',
+    'one_or_more_of_those' => 'Uno o más de esos valores aún no están definidos.',
+    'protect_console_access_with_authenticato' => 'Protege el acceso a la consola con un autenticador y códigos de recuperación.',
+    'review_security_settings' => 'Revisar ajustes de seguridad',
+    'set_up_your_first_rustdesk' => 'Configura tu primer dispositivo RustDesk',
+    'two_steps_configure_client_then' => 'Dos pasos: configura un cliente y luego confirma que se registra.',
+    'waiting_for_device_to_check' => 'Esperando a que un dispositivo se registre. Esta página comprueba cada 10 segundos.',
+];

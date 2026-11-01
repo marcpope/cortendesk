@@ -1,5 +1,6 @@
 import type { UiCommand } from '../core/contracts';
 import { ControlKey } from '../gen/message';
+import { tl } from '../i18n';
 
 export type PrivacyModeMenuImpl = { key: string; label: string };
 export type SecurityControlMenuItem = { id: string; label: string; checked: boolean };
@@ -24,15 +25,15 @@ export function buildSecurityControlMenu(input: SecurityControlMenuInput): Secur
   const platform = input.platform.toLowerCase();
   const desktop = platform.includes('windows') || platform.includes('linux') || platform.includes('mac');
   const canLockScreen = !input.viewOnly && input.permissions.Keyboard !== false;
-  const lockScreenItem = { id: 'lockScreen', label: 'Lock remote screen', checked: false };
+  const lockScreenItem = { id: 'lockScreen', label: tl('lock_remote_screen'), checked: false };
   if (!desktop) return canLockScreen ? [lockScreenItem] : [];
 
   const items: SecurityControlMenuItem[] = [];
   if (input.permissions.Restart !== false) {
-    items.push({ id: 'restart', label: 'Restart remote device', checked: false });
+    items.push({ id: 'restart', label: tl('restart_remote_device'), checked: false });
   }
   if (platform.includes('windows') && input.permissions.Keyboard !== false) {
-    items.push({ id: 'elevation', label: 'Request elevation', checked: false });
+    items.push({ id: 'elevation', label: tl('request_elevation'), checked: false });
   }
 
   if ((input.permissions.PrivacyMode !== false || input.privacyModeOn) && input.privacyModeSupported) {
@@ -44,7 +45,7 @@ export function buildSecurityControlMenu(input: SecurityControlMenuInput): Secur
         && (!input.activePrivacyImplKey || input.activePrivacyImplKey === impl.key);
       items.push({
         id: `privacy:${impl.key}`,
-        label: impl.label ? `Privacy mode — ${impl.label}` : 'Privacy mode',
+        label: impl.label ? tl('privacy_mode_impl', { label: impl.label }) : tl('privacy_mode'),
         checked,
       });
     }
@@ -53,7 +54,7 @@ export function buildSecurityControlMenu(input: SecurityControlMenuInput): Secur
   if (platform.includes('windows') && (input.permissions.BlockInput !== false || input.blockInputOn)) {
     items.push({
       id: 'blockInput',
-      label: 'Block remote keyboard and mouse',
+      label: tl('block_remote_keyboard_and_mouse'),
       checked: input.blockInputOn,
     });
   }
@@ -63,7 +64,7 @@ export function buildSecurityControlMenu(input: SecurityControlMenuInput): Secur
   if (input.permissions.Keyboard !== false) {
     items.push({
       id: 'lockAfterSessionEnd',
-      label: 'Request lock after disconnect (best effort)',
+      label: tl('request_lock_after_disconnect_best'),
       checked: input.lockAfterSessionEnd,
     });
   }

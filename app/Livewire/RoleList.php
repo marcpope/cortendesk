@@ -152,10 +152,10 @@ class RoleList extends Component
         return view('livewire.role-list', [
             'roles' => Role::withCount('users')->orderBy('name')->get(),
             'resources' => Permissions::CONSOLE_RESOURCES,
-            'resourceLabels' => Permissions::RESOURCE_LABELS,
-            'resourceHints' => Permissions::RESOURCE_HINTS,
+            'resourceLabels' => Permissions::resourceLabels(),
+            'resourceHints' => Permissions::resourceHints(),
             'levels' => Permissions::LEVELS,
-            'levelLabels' => Permissions::LEVEL_LABELS,
+            'levelLabels' => Permissions::levelLabels(),
         ]);
     }
 }

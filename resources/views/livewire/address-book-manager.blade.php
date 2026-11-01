@@ -14,14 +14,14 @@
                 <li class="nav-item">
                     <a href="javascript:void(0);" class="nav-link {{ $tab === 'personal' ? 'active' : '' }}"
                        wire:click="setTab('personal')">
-                        <i class="ri-user-line me-1"></i>Personal
+                        <i class="ri-user-line me-1"></i>{{ __('address_books.personal') }}
                         <span class="badge bg-secondary-subtle text-secondary ms-1">{{ $personalCount }}</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="javascript:void(0);" class="nav-link {{ $tab === 'shared' ? 'active' : '' }}"
                        wire:click="setTab('shared')">
-                        <i class="ri-share-line me-1"></i>Shared
+                        <i class="ri-share-line me-1"></i>{{ __('address_books.shared') }}
                         <span class="badge bg-secondary-subtle text-secondary ms-1">{{ $sharedCount }}</span>
                     </a>
                 </li>
@@ -30,7 +30,7 @@
             {{-- Mobile: collapse master list to a select --}}
             <div class="d-lg-none mb-2">
                 <div class="d-flex gap-2">
-                    <select class="form-select" wire:model.live="selectedBookId" aria-label="Select address book">
+                    <select class="form-select" wire:model.live="selectedBookId" aria-label="{{ __('address_books.select_address_book') }}">
                         @foreach ($books as $b)
                             <option value="{{ $b->id }}">
                                 @if ($tab === 'personal')
@@ -42,7 +42,7 @@
                         @endforeach
                     </select>
                     @if (auth()->user()?->consoleAllows('address_book', 'rw'))
-                        <button type="button" class="btn btn-primary flex-shrink-0" wire:click="openNewBook" title="New shared address book">
+                        <button type="button" class="btn btn-primary flex-shrink-0" wire:click="openNewBook" title="{{ __('address_books.new_shared_address_book') }}">
                             <i class="ri-add-line"></i>
                         </button>
                     @endif
@@ -52,11 +52,11 @@
             {{-- Desktop: list group --}}
             <div class="card d-none d-lg-block">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="header-title">Address Books</h4>
+                    <h4 class="header-title">{{ __('common.address_books') }}</h4>
                     @if (auth()->user()?->consoleAllows('address_book', 'rw'))
                         <div class="rd-card-actions">
                             <button type="button" class="btn btn-primary" wire:click="openNewBook">
-                                <i class="ri-add-line"></i>New shared
+                                <i class="ri-add-line"></i>{{ __('address_books.new_shared') }}
                             </button>
                         </div>
                     @endif
@@ -81,15 +81,15 @@
                                 @else
                                     {{ $b->owner?->username ?? 'unknown' }} ·
                                 @endif
-                                {{ $b->entries_count }} {{ Str::plural('entry', $b->entries_count) }} ·
-                                {{ $b->tags_count }} {{ Str::plural('tag', $b->tags_count) }}
+                                {{ trans_choice('common.count_entries', $b->entries_count) }} ·
+                                {{ trans_choice('common.count_tags', $b->tags_count) }}
                             </small>
                         </a>
                     @empty
                         <div class="list-group-item">
                             <div class="rd-empty">
                                 <div class="rd-empty-icon"><i class="ri-contacts-book-2-line"></i></div>
-                                <p class="rd-empty-title">No {{ $tab }} address books yet.</p>
+                                <p class="rd-empty-title">{{ $tab === 'personal' ? __('address_books.no_personal_address_books_yet') : __('address_books.no_shared_address_books_yet') }}</p>
                             </div>
                         </div>
                     @endforelse
@@ -110,11 +110,11 @@
                                         {{-- Its owner was deleted, so nobody can read it. Named
                                              rather than left as "Personal / unknown", which gave
                                              no clue why it was there or what to do about it. --}}
-                                        <span class="badge bg-warning-subtle text-warning">Orphaned</span>
+                                        <span class="badge bg-warning-subtle text-warning">{{ __('address_books.orphaned') }}</span>
                                     @elseif ($book->is_personal)
-                                        <span class="badge bg-info-subtle text-info">Personal</span>
+                                        <span class="badge bg-info-subtle text-info">{{ __('address_books.personal') }}</span>
                                     @else
-                                        <span class="badge bg-primary-subtle text-primary">Shared</span>
+                                        <span class="badge bg-primary-subtle text-primary">{{ __('address_books.shared') }}</span>
                                     @endif
                                 </h4>
                                 <p class="rd-card-sub mb-0">
@@ -127,12 +127,12 @@
                             @if (! $book->is_personal && $canManage)
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-sm btn-light" wire:click="openRenameBook">
-                                        <i class="ri-pencil-line me-1"></i>Rename
+                                        <i class="ri-pencil-line me-1"></i>{{ __('address_books.rename') }}
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger"
                                             wire:click="deleteBook"
-                                            wire:confirm="Delete address book “{{ $book->name }}”? This also permanently deletes all of its entries, tags, and sharing rules.">
-                                        <i class="ri-delete-bin-line me-1"></i>Delete
+                                            wire:confirm="{{ __('address_books.delete_address_book_name_this', ['name' => $book->name]) }}">
+                                        <i class="ri-delete-bin-line me-1"></i>{{ __('common.delete') }}
                                     </button>
                                 </div>
                             @elseif ($book->is_personal && $book->isOrphaned() && $canManage)
@@ -143,20 +143,20 @@
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-danger"
                                             wire:click="deleteBook"
-                                            wire:confirm="Delete this orphaned address book? Its owner no longer exists, so nobody can read it. This permanently deletes its entries and tags.">
-                                        <i class="ri-delete-bin-line me-1"></i>Delete
+                                            wire:confirm="{{ __('address_books.delete_this_orphaned_address_book') }}">
+                                        <i class="ri-delete-bin-line me-1"></i>{{ __('common.delete') }}
                                     </button>
                                 </div>
                             @elseif (! $book->is_personal)
                                 <span class="badge bg-secondary-subtle text-secondary align-self-start">
-                                    {{ $permission >= 2 ? 'Read/Write' : 'Read only' }}
+                                    {{ $permission >= 2 ? 'Read/Write' : __('address_books.read_only') }}
                                 </span>
                             @endif
                         </div>
 
                         {{-- Tags row --}}
                         <div class="rd-toolbar">
-                            <span class="text-muted fw-semibold me-1"><i class="ri-price-tag-3-line me-1"></i>Tags:</span>
+                            <span class="text-muted fw-semibold me-1"><i class="ri-price-tag-3-line me-1"></i>{{ __('address_books.tags_2') }}</span>
                             @forelse ($tags as $tag)
                                 @php $hex = ABM::colorToHex($tag->color); @endphp
                                 <span class="badge d-inline-flex align-items-center gap-1 {{ ABM::chipTextClass($hex) }}"
@@ -165,27 +165,27 @@
                                     @if ($canManage)
                                         <a href="javascript:void(0);" class="{{ ABM::chipTextClass($hex) }} text-decoration-none lh-1"
                                            wire:click="deleteTag({{ $tag->id }})"
-                                           wire:confirm="Delete tag “{{ $tag->name }}”? It will be removed from all entries."
-                                           title="Delete tag"><i class="ri-close-line align-middle"></i></a>
+                                           wire:confirm="{{ __('address_books.delete_tag_name_it_will', ['name' => $tag->name]) }}"
+                                           title="{{ __('address_books.delete_tag') }}"><i class="ri-close-line align-middle"></i></a>
                                     @endif
                                 </span>
                             @empty
-                                <span class="text-muted fst-italic">none</span>
+                                <span class="text-muted fst-italic">{{ __('address_books.none') }}</span>
                             @endforelse
                             @if ($canManage)
                                 <button type="button" class="btn btn-sm btn-light" wire:click="openAddTag">
-                                    <i class="ri-add-line"></i> Add tag
+                                    <i class="ri-add-line"></i> {{ __('address_books.add_tag') }}
                                 </button>
                             @endif
                         </div>
 
                         {{-- Entries toolbar --}}
                         <div class="rd-toolbar">
-                            <h4 class="header-title">Entries</h4>
+                            <h4 class="header-title">{{ __('address_books.entries') }}</h4>
                             @if ($canWriteEntries)
                                 <div class="rd-toolbar-actions">
                                     <button type="button" class="btn btn-primary" wire:click="openAddEntry">
-                                        <i class="ri-add-line"></i>Add entry
+                                        <i class="ri-add-line"></i>{{ __('address_books.add_entry') }}
                                     </button>
                                 </div>
                             @endif
@@ -197,7 +197,7 @@
                             <div class="input-group" style="max-width: 320px;">
                                 <span class="input-group-text"><i class="ri-search-line"></i></span>
                                 <input type="search" class="form-control"
-                                       placeholder="Search device, ID or alias…"
+                                       placeholder="{{ __('address_books.search_device_id_or_alias') }}"
                                        wire:model.live.debounce.300ms="entrySearch">
                             </div>
                         </div>
@@ -207,12 +207,12 @@
                             <table class="table table-hover table-centered mb-0">
                                 <thead>
                                 <tr>
-                                    <th>Device</th>
-                                    <th>Alias</th>
-                                    <th>User</th>
-                                    <th>Tags</th>
-                                    <th>Created</th>
-                                    <th class="text-end">Action</th>
+                                    <th>{{ __('common.device') }}</th>
+                                    <th>{{ __('common.alias') }}</th>
+                                    <th>{{ __('common.user') }}</th>
+                                    <th>{{ __('address_books.tags') }}</th>
+                                    <th>{{ __('common.created') }}</th>
+                                    <th class="text-end">{{ __('common.action') }}</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -224,7 +224,7 @@
                                                 <div class="min-width-0">
                                                     <a href="{{ \App\Support\ClientLink::to($entry->rustdesk_id) }}"
                                                        class="rd-cell-title text-truncate"
-                                                       title="Connect with RustDesk">{{ $entry->hostname ?: $entry->rustdesk_id }}</a>
+                                                       title="{{ __('common.connect_with_rustdesk') }}">{{ $entry->hostname ?: $entry->rustdesk_id }}</a>
                                                     <span class="rd-cell-sub">
                                                         {{ $entry->rustdesk_id }}@if ($entry->platform) · {{ ucfirst($entry->platform) }}@endif
                                                     </span>
@@ -244,10 +244,10 @@
                                         <td><span title="{{ $entry->created_at }}">{{ $entry->created_at?->diffForHumans() ?? '—' }}</span></td>
                                         <td class="text-end rd-rowact">
                                             @if ($canWriteEntries)
-                                                <a href="javascript:void(0);" class="rd-act me-2" wire:click="openEditEntry({{ $entry->id }})">Edit</a>
+                                                <a href="javascript:void(0);" class="rd-act me-2" wire:click="openEditEntry({{ $entry->id }})">{{ __('common.edit') }}</a>
                                                 <a href="javascript:void(0);" class="text-danger"
                                                    wire:click="deleteEntry({{ $entry->id }})"
-                                                   wire:confirm="Remove {{ $entry->rustdesk_id }} from this address book?">Remove</a>
+                                                   wire:confirm="{{ __('address_books.remove_id_from_this_address', ['id' => $entry->rustdesk_id]) }}">{{ __('address_books.remove') }}</a>
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
@@ -258,10 +258,10 @@
                                         <td colspan="6" class="rd-empty-cell">
                                             <div class="rd-empty">
                                                 <div class="rd-empty-icon"><i class="ri-contacts-book-2-line"></i></div>
-                                                <p class="rd-empty-title">No entries in this address book.</p>
-                                                <p class="rd-empty-text">Entries are the machines a user keeps to hand — they sync straight into the RustDesk client.</p>
+                                                <p class="rd-empty-title">{{ __('address_books.no_entries_in_this_address') }}</p>
+                                                <p class="rd-empty-text">{{ __('address_books.entries_are_machines_user_keeps') }}</p>
                                                 @if ($canWriteEntries)
-                                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="openAddEntry">Add entry</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="openAddEntry">{{ __('address_books.add_entry') }}</button>
                                                 @endif
                                             </div>
                                         </td>
@@ -280,7 +280,7 @@
                                                 <x-platform-icon :platform="$entry->platform ?: 'unknown'" size="fs-22"/>
                                                 <div class="min-width-0">
                                                     <a href="{{ \App\Support\ClientLink::to($entry->rustdesk_id) }}" class="rd-mini-title text-truncate"
-                                                       title="Connect with RustDesk">{{ $entry->hostname ?: $entry->rustdesk_id }}</a>
+                                                       title="{{ __('common.connect_with_rustdesk') }}">{{ $entry->hostname ?: $entry->rustdesk_id }}</a>
                                                     <span class="rd-mini-sub text-truncate">
                                                         {{ $entry->rustdesk_id }}@if ($entry->alias) · {{ $entry->alias }}@endif
                                                     </span>
@@ -288,10 +288,10 @@
                                             </div>
                                             @if ($canWriteEntries)
                                                 <div class="rd-mini-acts">
-                                                    <a href="javascript:void(0);" class="rd-iconbtn" title="Edit" wire:click="openEditEntry({{ $entry->id }})"><i class="ri-pencil-line"></i></a>
-                                                    <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="Remove"
+                                                    <a href="javascript:void(0);" class="rd-iconbtn" title="{{ __('common.edit') }}" wire:click="openEditEntry({{ $entry->id }})"><i class="ri-pencil-line"></i></a>
+                                                    <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="{{ __('address_books.remove') }}"
                                                        wire:click="deleteEntry({{ $entry->id }})"
-                                                       wire:confirm="Remove {{ $entry->rustdesk_id }} from this address book?"><i class="ri-delete-bin-line"></i></a>
+                                                       wire:confirm="{{ __('address_books.remove_id_from_this_address', ['id' => $entry->rustdesk_id]) }}"><i class="ri-delete-bin-line"></i></a>
                                                 </div>
                                             @endif
                                         </div>
@@ -306,9 +306,9 @@
                             @empty
                                 <div class="rd-empty">
                                     <div class="rd-empty-icon"><i class="ri-contacts-book-2-line"></i></div>
-                                    <p class="rd-empty-title">No entries in this address book.</p>
+                                    <p class="rd-empty-title">{{ __('address_books.no_entries_in_this_address') }}</p>
                                     @if ($canWriteEntries)
-                                        <button type="button" class="btn btn-sm btn-outline-light" wire:click="openAddEntry">Add entry</button>
+                                        <button type="button" class="btn btn-sm btn-outline-light" wire:click="openAddEntry">{{ __('address_books.add_entry') }}</button>
                                     @endif
                                 </div>
                             @endforelse
@@ -316,7 +316,7 @@
 
                         @if ($entries && $entries->hasPages())
                             <div class="rd-tablefoot">
-                                <span>Showing {{ $entries->firstItem() ?? 0 }}–{{ $entries->lastItem() ?? 0 }} of {{ $entries->total() }}</span>
+                                <span>{{ __('common.showing_from_to_of_total', ['from' => $entries->firstItem() ?? 0, 'to' => $entries->lastItem() ?? 0, 'total' => $entries->total()]) }}</span>
                                 {{ $entries->links() }}
                             </div>
                         @endif
@@ -326,10 +326,10 @@
                 @if (! $book->is_personal && $canManage)
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                            <h4 class="header-title">Sharing rules</h4>
+                            <h4 class="header-title">{{ __('address_books.sharing_rules') }}</h4>
                             <div class="rd-card-actions">
                                 <button type="button" class="btn btn-primary" wire:click="openAddRule">
-                                    <i class="ri-add-line"></i>Add rule
+                                    <i class="ri-add-line"></i>{{ __('address_books.add_rule') }}
                                 </button>
                             </div>
                         </div>
@@ -338,7 +338,7 @@
                                 <div class="d-flex align-items-center gap-2 rd-inset mb-2 flex-wrap" wire:key="rule{{ $rule->id }}">
                                     <span class="flex-grow-1 text-truncate">
                                         @if ($rule->subject_type === 'everyone')
-                                            <i class="ri-global-line me-1 text-muted"></i>Everyone
+                                            <i class="ri-global-line me-1 text-muted"></i>{{ __('address_books.everyone') }}
                                         @elseif ($rule->subject_type === 'user')
                                             <i class="ri-user-line me-1 text-muted"></i>{{ $users->firstWhere('id', $rule->subject_id)?->username ?? 'user #'.$rule->subject_id }}
                                         @else
@@ -353,16 +353,16 @@
                                     </select>
                                     <button type="button" class="rd-iconbtn text-danger"
                                             wire:click="deleteRule({{ $rule->id }})"
-                                            wire:confirm="Delete this sharing rule?" title="Delete rule">
+                                            wire:confirm="{{ __('address_books.delete_this_sharing_rule') }}" title="{{ __('address_books.delete_rule') }}">
                                         <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </div>
                             @empty
                                 <div class="rd-empty">
                                     <div class="rd-empty-icon"><i class="ri-share-line"></i></div>
-                                    <p class="rd-empty-title">Not shared with anyone yet.</p>
-                                    <p class="rd-empty-text">Add a rule to share this address book with a person, a user group, or everyone.</p>
-                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="openAddRule">Add rule</button>
+                                    <p class="rd-empty-title">{{ __('address_books.not_shared_with_anyone_yet') }}</p>
+                                    <p class="rd-empty-text">{{ __('address_books.add_rule_to_share_this') }}</p>
+                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="openAddRule">{{ __('address_books.add_rule') }}</button>
                                 </div>
                             @endforelse
                         </div>
@@ -373,8 +373,8 @@
                     <div class="card-body">
                         <div class="rd-empty">
                             <div class="rd-empty-icon"><i class="ri-contacts-book-2-line"></i></div>
-                            <p class="rd-empty-title">Select an address book to view its entries.</p>
-                            <p class="rd-empty-text">Personal books belong to one user; shared books are handed out by rule.</p>
+                            <p class="rd-empty-title">{{ __('address_books.select_address_book_to_view') }}</p>
+                            <p class="rd-empty-text">{{ __('address_books.personal_books_belong_to_one') }}</p>
                         </div>
                     </div>
                 </div>
@@ -390,26 +390,26 @@
                 <div class="modal-content">
                     <form wire:submit="{{ $modal === 'newBook' ? 'createBook' : 'renameBook' }}">
                         <div class="modal-header">
-                            <h5 class="modal-title">{{ $modal === 'newBook' ? 'New shared address book' : 'Rename address book' }}</h5>
-                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="Close"></button>
+                            <h5 class="modal-title">{{ $modal === 'newBook' ? __('address_books.new_shared_address_book') : __('address_books.rename_address_book') }}</h5>
+                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="{{ __('common.close') }}"></button>
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label class="form-label" for="ab-book-name">Name</label>
+                                <label class="form-label" for="ab-book-name">{{ __('common.name') }}</label>
                                 <input type="text" id="ab-book-name" class="form-control @error('bookName') is-invalid @enderror"
                                        wire:model="bookName" autofocus>
                                 @error('bookName') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="mb-0">
-                                <label class="form-label" for="ab-book-note">Note <span class="text-muted">(optional)</span></label>
+                                <label class="form-label" for="ab-book-note">{{ __('common.note') }} <span class="text-muted">{{ __('address_books.optional') }}</span></label>
                                 <textarea id="ab-book-note" class="form-control @error('bookNote') is-invalid @enderror" rows="2"
                                           wire:model="bookNote"></textarea>
                                 @error('bookNote') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">{{ $modal === 'newBook' ? 'Create' : 'Save' }}</button>
+                            <button type="button" class="btn btn-light" wire:click="closeModal">{{ __('common.cancel') }}</button>
+                            <button type="submit" class="btn btn-primary">{{ $modal === 'newBook' ? __('address_books.create') : __('common.save') }}</button>
                         </div>
                     </form>
                 </div>
@@ -423,19 +423,19 @@
                 <div class="modal-content">
                     <form wire:submit="addTag">
                         <div class="modal-header">
-                            <h5 class="modal-title">Add tag</h5>
-                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="Close"></button>
+                            <h5 class="modal-title">{{ __('address_books.add_tag') }}</h5>
+                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="{{ __('common.close') }}"></button>
                         </div>
                         <div class="modal-body">
                             <div class="row g-3">
                                 <div class="col-8">
-                                    <label class="form-label" for="ab-tag-name">Name</label>
+                                    <label class="form-label" for="ab-tag-name">{{ __('common.name') }}</label>
                                     <input type="text" id="ab-tag-name" class="form-control @error('tagName') is-invalid @enderror"
                                            wire:model="tagName" autofocus>
                                     @error('tagName') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <div class="col-4">
-                                    <label class="form-label" for="ab-tag-color">Color</label>
+                                    <label class="form-label" for="ab-tag-color">{{ __('address_books.color') }}</label>
                                     <input type="color" id="ab-tag-color" class="form-control form-control-color w-100 @error('tagColor') is-invalid @enderror"
                                            wire:model="tagColor">
                                     @error('tagColor') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -443,8 +443,8 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Add</button>
+                            <button type="button" class="btn btn-light" wire:click="closeModal">{{ __('common.cancel') }}</button>
+                            <button type="submit" class="btn btn-primary">{{ __('common.add') }}</button>
                         </div>
                     </form>
                 </div>
@@ -458,24 +458,24 @@
                 <div class="modal-content">
                     <form wire:submit="saveEntry">
                         <div class="modal-header">
-                            <h5 class="modal-title">{{ $entryId ? 'Edit entry' : 'Add entry' }}</h5>
-                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="Close"></button>
+                            <h5 class="modal-title">{{ $entryId ? __('address_books.edit_entry') : __('address_books.add_entry') }}</h5>
+                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="{{ __('common.close') }}"></button>
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label class="form-label" for="ab-entry-id">RustDesk ID</label>
+                                <label class="form-label" for="ab-entry-id">{{ __('common.rustdesk_id') }}</label>
                                 <input type="text" id="ab-entry-id" class="form-control @error('entryRustdeskId') is-invalid @enderror"
                                        wire:model="entryRustdeskId" @disabled($entryId !== null)>
                                 @error('entryRustdeskId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" for="ab-entry-alias">Alias <span class="text-muted">(optional)</span></label>
+                                <label class="form-label" for="ab-entry-alias">{{ __('common.alias') }} <span class="text-muted">{{ __('address_books.optional') }}</span></label>
                                 <input type="text" id="ab-entry-alias" class="form-control @error('entryAlias') is-invalid @enderror"
                                        wire:model="entryAlias">
                                 @error('entryAlias') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="mb-0">
-                                <label class="form-label d-block">Tags</label>
+                                <label class="form-label d-block">{{ __('address_books.tags') }}</label>
                                 @forelse ($tags as $tag)
                                     <div class="form-check form-check-inline" wire:key="etag{{ $tag->id }}">
                                         <input class="form-check-input" type="checkbox" id="ab-etag-{{ $tag->id }}"
@@ -486,13 +486,13 @@
                                         </label>
                                     </div>
                                 @empty
-                                    <span class="text-muted fst-italic">No tags in this address book yet.</span>
+                                    <span class="text-muted fst-italic">{{ __('address_books.no_tags_in_this_address') }}</span>
                                 @endforelse
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">{{ $entryId ? 'Save' : 'Add' }}</button>
+                            <button type="button" class="btn btn-light" wire:click="closeModal">{{ __('common.cancel') }}</button>
+                            <button type="submit" class="btn btn-primary">{{ $entryId ? __('common.save') : __('common.add') }}</button>
                         </div>
                     </form>
                 </div>
@@ -506,26 +506,26 @@
                 <div class="modal-content">
                     <form wire:submit="addRule">
                         <div class="modal-header">
-                            <h5 class="modal-title">Add sharing rule</h5>
-                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="Close"></button>
+                            <h5 class="modal-title">{{ __('address_books.add_sharing_rule') }}</h5>
+                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="{{ __('common.close') }}"></button>
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label class="form-label" for="ab-rule-type">Share with</label>
+                                <label class="form-label" for="ab-rule-type">{{ __('address_books.share_with') }}</label>
                                 <select id="ab-rule-type" class="form-select @error('ruleSubjectType') is-invalid @enderror"
                                         wire:model.live="ruleSubjectType">
-                                    <option value="everyone">Everyone</option>
-                                    <option value="user">A specific user</option>
-                                    <option value="group">A user group</option>
+                                    <option value="everyone">{{ __('address_books.everyone') }}</option>
+                                    <option value="user">{{ __('address_books.specific_user') }}</option>
+                                    <option value="group">{{ __('address_books.user_group') }}</option>
                                 </select>
                                 @error('ruleSubjectType') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             @if ($ruleSubjectType === 'user')
                                 <div class="mb-3">
-                                    <label class="form-label" for="ab-rule-user">User</label>
+                                    <label class="form-label" for="ab-rule-user">{{ __('common.user') }}</label>
                                     <select id="ab-rule-user" class="form-select @error('ruleSubjectId') is-invalid @enderror"
                                             wire:model="ruleSubjectId">
-                                        <option value="">Choose a user…</option>
+                                        <option value="">{{ __('address_books.choose_user') }}</option>
                                         @foreach ($users as $u)
                                             <option value="{{ $u->id }}">{{ $u->username }}{{ $u->name ? ' — '.$u->name : '' }}</option>
                                         @endforeach
@@ -534,10 +534,10 @@
                                 </div>
                             @elseif ($ruleSubjectType === 'group')
                                 <div class="mb-3">
-                                    <label class="form-label" for="ab-rule-group">Group</label>
+                                    <label class="form-label" for="ab-rule-group">{{ __('common.group') }}</label>
                                     <select id="ab-rule-group" class="form-select @error('ruleSubjectId') is-invalid @enderror"
                                             wire:model="ruleSubjectId">
-                                        <option value="">Choose a group…</option>
+                                        <option value="">{{ __('address_books.choose_group') }}</option>
                                         @foreach ($userGroups as $g)
                                             <option value="{{ $g->id }}">{{ $g->name }}</option>
                                         @endforeach
@@ -546,7 +546,7 @@
                                 </div>
                             @endif
                             <div class="mb-0">
-                                <label class="form-label" for="ab-rule-perm">Permission</label>
+                                <label class="form-label" for="ab-rule-perm">{{ __('address_books.permission') }}</label>
                                 <select id="ab-rule-perm" class="form-select @error('rulePermission') is-invalid @enderror"
                                         wire:model="rulePermission">
                                     @foreach ($permissionLabels as $value => $label)
@@ -557,8 +557,8 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Add rule</button>
+                            <button type="button" class="btn btn-light" wire:click="closeModal">{{ __('common.cancel') }}</button>
+                            <button type="submit" class="btn btn-primary">{{ __('address_books.add_rule') }}</button>
                         </div>
                     </form>
                 </div>

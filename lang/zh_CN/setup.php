@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. 将客户端指向此控制台',
+    '2_confirm_first_heartbeat' => '2. 确认首次心跳',
+    '3_recommended_security' => '3. 推荐的安全设置',
+    'administrator_2fa' => '管理员 2FA',
+    'and_enter_your_id_server' => '，然后填写你的 ID 服务器、中继服务器、Key 和 API 服务器。',
+    'complete_server_settings' => '请先完善服务器设置',
+    'copy_them_from_client_setup' => '从“客户端设置”中复制',
+    'device_approval' => '设备审批',
+    'device_has_checked_in' => '已有设备上报。',
+    'do_this_later' => '稍后再做',
+    'finish_setup' => '完成设置',
+    'first' => '。',
+    'first_run_setup' => '首次运行设置',
+    'hold_new_devices_for_review' => '新设备在出现在设备群中之前，先暂扣等待审核。',
+    'in_rustdesk_open' => '在 RustDesk 中打开',
+    'one_or_more_of_those' => '其中一项或多项尚未设置。',
+    'protect_console_access_with_authenticato' => '使用身份验证器和恢复码保护控制台访问。',
+    'review_security_settings' => '检查安全设置',
+    'set_up_your_first_rustdesk' => '设置你的第一台 RustDesk 设备',
+    'two_steps_configure_client_then' => '两个步骤：配置客户端，然后确认其已上报。',
+    'waiting_for_device_to_check' => '正在等待设备上报。此页面每 10 秒检查一次。',
+];

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 @php($rdTheme = auth()->user()?->themePreference() ?? 'dark')
-<html lang="en" data-bs-theme="{{ $rdTheme === 'light' ? 'light' : 'dark' }}" data-rd-theme-pref="{{ $rdTheme }}" data-rd-sidebar="expanded">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="{{ $rdTheme === 'light' ? 'light' : 'dark' }}" data-rd-theme-pref="{{ $rdTheme }}" data-rd-sidebar="expanded">
 <head>
     <meta charset="utf-8"/>
-    <title>@yield('title', 'Console') | {{ config('app.name') }}</title>
+    <title>{{ $__env->yieldContent('title', __('common.console')) }} | {{ config('app.name') }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="CortenDesk — self-hosted RustDesk server console"/>
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -61,7 +61,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="text-md-end d-none d-md-block">
-                                <span class="text-muted">Self-hosted RustDesk console</span>
+                                <span class="text-muted">{{ __('common.self_hosted_rustdesk_console') }}</span>
                             </div>
                         </div>
                     </div>

@@ -19,7 +19,7 @@ class PasswordResetLink extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Reset your '.config('app.name').' password');
+        return new Envelope(subject: __('mail.reset_your_app_password', ['app' => config('app.name')]));
     }
 
     public function content(): Content

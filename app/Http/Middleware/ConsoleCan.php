@@ -28,7 +28,7 @@ class ConsoleCan
         if (! $user || ! $user->consoleAllows($resource, $level)) {
             return redirect()
                 ->route('overview')
-                ->with('denied', 'That section is restricted.');
+                ->with('denied', __('messages.section_restricted'));
         }
 
         return $next($request);

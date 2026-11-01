@@ -107,7 +107,7 @@ class AlarmLogList extends Component
                 fputcsv($out, Csv::row([
                     $row->created_at?->toDateTimeString(),
                     $row->rustdesk_id,
-                    $row->typeLabel(),
+                    $row->englishTypeLabel(),
                     $row->info,
                     $row->conn_id,
                 ]));

@@ -33,6 +33,7 @@ import { VideoPipeline, mseH264Available, probeSupportedDecoding, type EncodedCa
 import { ForwardingVideoPipeline } from '../media/mse-video';
 import { cursorToDataUrl, decodeClipboardText, initZstd, zstdDecode } from '../input/clipboard-cursor';
 import { decodeTerminalOutput } from './terminal-output';
+import { setCatalog, tl } from '../i18n';
 
 // Decoded audio is outside the frozen SessionEvent union: the main thread
 // feeds it to an AudioWorklet ring buffer and ignores unknown `t` otherwise.
@@ -61,7 +62,7 @@ export interface SessionLike {
   sendKey(
     down: boolean,
     press: boolean,
-    keyKind: 'chr' | 'control' | 'unicode',
+    keyKind: 'chr' | 'control' | 'unicode' | 'map',
     value: number,
     modifiers: number[],
   ): void;
@@ -140,13 +141,14 @@ function errMsg(e: unknown): string {
 }
 
 const CONNECT_TIMEOUT_MS = 25000;
+// Catalog keys (lang/<locale>/webclient.php): where a stalled connect was stuck.
 const CONNECT_STAGE: Partial<Record<string, string>> = {
-  connecting: 'connecting',
-  rendezvous: 'contacting the server',
-  relay: 'opening the relay',
-  handshake: 'securing the channel',
-  login: 'authenticating',
-  needAccept: 'waiting for the remote user to accept',
+  connecting: 'stage_connecting',
+  rendezvous: 'stage_contacting_server',
+  relay: 'stage_opening_relay',
+  handshake: 'stage_securing_channel',
+  login: 'stage_authenticating',
+  needAccept: 'stage_waiting_accept',
 };
 
 export class WorkerHost {
@@ -188,6 +190,7 @@ export class WorkerHost {
   handle(cmd: UiCommand): void {
     switch (cmd.c) {
       case 'connect':
+        setCatalog(cmd.config.messages);
         void this.connect(cmd.config, cmd.canvas);
         return;
       case 'connectFile':
@@ -414,6 +417,7 @@ export class WorkerHost {
       this.deps.post({ t: 'state', state: 'connecting' });
       await this.deps.ready();
 
+      let videoAck = true;
       if (canvas) {
         this.probe = await this.deps.probeDecoding();
         this.deps.post({ t: 'codecSupport', codecs: codecNames(this.probe) });
@@ -422,8 +426,10 @@ export class WorkerHost {
         // bitstream to the main thread instead of decoding here. The canvas is
         // unused in that mode — a <video> element renders instead.
         const useMse = typeof VideoDecoder === 'undefined' && mseH264Available();
-        // Session acks every video_frame on receipt (video_ack_required), so the
-        // per-drawn-frame ack hook is a no-op here.
+        // Per-frame acks only for MSE: WebCodecs free-runs and drops frames
+        // when its decode queue backs up (media/video.ts). Session sends the
+        // acks itself on receipt, so the per-drawn-frame hook is a no-op.
+        videoAck = useMse;
         const video = useMse
           ? this.deps.createForwardingVideoPipeline(
               (data, key) => this.deps.post({ t: 'h264', data, key }, [data.buffer]),
@@ -451,7 +457,7 @@ export class WorkerHost {
       }
       this.ws1 = ws1;
 
-      const session = this.deps.createSession(config, {
+      const session = this.deps.createSession({ ...config, videoAck }, {
         sendSignaling: (b) => this.ws1?.send(b),
         sendRelay: (b) => this.ws2?.send(b),
         relayBuffered: () => this.ws2?.buffered?.() ?? 0,
@@ -541,7 +547,7 @@ export class WorkerHost {
             this.deps.post({
               t: 'state',
               state: 'error',
-              detail: `Timed out while ${CONNECT_STAGE[st] ?? 'connecting'} — the device may be offline or busy. Try again.`,
+              detail: tl('connect_timeout', { stage: tl(CONNECT_STAGE[st] ?? 'stage_connecting') }),
             });
             this.teardown();
           }
@@ -707,7 +713,7 @@ export class WorkerHost {
     if (this.tornDown) return;
     const st = this.session?.currentState;
     if (st === 'connecting' || st === 'rendezvous') {
-      this.deps.post({ t: 'state', state: 'error', detail: 'id server connection lost' });
+      this.deps.post({ t: 'state', state: 'error', detail: tl('connection_lost_id_server') });
       this.teardown();
     }
     // else: relay is live; drop the id socket silently, keep the session.
@@ -718,7 +724,7 @@ export class WorkerHost {
     if (this.tornDown) return;
     const st = this.session?.currentState;
     if (st !== 'closed' && st !== 'error') {
-      this.deps.post({ t: 'state', state: 'error', detail: `${which} connection lost` });
+      this.deps.post({ t: 'state', state: 'error', detail: which === 'relay' ? tl('connection_lost_relay') : tl('connection_lost', { which }) });
     }
     this.teardown();
   }

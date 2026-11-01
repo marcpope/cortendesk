@@ -116,7 +116,7 @@ class TwoFactor
         $timestep = $secret ? self::verify($secret, $code) : null;
 
         if ($timestep === null) {
-            return 'That code is incorrect or has expired.';
+            return __('messages.code_incorrect_or_expired');
         }
 
         $claimed = User::query()
@@ -125,7 +125,7 @@ class TwoFactor
             ->update(['totp_last_timestep' => $timestep]);
 
         if ($claimed === 0) {
-            return 'That code has already been used. Wait for the next one.';
+            return __('messages.code_already_used');
         }
 
         $user->forceFill(['totp_last_timestep' => $timestep])->syncOriginalAttribute('totp_last_timestep');

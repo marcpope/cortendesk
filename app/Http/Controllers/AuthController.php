@@ -73,7 +73,7 @@ class AuthController extends Controller
         // lock the console — password login comes back on its own.
         if ($this->oidc->localLoginDisabled()) {
             return back()->withErrors([
-                'username' => 'Password sign-in is disabled on this console. Use single sign-on.',
+                'username' => __('messages.password_signin_disabled'),
             ]);
         }
 
@@ -132,7 +132,7 @@ class AuthController extends Controller
 
             return back()
                 ->withInput($request->only('username'))
-                ->withErrors(['username' => 'Invalid username or password.']);
+                ->withErrors(['username' => __('messages.invalid_credentials')]);
         }
 
         // Clear only the account counter. The address counter deliberately
@@ -146,7 +146,7 @@ class AuthController extends Controller
         if ($user->isSsoProvisioned()) {
             return back()
                 ->withInput($request->only('username'))
-                ->withErrors(['username' => 'This account signs in through single sign-on.']);
+                ->withErrors(['username' => __('messages.sso_only_account')]);
         }
 
         // A linked account still awaiting approval must not get in by password
@@ -154,7 +154,7 @@ class AuthController extends Controller
         if ($user->isSsoPending()) {
             return back()
                 ->withInput($request->only('username'))
-                ->withErrors(['username' => 'Your account is waiting for administrator approval.']);
+                ->withErrors(['username' => __('messages.awaiting_approval')]);
         }
 
         // 2FA enrolled → stash a pending marker and hand off to the challenge.
@@ -186,7 +186,7 @@ class AuthController extends Controller
             if (! $this->mayRepairMail($user)) {
                 return back()
                     ->withInput($request->only('username'))
-                    ->withErrors(['username' => 'Sign-in is temporarily unavailable: this console cannot send verification codes. Contact an administrator.']);
+                    ->withErrors(['username' => __('messages.signin_unavailable_mail')]);
             }
 
             $request->session()->put('mail_repair', true);
@@ -218,7 +218,7 @@ class AuthController extends Controller
 
         if (! $user) {
             return redirect()->route('login')
-                ->withErrors(['code' => 'Your sign-in session expired. Please sign in again.']);
+                ->withErrors(['code' => __('messages.signin_session_expired')]);
         }
 
         $request->validate(['code' => ['required', 'string']]);
@@ -238,7 +238,7 @@ class AuthController extends Controller
         if ($hash === '' || ! Hash::check($code, $hash)) {
             RateLimiter::hit($throttleKey, self::DECAY);
 
-            return back()->withErrors(['code' => 'That code is incorrect or has expired.']);
+            return back()->withErrors(['code' => __('messages.code_incorrect_or_expired')]);
         }
 
         RateLimiter::clear($throttleKey);
@@ -275,7 +275,7 @@ class AuthController extends Controller
                 $request->session()->forget('email_verify');
 
                 return redirect()->route('login')->withErrors([
-                    'username' => 'Sign-in is temporarily unavailable: this console cannot send verification codes. Contact an administrator.',
+                    'username' => __('messages.signin_unavailable_mail'),
                 ]);
             }
 
@@ -287,7 +287,7 @@ class AuthController extends Controller
             return redirect()->route('settings', ['tab' => 'email']);
         }
 
-        return back()->with('status', 'A new code is on its way.');
+        return back()->with('status', __('messages.new_code_on_way'));
     }
 
     /**
@@ -369,7 +369,7 @@ class AuthController extends Controller
         $user = $this->pendingUser($request);
         if (! $user) {
             return redirect()->route('login')
-                ->withErrors(['code' => 'Your sign-in session expired. Please sign in again.']);
+                ->withErrors(['code' => __('messages.signin_session_expired')]);
         }
 
         $request->validate(['code' => ['required', 'string']]);
@@ -486,7 +486,7 @@ class AuthController extends Controller
             ->first(fn ($rc) => Hash::check($normalized, $rc->code_hash));
 
         if (! $match) {
-            return ['ok' => false, 'message' => 'That recovery code is invalid or already used.'];
+            return ['ok' => false, 'message' => __('messages.recovery_code_invalid')];
         }
 
         // Burn the code atomically: the conditional UPDATE only affects the row
@@ -498,7 +498,7 @@ class AuthController extends Controller
             ->update(['used_at' => now()]);
 
         if ($claimed === 0) {
-            return ['ok' => false, 'message' => 'That recovery code is invalid or already used.'];
+            return ['ok' => false, 'message' => __('messages.recovery_code_invalid')];
         }
 
         $remaining = $user->recoveryCodes()->whereNull('used_at')->count();
@@ -545,7 +545,7 @@ class AuthController extends Controller
         $seconds = RateLimiter::availableIn($key);
 
         throw ValidationException::withMessages([
-            $field => "Too many attempts. Try again in {$seconds} seconds.",
+            $field => __('messages.too_many_attempts', ['seconds' => $seconds]),
         ]);
     }
 }

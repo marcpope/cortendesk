@@ -109,6 +109,7 @@ class Strategy extends Model
         'temporary-password-length' => ['group' => 'security', 'type' => 'enum', 'values' => ['', '6', '8', '10']],
         'allow-numeric-one-time-password' => ['group' => 'security', 'type' => 'bool'],
         'whitelist' => ['group' => 'security', 'type' => 'string'],
+        'id-whitelist' => ['group' => 'security', 'type' => 'string'],
         'allow-only-conn-window-open' => ['group' => 'security', 'type' => 'bool'],
         'enable-trusted-devices' => ['group' => 'security', 'type' => 'bool'],
         'allow-remote-config-modification' => ['group' => 'security', 'type' => 'bool'],
@@ -490,7 +491,7 @@ class Strategy extends Model
 
         $defaultStep = [
             'level' => 'default',
-            'label' => 'Default strategy',
+            'label' => __('labels.misc_default_strategy'),
             'target' => null,
             'strategy' => $default,
             'state' => $defaultState,

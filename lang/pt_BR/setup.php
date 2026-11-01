@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Aponte um cliente para este console',
+    '2_confirm_first_heartbeat' => '2. Confirme o primeiro heartbeat',
+    '3_recommended_security' => '3. Segurança recomendada',
+    'administrator_2fa' => '2FA do administrador',
+    'and_enter_your_id_server' => 'e informe seu servidor de ID, servidor de relay, chave e servidor da API.',
+    'complete_server_settings' => 'Conclua as configurações do servidor',
+    'copy_them_from_client_setup' => 'Copie-os da Configuração do cliente',
+    'device_approval' => 'Aprovação de dispositivos',
+    'device_has_checked_in' => 'Um dispositivo se comunicou.',
+    'do_this_later' => 'Fazer isso depois',
+    'finish_setup' => 'Concluir configuração',
+    'first' => 'primeiro.',
+    'first_run_setup' => 'Configuração inicial',
+    'hold_new_devices_for_review' => 'Retenha novos dispositivos para revisão antes que apareçam na frota.',
+    'in_rustdesk_open' => 'No RustDesk, abra',
+    'one_or_more_of_those' => 'Um ou mais desses valores ainda não estão definidos.',
+    'protect_console_access_with_authenticato' => 'Proteja o acesso ao console com um autenticador e códigos de recuperação.',
+    'review_security_settings' => 'Revisar configurações de segurança',
+    'set_up_your_first_rustdesk' => 'Configure seu primeiro dispositivo RustDesk',
+    'two_steps_configure_client_then' => 'Duas etapas: configure um cliente e confirme que ele se comunica.',
+    'waiting_for_device_to_check' => 'Aguardando um dispositivo se comunicar. Esta página verifica a cada 10 segundos.',
+];

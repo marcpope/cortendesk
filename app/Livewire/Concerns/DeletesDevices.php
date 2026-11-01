@@ -82,9 +82,11 @@ trait DeletesDevices
         }
 
         $count = $devices->count();
+        // One device is named; more are counted. A single plural string can't
+        // do both: Russian and Polish use the "one" form for 21, 31 and so on.
         $message = $count === 1
-            ? 'Device '.$devices->first()->rustdesk_id.' moved to the recycle bin.'
-            : $count.' '.Str::plural('device', $count).' moved to the recycle bin.';
+            ? __('messages.device_recycled', ['id' => $devices->first()->rustdesk_id])
+            : trans_choice('messages.devices_recycled', $count);
 
         if ($fromBooks && $count > 0) {
             $result = DeviceAddressBooks::remove($devices->pluck('rustdesk_id')->all(), auth()->user());

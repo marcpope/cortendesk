@@ -30,6 +30,35 @@ final class Permissions
         'device', 'user', 'group', 'address_book', 'audit', 'strategy', 'setting', 'token',
     ];
 
+    /** @return array<string,string> level => translated label */
+    public static function levelLabels(): array
+    {
+        return self::translated('level', self::LEVEL_LABELS);
+    }
+
+    /** @return array<string,string> */
+    public static function resourceLabels(): array
+    {
+        return self::translated('resource', self::RESOURCE_LABELS);
+    }
+
+    /** @return array<string,string> */
+    public static function resourceHints(): array
+    {
+        return self::translated('resource_hint', self::RESOURCE_HINTS);
+    }
+
+    /** @param array<string,string> $labels */
+    private static function translated(string $group, array $labels): array
+    {
+        $out = [];
+        foreach ($labels as $code => $text) {
+            $out[$code] = Label::get($group, $code, $text);
+        }
+
+        return $out;
+    }
+
     public const RESOURCE_LABELS = [
         'device' => 'Devices',
         'user' => 'Users',

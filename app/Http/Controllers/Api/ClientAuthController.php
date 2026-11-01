@@ -122,10 +122,10 @@ class ClientAuthController extends Controller
 
         // The console form's refusals, in the same order.
         if ($user->isSsoProvisioned()) {
-            return response()->json(['error' => 'This account signs in through single sign-on.']);
+            return response()->json(['error' => __('messages.sso_only_account')]);
         }
         if ($user->isSsoPending()) {
-            return response()->json(['error' => 'Your account is waiting for administrator approval.']);
+            return response()->json(['error' => __('messages.awaiting_approval')]);
         }
 
         if ($user->hasTwoFactorEnabled()) {
@@ -171,7 +171,7 @@ class ClientAuthController extends Controller
             // Fails closed for everyone. The console lets an administrator in
             // to repair the relay; the client cannot repair anything.
             if (! $sent) {
-                return response()->json(['error' => 'Sign-in is temporarily unavailable: this console cannot send verification codes. Contact an administrator.']);
+                return response()->json(['error' => __('messages.signin_unavailable_mail')]);
             }
 
             $pending['code_hash'] = Hash::make($code);
@@ -229,7 +229,7 @@ class ClientAuthController extends Controller
 
         $error = match ($pending['kind']) {
             'tfa' => $user->hasTwoFactorEnabled() ? TwoFactor::consumeTotp($user, $code) : 'Your sign-in expired. Sign in again.',
-            default => Hash::check($code, (string) ($pending['code_hash'] ?? '')) ? null : 'That code is incorrect or has expired.',
+            default => Hash::check($code, (string) ($pending['code_hash'] ?? '')) ? null : __('messages.code_incorrect_or_expired'),
         };
 
         if ($error !== null) {

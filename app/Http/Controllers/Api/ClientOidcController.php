@@ -145,12 +145,12 @@ class ClientOidcController extends Controller
         if (! $pending || $pending->isExpired()) {
             return response()->view('auth.oidc-client-result', [
                 'ok' => false,
-                'message' => 'This sign-in request has expired. Start again from the RustDesk client.',
+                'message' => __('messages.oidc_request_expired'),
             ], 400);
         }
 
         if ($request->query('error')) {
-            return $this->fail($pending, 'The identity provider rejected the sign-in.');
+            return $this->fail($pending, __('messages.idp_rejected'));
         }
 
         try {
@@ -201,7 +201,7 @@ class ClientOidcController extends Controller
 
         return response()->view('auth.oidc-client-result', [
             'ok' => true,
-            'message' => 'You are signed in as '.$user->displayName().'. You can close this tab and return to RustDesk.',
+            'message' => __('messages.signed_in_as', ['name' => $user->displayName()]),
         ]);
     }
 

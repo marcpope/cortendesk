@@ -1,6 +1,7 @@
 import type { DisplayInfo, SessionConfig, SessionEvent, UiCommand } from '../core/contracts';
 import { disconnectIndependentWorker } from './advanced-worker-lifecycle';
 import { MseVideoPlayer } from '../media/mse-video';
+import { htl, tl } from '../i18n';
 
 export function buildCameraConfig(source: SessionConfig): SessionConfig {
   return { ...source, connType: 'viewCamera' };
@@ -32,7 +33,7 @@ export class CameraPanel {
     if (this.shell) return;
     const config = this.deps.getConfig();
     if (!config) {
-      this.deps.toast('Connect to the device before viewing its camera');
+      this.deps.toast(tl('connect_device_before_viewing_its'));
       return;
     }
 
@@ -40,17 +41,17 @@ export class CameraPanel {
     shell.className = 'rd-camera-modal';
     shell.setAttribute('role', 'dialog');
     shell.setAttribute('aria-modal', 'true');
-    shell.setAttribute('aria-label', 'Remote camera');
+    shell.setAttribute('aria-label', tl('remote_camera'));
     shell.innerHTML = `
       <div class="rd-camera-card">
         <header class="rd-camera-head">
-          <div><strong>Remote camera</strong><span data-camera-status>Connecting…</span></div>
-          <div data-camera-selector aria-label="Camera source"></div>
-          <button type="button" data-camera-close aria-label="Close remote camera">×</button>
+          <div><strong>${htl('remote_camera')}</strong><span data-camera-status>${htl('connecting_2')}</span></div>
+          <div data-camera-selector aria-label="${htl('camera_source')}"></div>
+          <button type="button" data-camera-close aria-label="${htl('close_remote_camera')}">×</button>
         </header>
         <div class="rd-camera-viewport">
-          <canvas aria-label="Remote camera video"></canvas>
-          <video autoplay playsinline muted hidden aria-label="Remote camera fallback video"></video>
+          <canvas aria-label="${htl('remote_camera_video')}"></canvas>
+          <video autoplay playsinline muted hidden aria-label="${htl('remote_camera_fallback_video')}"></video>
         </div>
       </div>`;
     this.deps.root.appendChild(shell);
@@ -64,7 +65,7 @@ export class CameraPanel {
     const offscreen = this.canvas.transferControlToOffscreen();
     this.worker = new Worker(this.deps.workerUrl, { type: 'module' });
     this.worker.onmessage = (event: MessageEvent<CameraWorkerEvent>) => this.onEvent(event.data);
-    this.worker.onerror = () => this.fail('Camera worker failed');
+    this.worker.onerror = () => this.fail(tl('camera_worker_failed'));
     this.worker.postMessage(
       { c: 'connect', config: buildCameraConfig(config), canvas: offscreen } satisfies UiCommand,
       [offscreen],
@@ -76,9 +77,9 @@ export class CameraPanel {
       case 'state':
         this.connected = event.state === 'streaming';
         if (event.state === 'error' || event.state === 'closed') {
-          this.fail(event.detail || (event.state === 'closed' ? 'Camera disconnected' : 'Camera connection failed'));
+          this.fail(event.detail || (event.state === 'closed' ? tl('camera_disconnected') : tl('camera_connection_failed')));
         } else {
-          this.setStatus(event.detail || (this.connected ? 'Live' : event.state));
+          this.setStatus(event.detail || (this.connected ? tl('live') : event.state));
         }
         break;
       case 'loginError':
@@ -113,7 +114,7 @@ export class CameraPanel {
     displays.forEach((display, index) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = display.name?.trim() || `Camera ${index + 1}`;
+      button.textContent = display.name?.trim() || tl('camera_n', { n: index + 1 });
       button.dataset.cameraIndex = String(index);
       button.classList.toggle('rd-active', index === current);
       button.addEventListener('click', () => {

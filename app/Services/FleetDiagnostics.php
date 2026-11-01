@@ -145,6 +145,7 @@ class FleetDiagnostics
     {
         foreach (Setting::relayServers() as $relay) {
             [$host, $port] = $this->parseServer($relay['address'], 21117);
+            [$host, $port] = $this->probeTarget($host, $port, 21117);
 
             if ($host !== '' && ! $this->tcp->check($host, $port, 1.0)['ok']) {
                 return false;
@@ -161,8 +162,37 @@ class FleetDiagnostics
             return ['configured' => false, 'port' => $defaultPort, 'ok' => false, 'latency_ms' => null, 'error' => 'Not configured.'];
         }
 
-        return ['configured' => true, 'port' => $port, 'host_label' => $this->hostLabel($host)]
-            + $this->tcp->check($host, $port, 1.0);
+        [$probeHost, $probePort] = $this->probeTarget($host, $port, $defaultPort);
+        $label = $probeHost === $host ? $this->hostLabel($host) : 'bundled server over loopback';
+
+        return ['configured' => true, 'port' => $probePort, 'host_label' => $label]
+            + $this->tcp->check($probeHost, $probePort, 1.0);
+    }
+
+    /**
+     * With the bundled server, an address on this host is checked over
+     * loopback at the port hbbs/hbbr listen on inside the container. From
+     * inside, the public address usually does not loop back (Docker does not
+     * hairpin published ports), so the probe failed on a working install
+     * (#114). Other addresses, such as an external relay, are checked as
+     * configured.
+     *
+     * @return array{0: string, 1: int}
+     */
+    private function probeTarget(string $host, int $port, int $bundledPort): array
+    {
+        if ($host === '' || ! config('cortendesk.embedded_server')) {
+            return [$host, $port];
+        }
+        $own = array_filter([
+            $this->parseServer((string) config('cortendesk.id_server'), 21116)[0],
+            $this->parseServer((string) config('cortendesk.relay_server'), 21117)[0],
+            (string) parse_url((string) config('app.url'), PHP_URL_HOST),
+        ]);
+
+        return in_array(strtolower($host), array_map('strtolower', $own), true)
+            ? ['127.0.0.1', $bundledPort]
+            : [$host, $port];
     }
 
     private function parseServer(string $value, int $defaultPort): array

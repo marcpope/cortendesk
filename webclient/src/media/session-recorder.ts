@@ -1,3 +1,4 @@
+import { tl } from '../i18n';
 export type RecordingAudioTap = { stream: { getAudioTracks(): MediaStreamTrack[] }; close(): void };
 
 export type RecordingFormat = { mimeType: string; extension: 'webm' | 'mp4' };
@@ -59,21 +60,21 @@ export class LocalSessionRecorder {
   ) {}
 
   start(): RecordingStartResult {
-    if (this.active) return { ok: false, reason: 'Recording is already active.' };
+    if (this.active) return { ok: false, reason: tl('recording_is_already_active') };
     if (typeof this.surface.captureStream !== 'function') {
-      return { ok: false, reason: 'This browser cannot capture the visible remote video.' };
+      return { ok: false, reason: tl('this_browser_cannot_capture_visible') };
     }
     const format = chooseRecordingMime((mime) => this.env.isTypeSupported(mime));
-    if (!format) return { ok: false, reason: 'This browser has no supported session-recording format.' };
+    if (!format) return { ok: false, reason: tl('this_browser_has_no_supported') };
 
     let videoStream: RecordingStream;
     try {
       videoStream = this.surface.captureStream(30);
     } catch {
-      return { ok: false, reason: 'The visible remote video could not be captured.' };
+      return { ok: false, reason: tl('visible_remote_video_could_not') };
     }
     const videoTracks = videoStream.getVideoTracks();
-    if (!videoTracks.length) return { ok: false, reason: 'The visible remote video has no capturable track.' };
+    if (!videoTracks.length) return { ok: false, reason: tl('visible_remote_video_has_no') };
 
     try {
       this.audioTap = this.createAudioTap();
@@ -85,13 +86,13 @@ export class LocalSessionRecorder {
       }
       this.audioTap?.close();
       this.audioTap = null;
-      return { ok: false, reason: 'The browser could not assemble the recording stream.' };
+      return { ok: false, reason: tl('browser_could_not_assemble_recording') };
     }
     try {
       this.recorder = this.env.createRecorder(this.combined, format.mimeType);
     } catch {
       this.cleanup(false);
-      return { ok: false, reason: 'The browser could not create a session recorder.' };
+      return { ok: false, reason: tl('browser_could_not_create_session') };
     }
 
     this.chunks = [];
@@ -113,7 +114,7 @@ export class LocalSessionRecorder {
       this.recorder.start(1000);
     } catch {
       this.cleanup(false);
-      return { ok: false, reason: 'The browser refused to start session recording.' };
+      return { ok: false, reason: tl('browser_refused_start_session_recording') };
     }
     this.active = true;
     this.onState(true, this.startedAtMs);

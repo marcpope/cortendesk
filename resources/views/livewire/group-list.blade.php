@@ -6,14 +6,14 @@
                 <li class="nav-item">
                     <a href="javascript:void(0);" class="nav-link {{ $tab === 'devices' ? 'active' : '' }}"
                        wire:click="setTab('devices')">
-                        <i class="ri-computer-line me-1"></i>Device Groups
+                        <i class="ri-computer-line me-1"></i>{{ __('groups.device_groups') }}
                         <span class="badge bg-secondary-subtle text-secondary ms-1">{{ $deviceGroups->count() }}</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="javascript:void(0);" class="nav-link {{ $tab === 'users' ? 'active' : '' }}"
                        wire:click="setTab('users')">
-                        <i class="ri-group-line me-1"></i>User Groups
+                        <i class="ri-group-line me-1"></i>{{ __('groups.user_groups') }}
                         <span class="badge bg-secondary-subtle text-secondary ms-1">{{ $userGroups->count() }}</span>
                     </a>
                 </li>
@@ -21,25 +21,25 @@
 
             @php
                 $current = $tab === 'users' ? $userGroups : $deviceGroups;
-                $countLabel = $tab === 'users' ? 'Users' : 'Devices';
+                $countLabel = $tab === 'users' ? __('common.users') : __('common.devices');
                 $deleteConfirm = $tab === 'users'
-                    ? 'Delete this user group? Users in it will be kept but no longer belong to any group.'
-                    : 'Delete this device group? Devices in it will be kept but no longer belong to any group.';
+                    ? __('groups.delete_this_user_group_users')
+                    : __('groups.delete_this_device_group_devices');
             @endphp
 
             {{-- Toolbar --}}
             <div class="rd-toolbar">
                 <div>
-                    <h4 class="header-title">{{ $tab === 'users' ? 'User Groups' : 'Device Groups' }}</h4>
+                    <h4 class="header-title">{{ $tab === 'users' ? __('groups.user_groups') : __('groups.device_groups') }}</h4>
                     <p class="rd-card-sub mb-0">
                         {{ $tab === 'users'
-                            ? 'Groups of people. Membership drives address-book sharing and device-group access.'
-                            : 'Folders of machines. A device belongs to at most one.' }}
+                            ? __('groups.groups_of_people_membership_drives')
+                            : __('groups.folders_of_machines_device_belongs') }}
                     </p>
                 </div>
                 <div class="rd-toolbar-actions">
                     <button type="button" class="btn btn-primary" wire:click="create('{{ $tab }}')">
-                        <i class="ri-add-line"></i>Add Group
+                        <i class="ri-add-line"></i>{{ __('groups.add_group') }}
                     </button>
                 </div>
             </div>
@@ -49,14 +49,14 @@
                 <table class="table table-hover table-centered mb-0">
                     <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Note</th>
+                        <th>{{ __('common.name') }}</th>
+                        <th>{{ __('common.note') }}</th>
                         <th>{{ $countLabel }}</th>
                         @if ($tab === 'users')
-                            <th>Device access</th>
+                            <th>{{ __('common.device_access') }}</th>
                         @endif
-                        <th>Created</th>
-                        <th class="text-end">Action</th>
+                        <th>{{ __('common.created') }}</th>
+                        <th class="text-end">{{ __('common.action') }}</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -83,10 +83,10 @@
                             </td>
                             <td class="text-end rd-rowact">
                                 <a href="javascript:void(0);" class="rd-act me-2"
-                                   wire:click="edit('{{ $tab }}', {{ $group->id }})">Edit</a>
+                                   wire:click="edit('{{ $tab }}', {{ $group->id }})">{{ __('common.edit') }}</a>
                                 <a href="javascript:void(0);" class="text-danger"
                                    wire:click="deleteGroup('{{ $tab }}', {{ $group->id }})"
-                                   wire:confirm="{{ $deleteConfirm }}">Delete</a>
+                                   wire:confirm="{{ $deleteConfirm }}">{{ __('common.delete') }}</a>
                             </td>
                         </tr>
                     @empty
@@ -95,14 +95,14 @@
                                 <div class="rd-empty">
                                     <div class="rd-empty-icon"><i class="{{ $tab === 'users' ? 'ri-group-line' : 'ri-folders-line' }}"></i></div>
                                     <p class="rd-empty-title">
-                                        No {{ $tab === 'users' ? 'user' : 'device' }} groups yet. Click "Add Group" to create one.
+                                        {{ $tab === 'users' ? __('groups.no_user_groups_yet_click') : __('groups.no_device_groups_yet_click') }}
                                     </p>
                                     <p class="rd-empty-text">
                                         {{ $tab === 'users'
-                                            ? 'User groups decide who can see whose machines and address books.'
-                                            : 'Device groups keep machines organised and can be granted to a whole user group at once.' }}
+                                            ? __('groups.user_groups_decide_who_can')
+                                            : __('groups.device_groups_keep_machines_organised') }}
                                     </p>
-                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="create('{{ $tab }}')">Add Group</button>
+                                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="create('{{ $tab }}')">{{ __('groups.add_group') }}</button>
                                 </div>
                             </td>
                         </tr>
@@ -118,7 +118,7 @@
                             <div class="rd-mini-head">
                                 <div class="min-width-0">
                                     <span class="rd-mini-title">{{ $group->name }}</span>
-                                    <span class="rd-mini-sub">{{ $group->note ?: 'No note' }}</span>
+                                    <span class="rd-mini-sub">{{ $group->note ?: __('groups.no_note') }}</span>
                                 </div>
                                 <span class="badge bg-secondary-subtle text-secondary">
                                     {{ $tab === 'users' ? $group->users_count : $group->devices_count }}
@@ -133,11 +133,11 @@
                                 </div>
                             @endif
                             <div class="rd-mini-foot">
-                                <span class="rd-mini-sub">Created {{ $group->created_at?->format('Y-m-d') }}</span>
+                                <span class="rd-mini-sub">{{ __('groups.created_date', ['date' => $group->created_at?->format('Y-m-d')]) }}</span>
                                 <div class="rd-mini-acts">
-                                    <a href="javascript:void(0);" class="rd-iconbtn" title="Edit"
+                                    <a href="javascript:void(0);" class="rd-iconbtn" title="{{ __('common.edit') }}"
                                        wire:click="edit('{{ $tab }}', {{ $group->id }})"><i class="ri-pencil-line"></i></a>
-                                    <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="Delete"
+                                    <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="{{ __('common.delete') }}"
                                        wire:click="deleteGroup('{{ $tab }}', {{ $group->id }})"
                                        wire:confirm="{{ $deleteConfirm }}"><i class="ri-delete-bin-line"></i></a>
                                 </div>
@@ -147,9 +147,9 @@
                     <div class="rd-empty">
                         <div class="rd-empty-icon"><i class="{{ $tab === 'users' ? 'ri-group-line' : 'ri-folders-line' }}"></i></div>
                         <p class="rd-empty-title">
-                            No {{ $tab === 'users' ? 'user' : 'device' }} groups yet. Tap "Add Group" to create one.
+                            {{ $tab === 'users' ? __('groups.no_user_groups_yet_tap') : __('groups.no_device_groups_yet_tap') }}
                         </p>
-                        <button type="button" class="btn btn-sm btn-outline-light" wire:click="create('{{ $tab }}')">Add Group</button>
+                        <button type="button" class="btn btn-sm btn-outline-light" wire:click="create('{{ $tab }}')">{{ __('groups.add_group') }}</button>
                     </div>
                 @endforelse
             </div>
@@ -165,19 +165,19 @@
                     <form wire:submit="save">
                         <div class="modal-header">
                             <h5 class="modal-title">
-                                {{ $editing ? 'Edit' : 'Add' }} {{ $modalType === 'users' ? 'User' : 'Device' }} Group
+                                {{ $modalType === 'users' ? ($editing ? __('groups.edit_user_group') : __('groups.add_user_group')) : ($editing ? __('groups.edit_device_group') : __('groups.add_device_group')) }}
                             </h5>
-                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="Close"></button>
+                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="{{ __('common.close') }}"></button>
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label class="form-label" for="gl-name">Name <span class="text-danger">*</span></label>
+                                <label class="form-label" for="gl-name">{{ __('common.name') }} <span class="text-danger">*</span></label>
                                 <input type="text" id="gl-name" class="form-control @error('name') is-invalid @enderror"
                                        wire:model="name" autocomplete="off">
                                 @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="{{ $modalType === 'users' ? 'mb-3' : 'mb-0' }}">
-                                <label class="form-label" for="gl-note">Note</label>
+                                <label class="form-label" for="gl-note">{{ __('common.note') }}</label>
                                 <textarea id="gl-note" rows="3" class="form-control @error('note') is-invalid @enderror"
                                           wire:model="note"></textarea>
                                 @error('note') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -186,8 +186,8 @@
                             {{-- Device-group access (user groups only) --}}
                             @if ($modalType === 'users')
                                 <div class="mb-3">
-                                    <label class="form-label">Device group access</label>
-                                    <p class="text-muted fs-13 mb-2">Every member of this user group sees the devices in the groups checked below (in addition to devices they own or were granted individually).</p>
+                                    <label class="form-label">{{ __('groups.device_group_access') }}</label>
+                                    <p class="text-muted fs-13 mb-2">{{ __('groups.every_member_of_this_user') }}</p>
                                     @forelse ($grantableDeviceGroups as $dg)
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="gl-dg-{{ $dg->id }}"
@@ -195,19 +195,19 @@
                                             <label class="form-check-label" for="gl-dg-{{ $dg->id }}">{{ $dg->name }}</label>
                                         </div>
                                     @empty
-                                        <p class="text-muted fs-13">{{ auth()->user()?->is_admin ? 'No device groups exist yet.' : 'No device groups you can grant.' }}</p>
+                                        <p class="text-muted fs-13">{{ auth()->user()?->is_admin ? __('groups.no_device_groups_exist_yet') : __('groups.no_device_groups_you_can') }}</p>
                                     @endforelse
                                 </div>
                             @endif
 
                             {{-- Accessed from: which user groups may see this group (B4) --}}
                             <div class="mb-0">
-                                <label class="form-label">Accessed from</label>
+                                <label class="form-label">{{ __('groups.accessed_from') }}</label>
                                 <p class="text-muted fs-13 mb-2">
                                     @if ($modalType === 'users')
-                                        Members of the user groups checked below may see the members of this group (their machines appear in the group tab).
+                                        {{ __('groups.members_of_user_groups_checked_2') }}
                                     @else
-                                        Members of the user groups checked below may see the devices in this folder.
+                                        {{ __('groups.members_of_user_groups_checked') }}
                                     @endif
                                 </p>
                                 @php $accessorOptions = $userGroups->where('id', '!=', $editing ?? 0); @endphp
@@ -218,15 +218,15 @@
                                         <label class="form-check-label" for="gl-af-{{ $ug->id }}">{{ $ug->name }}</label>
                                     </div>
                                 @empty
-                                    <p class="text-muted fs-13 mb-0">No other user groups exist yet.</p>
+                                    <p class="text-muted fs-13 mb-0">{{ __('groups.no_other_user_groups_exist') }}</p>
                                 @endforelse
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
+                            <button type="button" class="btn btn-light" wire:click="closeModal">{{ __('common.cancel') }}</button>
                             <button type="submit" class="btn btn-primary">
-                                <span wire:loading.remove wire:target="save">{{ $editing ? 'Save Changes' : 'Create Group' }}</span>
-                                <span wire:loading wire:target="save">Saving…</span>
+                                <span wire:loading.remove wire:target="save">{{ $editing ? __('account.save_changes') : __('groups.create_group') }}</span>
+                                <span wire:loading wire:target="save">{{ __('common.saving') }}</span>
                             </button>
                         </div>
                     </form>

@@ -135,10 +135,10 @@ class DeviceAddressBooks
     /** "Removed 3 address-book entries; 1 kept in books you cannot edit." */
     public static function summary(array $result): string
     {
-        $text = 'Removed '.$result['removed'].' address-book '.Str::plural('entry', $result['removed']).'.';
+        $text = trans_choice('messages.book_entries_removed', $result['removed'], ['count' => $result['removed']]);
 
         if ($result['kept'] > 0) {
-            $text .= ' '.$result['kept'].' kept in books you cannot edit.';
+            $text .= ' '.trans_choice('messages.book_entries_kept', $result['kept']);
         }
 
         return $text;

@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Einen Client auf diese Konsole ausrichten',
+    '2_confirm_first_heartbeat' => '2. Ersten Heartbeat bestätigen',
+    '3_recommended_security' => '3. Empfohlene Sicherheit',
+    'administrator_2fa' => 'Administrator-2FA',
+    'and_enter_your_id_server' => 'und geben Sie Ihren ID-Server, Relay-Server, Schlüssel und API-Server ein.',
+    'complete_server_settings' => 'Vervollständigen Sie die Servereinstellungen',
+    'copy_them_from_client_setup' => 'Aus der Client-Einrichtung kopieren',
+    'device_approval' => 'Gerätegenehmigung',
+    'device_has_checked_in' => 'Ein Gerät hat sich gemeldet.',
+    'do_this_later' => 'Später erledigen',
+    'finish_setup' => 'Einrichtung abschließen',
+    'first' => 'zuerst.',
+    'first_run_setup' => 'Ersteinrichtung',
+    'hold_new_devices_for_review' => 'Neue Geräte zur Prüfung zurückhalten, bevor sie in der Flotte erscheinen.',
+    'in_rustdesk_open' => 'Öffnen Sie in RustDesk',
+    'one_or_more_of_those' => 'Einer oder mehrere dieser Werte sind noch nicht festgelegt.',
+    'protect_console_access_with_authenticato' => 'Schützen Sie den Konsolenzugriff mit einem Authenticator und Wiederherstellungscodes.',
+    'review_security_settings' => 'Sicherheitseinstellungen prüfen',
+    'set_up_your_first_rustdesk' => 'Richten Sie Ihr erstes RustDesk-Gerät ein',
+    'two_steps_configure_client_then' => 'Zwei Schritte: Client konfigurieren, dann bestätigen, dass er sich meldet.',
+    'waiting_for_device_to_check' => 'Es wird auf ein Gerät gewartet. Diese Seite prüft alle 10 Sekunden.',
+];

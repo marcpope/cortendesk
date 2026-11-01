@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Two-Factor Authentication')
-@section('subtitle', 'Account')
+@section('title', __('common.two_factor_authentication'))
+@section('subtitle', __('account.account'))
 
 @section('content')
     @if (session('twofactor_enforced'))

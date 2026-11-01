@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Settings')
-@section('subtitle', 'System')
+@section('title', __('common.settings'))
+@section('subtitle', __('common.system'))
 
 @section('content')
     @livewire(App\Livewire\SettingsPage::class)

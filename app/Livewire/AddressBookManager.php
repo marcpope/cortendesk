@@ -377,7 +377,7 @@ class AddressBookManager extends Component
                     Rule::unique('address_book_entries', 'rustdesk_id')->where('address_book_id', $book->id),
                 ],
                 'entryAlias' => 'nullable|string|max:255',
-            ], [], ['entryRustdeskId' => 'RustDesk ID', 'entryAlias' => 'alias']);
+            ]);
 
             $entry = $book->entries()->create([
                 'rustdesk_id' => trim($this->entryRustdeskId),
@@ -599,9 +599,9 @@ class AddressBookManager extends Component
             'users' => User::orderBy('username')->get(['id', 'username', 'name']),
             'userGroups' => UserGroup::orderBy('name')->get(['id', 'name']),
             'permissionLabels' => [
-                AddressBookRule::PERM_READ => 'Read',
-                AddressBookRule::PERM_READ_WRITE => 'Read/Write',
-                AddressBookRule::PERM_FULL => 'Full Control',
+                AddressBookRule::PERM_READ => __('api_tokens.read'),
+                AddressBookRule::PERM_READ_WRITE => __('api_tokens.read_write'),
+                AddressBookRule::PERM_FULL => __('labels.misc_full_control'),
             ],
         ]);
     }

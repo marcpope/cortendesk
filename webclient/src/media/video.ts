@@ -187,8 +187,10 @@ export class VideoPipeline {
       // into a stuck one.
       if (!f.key && (this.decoder?.decodeQueueSize ?? 0) > MAX_DECODE_QUEUE) {
         this.framesDropped++;
-        // Ask for a key frame so the picture recovers cleanly once the queue
-        // drains, rather than showing deltas built on frames that were skipped.
+        // Later deltas build on the one just dropped: skip them too and wait
+        // for the key frame asked for here, rather than decode a smeared
+        // picture until it arrives.
+        this.awaitingKey = true;
         this.requestRefresh();
         continue;
       }

@@ -178,7 +178,7 @@ class MailSettings
     public function test(string $to): array
     {
         if (! $this->isConfigured()) {
-            return ['ok' => false, 'message' => 'Set the SMTP host and From address first.'];
+            return ['ok' => false, 'message' => __('messages.smtp_host_first')];
         }
 
         try {
@@ -189,14 +189,14 @@ class MailSettings
         } catch (\Throwable $e) {
             $this->recordFailure($e->getMessage());
 
-            return ['ok' => false, 'message' => 'Send failed: '.$e->getMessage()];
+            return ['ok' => false, 'message' => __('messages.send_failed', ['error' => $e->getMessage()])];
         }
 
         // A successful test is the intended way to clear a relay outage: it is
         // what releases the administrator from RequireMailHealthy.
         $this->recordSuccess();
 
-        return ['ok' => true, 'message' => 'Test message sent to '.$to.'. Check the inbox (and the spam folder).'];
+        return ['ok' => true, 'message' => __('messages.test_sent', ['to' => $to])];
     }
 
     /** Decrypt the stored SMTP password, tolerating a plaintext legacy value. */

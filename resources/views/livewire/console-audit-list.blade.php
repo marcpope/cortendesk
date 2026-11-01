@@ -6,12 +6,12 @@
             <div class="rd-toolbar-search">
                 <div class="input-group">
                     <span class="input-group-text"><i class="ri-search-line"></i></span>
-                    <input type="search" class="form-control" placeholder="Search operator or details…"
+                    <input type="search" class="form-control" placeholder="{{ __('logs.search_operator_or_details') }}"
                            wire:model.live.debounce.300ms="search">
                 </div>
             </div>
-            <select class="form-select rd-toolbar-filter" wire:model.live="action" aria-label="Action">
-                <option value="">All actions</option>
+            <select class="form-select rd-toolbar-filter" wire:model.live="action" aria-label="{{ __('common.action') }}">
+                <option value="">{{ __('logs.all_actions') }}</option>
                 @foreach ($actionGroups as $area => $actions)
                     <optgroup label="{{ $area }}">
                         @foreach ($actions as $value => $label)
@@ -20,17 +20,17 @@
                     </optgroup>
                 @endforeach
             </select>
-            <input type="date" class="form-control rd-toolbar-filter" wire:model.live="dateFrom" aria-label="From date">
-            <input type="date" class="form-control rd-toolbar-filter" wire:model.live="dateTo" aria-label="To date">
-            <select class="form-select rd-toolbar-narrow" wire:model.live="perPage" aria-label="Rows per page">
+            <input type="date" class="form-control rd-toolbar-filter" wire:model.live="dateFrom" aria-label="{{ __('logs.from_date') }}">
+            <input type="date" class="form-control rd-toolbar-filter" wire:model.live="dateTo" aria-label="{{ __('logs.to_date') }}">
+            <select class="form-select rd-toolbar-narrow" wire:model.live="perPage" aria-label="{{ __('logs.rows_per_page') }}">
                 <option value="20">20</option>
                 <option value="50">50</option>
                 <option value="100">100</option>
             </select>
             <div class="rd-toolbar-actions">
-                <button type="button" class="btn btn-outline-light" wire:click="resetFilters">Reset</button>
+                <button type="button" class="btn btn-outline-light" wire:click="resetFilters">{{ __('common.reset') }}</button>
                 <button type="button" class="btn btn-primary" wire:click="export">
-                    <i class="ri-download-2-line"></i>Export CSV
+                    <i class="ri-download-2-line"></i>{{ __('common.export_csv') }}
                 </button>
             </div>
         </div>
@@ -40,12 +40,12 @@
             <table class="table table-hover table-centered mb-0">
                 <thead>
                 <tr>
-                    <th>Time</th>
-                    <th>Operator</th>
-                    <th>Action</th>
-                    <th>Target</th>
-                    <th>Details</th>
-                    <th>IP</th>
+                    <th>{{ __('logs.time') }}</th>
+                    <th>{{ __('logs.operator') }}</th>
+                    <th>{{ __('common.action') }}</th>
+                    <th>{{ __('common.target') }}</th>
+                    <th>{{ __('logs.details') }}</th>
+                    <th>{{ __('common.ip') }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -79,9 +79,9 @@
                         <td colspan="6" class="rd-empty-cell">
                             <div class="rd-empty">
                                 <div class="rd-empty-icon"><i class="ri-history-line"></i></div>
-                                <p class="rd-empty-title">No audit entries match your filters.</p>
-                                <p class="rd-empty-text">Changes made in the console — users, roles, settings — are recorded here.</p>
-                                <button type="button" class="btn btn-sm btn-outline-light" wire:click="resetFilters">Clear filters</button>
+                                <p class="rd-empty-title">{{ __('logs.no_audit_entries_match_your') }}</p>
+                                <p class="rd-empty-text">{{ __('logs.changes_made_in_console_users') }}</p>
+                                <button type="button" class="btn btn-sm btn-outline-light" wire:click="resetFilters">{{ __('common.clear_filters') }}</button>
                             </div>
                         </td>
                     </tr>
@@ -113,15 +113,15 @@
             @empty
                 <div class="rd-empty">
                     <div class="rd-empty-icon"><i class="ri-history-line"></i></div>
-                    <p class="rd-empty-title">No audit entries match your filters.</p>
-                    <p class="rd-empty-text">Changes made in the console — users, roles, settings — are recorded here.</p>
-                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="resetFilters">Clear filters</button>
+                    <p class="rd-empty-title">{{ __('logs.no_audit_entries_match_your') }}</p>
+                    <p class="rd-empty-text">{{ __('logs.changes_made_in_console_users') }}</p>
+                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="resetFilters">{{ __('common.clear_filters') }}</button>
                 </div>
             @endforelse
         </div>
 
         <div class="rd-tablefoot">
-            <span>Showing {{ $audits->firstItem() ?? 0 }}–{{ $audits->lastItem() ?? 0 }} of {{ $audits->total() }}</span>
+            <span>{{ __('common.showing_from_to_of_total', ['from' => $audits->firstItem() ?? 0, 'to' => $audits->lastItem() ?? 0, 'total' => $audits->total()]) }}</span>
             {{ $audits->links() }}
         </div>
     </div>

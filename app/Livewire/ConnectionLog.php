@@ -105,7 +105,7 @@ class ConnectionLog extends Component
                     $row->rustdesk_id,
                     $row->from_peer,
                     $row->from_name,
-                    AuditConnection::typeLabel((int) $row->conn_type),
+                    AuditConnection::englishTypeLabel((int) $row->conn_type),
                     $row->ip,
                     $row->closed_at?->toDateTimeString() ?? 'active',
                     $row->closed_at ? $row->created_at->diffInSeconds($row->closed_at) : '',

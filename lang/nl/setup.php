@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Verwijs een client naar deze console',
+    '2_confirm_first_heartbeat' => '2. Bevestig de eerste heartbeat',
+    '3_recommended_security' => '3. Aanbevolen beveiliging',
+    'administrator_2fa' => '2FA voor beheerders',
+    'and_enter_your_id_server' => 'en voer uw ID-server, relay-server, sleutel en API-server in.',
+    'complete_server_settings' => 'Vul de serverinstellingen aan',
+    'copy_them_from_client_setup' => 'Kopieer ze uit Clientconfiguratie',
+    'device_approval' => 'Apparaatgoedkeuring',
+    'device_has_checked_in' => 'Er heeft zich een apparaat gemeld.',
+    'do_this_later' => 'Later doen',
+    'finish_setup' => 'Installatie afronden',
+    'first' => 'voordat u verdergaat.',
+    'first_run_setup' => 'Eerste installatie',
+    'hold_new_devices_for_review' => 'Houd nieuwe apparaten vast voor controle voordat ze in het apparatenpark verschijnen.',
+    'in_rustdesk_open' => 'Open in RustDesk',
+    'one_or_more_of_those' => 'Een of meer van die waarden zijn nog niet ingesteld.',
+    'protect_console_access_with_authenticato' => 'Beveilig de toegang tot de console met een authenticator en herstelcodes.',
+    'review_security_settings' => 'Beveiligingsinstellingen controleren',
+    'set_up_your_first_rustdesk' => 'Stel uw eerste RustDesk-apparaat in',
+    'two_steps_configure_client_then' => 'Twee stappen: configureer een client en bevestig daarna dat die zich meldt.',
+    'waiting_for_device_to_check' => 'Wachten tot een apparaat zich meldt. Deze pagina controleert elke 10 seconden.',
+];

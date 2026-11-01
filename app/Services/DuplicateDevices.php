@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\Label;
 use App\Models\Device;
 use App\Models\DeviceDuplicateDismissal;
 use Illuminate\Database\Eloquent\Builder;
@@ -279,9 +280,9 @@ final class DuplicateDevices
     /** One line for a tooltip: "Possible duplicate of 123 (same hostname)". */
     public function summary(int $id): string
     {
-        $parts = array_map(fn ($t) => $t['device']->rustdesk_id.' ('.$t['label'].')', $this->twinsOf($id));
+        $parts = array_map(fn ($t) => $t['device']->rustdesk_id.' ('.Label::get('dup_reason', $t['reason'], $t['label']).')', $this->twinsOf($id));
 
-        return $parts === [] ? '' : 'Possible duplicate of '.implode(', ', $parts);
+        return $parts === [] ? '' : __('labels.misc_dup_summary', ['parts' => implode(', ', $parts)]);
     }
 
     /**

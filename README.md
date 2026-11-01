@@ -30,13 +30,14 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - **Dashboard** — live stat tiles, active sessions, 14-day connection charts, platform and version breakdowns.
 - **Importer** — one artisan command migrates everything (users with passwords intact, devices, address books, audit history) from a `lejianwen/rustdesk-api` database.
 - **Mobile-first** — every screen works on a phone; wide tables degrade to card lists. Dark and light themes.
+- **11 languages** — English, Deutsch, Español, Français, Italiano, Magyar, Nederlands, Polski, Português (Brasil), Русский and 简体中文, including emails and the web client. Each user picks their own; without a choice the console follows the browser.
 
 **Client API**
 - Implements the RustDesk client HTTP API: login/tokens, heartbeat and sysinfo presence, address books, group tab, audit ingestion. Point stock RustDesk clients at CortenDesk as their **API Server** — no client patches needed.
 
 **Native web client**
 - A from-scratch TypeScript implementation of the RustDesk wire protocol (rendezvous → relay → NaCl handshake → login), running entirely in the browser over WebSocket relays. Not a WASM port — readable, auditable source.
-- Hardware-accelerated video via WebCodecs (VP8/VP9/H.264/H.265/AV1 as supported), remote audio, two-way voice calls, text chat, clipboard both ways, multi-monitor switching, Ctrl+Alt+Del, session stats.
+- Hardware-accelerated video via WebCodecs (VP8/VP9/H.264/H.265/AV1 as supported), remote audio, two-way voice calls, text chat, clipboard both ways, multi-monitor switching, Ctrl+Alt+Del, session stats. The keyboard sends physical keys to Windows and Linux hosts like the desktop client, so AltGr, dead keys and punctuation work on non-US layouts.
 - **File transfer** — an in-session dual-pane manager: browse the remote filesystem, send/receive files and folders with progress, resume-aware digests, conflict prompts, and drag-and-drop. Uses the File System Access API on Chromium; falls back to picker/Downloads elsewhere.
 - Saved passwords (hashed, never plaintext) with auto-login per device.
 - Best experienced in Chrome/Edge; the desktop stream requires WebCodecs. Voice calls need Chrome or Edge on HTTPS (or `http://localhost`) plus microphone permission.
@@ -60,7 +61,7 @@ docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
   -p 8080:8080 -p 21115-21117:21115-21117 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.15.0
+  ghcr.io/marcpope/cortendesk:1.16.0
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and

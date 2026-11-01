@@ -1,6 +1,6 @@
 @extends('layouts.guest')
 
-@section('title', 'Verify Sign-In')
+@section('title', __('auth.verify_sign_in'))
 
 @section('content')
     <div class="card">
@@ -15,9 +15,13 @@
         <div class="card-body p-4">
 
             <div class="text-center mb-4">
-                <h4 class="rd-auth-title">Check your email</h4>
+                <h4 class="rd-auth-title">{{ __('auth.check_your_email') }}</h4>
                 <p class="rd-auth-sub">
-                    This browser is new to the console, so we emailed a 6-digit code @if ($sentTo) to <span class="rd-mono">{{ $sentTo }}</span>@endif. Enter it below.
+                    @if ($sentTo)
+                        {!! __('auth.this_browser_is_new_to', ['address' => '<span class="rd-mono">'.e($sentTo).'</span>']) !!}
+                    @else
+                        {{ __('auth.this_browser_is_new_to_2') }}
+                    @endif
                 </p>
             </div>
 
@@ -35,7 +39,7 @@
                 @csrf
 
                 <div class="mb-3">
-                    <label for="code" class="form-label">Verification code</label>
+                    <label for="code" class="form-label">{{ __('common.verification_code') }}</label>
                     <input class="form-control rd-code-input rd-mono" type="text" id="code" name="code"
                            required autofocus autocomplete="one-time-code" inputmode="numeric" maxlength="6"
                            placeholder="123456">
@@ -43,7 +47,7 @@
 
                 <div class="mb-0 d-grid">
                     <button class="btn btn-primary" type="submit">
-                        <i class="ri-mail-check-line me-1"></i> Verify
+                        <i class="ri-mail-check-line me-1"></i> {{ __('auth.verify') }}
                     </button>
                 </div>
             </form>
@@ -51,12 +55,12 @@
             <div class="rd-auth-foot">
                 <form method="POST" action="{{ route('login.email.resend') }}" class="d-inline">
                     @csrf
-                    <button type="submit" class="btn btn-link btn-sm p-0">Send a new code</button>
+                    <button type="submit" class="btn btn-link btn-sm p-0">{{ __('auth.send_new_code') }}</button>
                 </form>
                 <span class="mx-1">·</span>
-                <a href="{{ route('login') }}">Sign in as someone else</a>
+                <a href="{{ route('login') }}">{{ __('auth.sign_in_as_someone_else') }}</a>
                 <span class="rd-auth-foot-note">
-                    Once verified, this browser is remembered for {{ \App\Models\TrustedDevice::trustDays() }} days.
+                    {{ __('auth.once_verified_this_browser_is', ['days' => \App\Models\TrustedDevice::trustDays()]) }}
                 </span>
             </div>
         </div>

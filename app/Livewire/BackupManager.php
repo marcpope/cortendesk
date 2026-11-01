@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\Label;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\ConsoleAudit;
 use App\Models\Setting;
@@ -144,12 +145,12 @@ class BackupManager extends Component
         ]);
 
         if ($this->target === 'ftp' && trim($this->ftpHost) === '') {
-            $this->addError('ftpHost', 'An FTP host is needed to copy backups there.');
+            $this->addError('ftpHost', __('messages.ftp_host_needed'));
 
             return;
         }
         if ($this->target === 's3' && trim($this->s3Bucket) === '') {
-            $this->addError('s3Bucket', 'A bucket name is needed to copy backups there.');
+            $this->addError('s3Bucket', __('messages.s3_bucket_needed'));
 
             return;
         }
@@ -204,15 +205,15 @@ class BackupManager extends Component
 
         $target = BackupService::target();
         if ($target === null) {
-            $this->testResult = ['tone' => 'info', 'text' => 'Saved. No off-site copy is configured.'];
+            $this->testResult = ['tone' => 'info', 'text' => __('messages.saved_no_offsite')];
 
             return;
         }
 
         try {
-            $this->testResult = ['tone' => 'success', 'text' => 'Saved. '.$target->test()];
+            $this->testResult = ['tone' => 'success', 'text' => __('messages.saved_with_test', ['result' => $target->test()])];
         } catch (Throwable $e) {
-            $this->testResult = ['tone' => 'danger', 'text' => 'Saved, but the test failed: '.$e->getMessage()];
+            $this->testResult = ['tone' => 'danger', 'text' => __('messages.saved_test_failed', ['error' => $e->getMessage()])];
         }
     }
 
@@ -246,7 +247,7 @@ class BackupManager extends Component
         // If that fails the next run's sync removes it.
         $target = BackupService::target();
         if ($target === null) {
-            $this->notice = ['tone' => 'info', 'text' => "Deleted {$name}."];
+            $this->notice = ['tone' => 'info', 'text' => __('messages.backup_deleted', ['name' => $name])];
 
             return;
         }
@@ -254,9 +255,9 @@ class BackupManager extends Component
             if (array_key_exists($name, $target->list())) {
                 $target->delete($name);
             }
-            $this->notice = ['tone' => 'info', 'text' => "Deleted {$name} here and at ".$target->label().'.'];
+            $this->notice = ['tone' => 'info', 'text' => __('messages.backup_deleted_both', ['name' => $name, 'target' => $target->label()])];
         } catch (Throwable $e) {
-            $this->notice = ['tone' => 'warning', 'text' => "Deleted {$name}. The copy at ".$target->label().' could not be removed ('.$e->getMessage().'); the next run removes it.'];
+            $this->notice = ['tone' => 'warning', 'text' => __('messages.backup_deleted_copy_left', ['name' => $name, 'target' => $target->label(), 'error' => $e->getMessage()])];
         }
     }
 
@@ -268,7 +269,7 @@ class BackupManager extends Component
         $backups = app(BackupService::class);
         $path = $backups->path($name);
         if ($path === null) {
-            $this->notice = ['tone' => 'danger', 'text' => "No backup named {$name}."];
+            $this->notice = ['tone' => 'danger', 'text' => __('messages.backup_not_found', ['name' => $name])];
 
             return;
         }
@@ -282,7 +283,7 @@ class BackupManager extends Component
         $this->saved = false;
 
         $this->validate(['upload' => ['required', 'file']], [
-            'upload.required' => 'Pick a backup archive first.',
+            'upload.required' => __('messages.pick_backup_archive'),
         ]);
 
         $backups = app(BackupService::class);
@@ -306,24 +307,24 @@ class BackupManager extends Component
             $result = $backups->restore($path);
         } catch (Throwable $e) {
             ConsoleAudit::record('backup.restore', 'Restore of '.$name.' failed: '.$e->getMessage(), 'backup', $name);
-            $this->notice = ['tone' => 'danger', 'text' => 'Restore failed, nothing was changed: '.$e->getMessage()];
+            $this->notice = ['tone' => 'danger', 'text' => __('messages.restore_failed', ['error' => $e->getMessage()])];
 
             return;
         }
 
         ConsoleAudit::record('backup.restore', 'Restored backup '.$name, 'backup', $name);
 
-        $text = "Restored {$name}: {$result['rows']} rows across {$result['tables']} tables.";
+        $text = __('messages.restored', ['name' => $name, 'rows' => $result['rows'], 'tables' => $result['tables']]);
         if ($result['rekeyed']) {
-            $text .= ' Encrypted values were re-keyed to this install.';
+            $text .= ' '.__('messages.restore_rekeyed');
         }
         foreach ($result['dropped_columns'] as $table => $columns) {
-            $text .= " Ignored in {$table}: ".implode(', ', $columns).'.';
+            $text .= ' '.__('messages.restore_ignored', ['table' => $table, 'columns' => implode(', ', $columns)]);
         }
         if ($result['restart_needed']) {
-            $text .= ' Server files ('.implode(', ', $result['files']).') are staged; restart the container to adopt them.';
+            $text .= ' '.__('messages.restore_server_files', ['files' => implode(', ', $result['files'])]);
         }
-        $text .= ' Reload the page: the settings you see may be stale.';
+        $text .= ' '.__('messages.restore_reload');
 
         $this->notice = ['tone' => 'success', 'text' => $text];
 
@@ -363,7 +364,7 @@ class BackupManager extends Component
             'directoryError' => $directoryError,
             'directory' => (string) config('cortendesk.backups_path'),
             'lastResult' => $last,
-            'targets' => BackupService::TARGETS,
+            'targets' => collect(BackupService::TARGETS)->map(fn ($label, $code) => Label::get('backup_target', $code, $label))->all(),
             'defaultKeep' => BackupService::DEFAULT_KEEP,
             'includesServerFiles' => (string) config('cortendesk.rustdesk_dir') !== '' && is_dir((string) config('cortendesk.rustdesk_dir')),
         ]);

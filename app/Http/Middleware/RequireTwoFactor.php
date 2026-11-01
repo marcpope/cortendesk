@@ -35,7 +35,7 @@ class RequireTwoFactor
         if ($user && ! $user->hasTwoFactorEnabled() && self::isRequiredFor($user) && ! $this->isAllowed($request)) {
             return redirect()->route('account.two-factor')->with(
                 'twofactor_enforced',
-                'Two-factor authentication is required. Please set it up to continue.',
+                __('messages.twofactor_required_setup'),
             );
         }
 

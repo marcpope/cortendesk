@@ -300,6 +300,24 @@ class UserList extends Component
     }
 
     /**
+     * Let in an account that SSO created pending approval (#123). Until this
+     * runs, every sign-in it makes is turned away.
+     */
+    public function approveSso(int $id): void
+    {
+        $this->authorizeConsole('user', 'rw');
+
+        $user = User::findOrFail($id);
+        $this->guardTarget($user);
+        if (! $user->isSsoPending()) {
+            return;
+        }
+        $user->forceFill(['oidc_status' => 'active'])->save();
+
+        ConsoleAudit::record('user.approve', 'Approved SSO user '.$user->username, 'user', $user->username);
+    }
+
+    /**
      * Admin "Reset 2FA" (PLAN B6): wipe the user's TOTP secret, flags, replay
      * pointer and recovery codes so they must re-enroll. Break-glass for a
      * locked-out operator; audited.
@@ -465,7 +483,9 @@ class UserList extends Component
             })
             ->when($this->role === 'admin', fn ($q) => $q->where('is_admin', true))
             ->when($this->role === 'user', fn ($q) => $q->where('is_admin', false))
-            ->when($this->status === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($this->status === 'active', fn ($q) => $q->where('is_active', true)
+                ->where(fn ($q) => $q->whereNull('oidc_status')->orWhere('oidc_status', '!=', 'pending')))
+            ->when($this->status === 'pending', fn ($q) => $q->where('oidc_status', 'pending'))
             ->when($this->status === 'disabled', fn ($q) => $q->where('is_active', false))
             ->orderBy('username')
             ->paginate($this->perPage);

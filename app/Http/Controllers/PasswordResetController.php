@@ -22,9 +22,6 @@ use Illuminate\View\View;
  */
 class PasswordResetController extends Controller
 {
-    /** Shown whatever happens, so the form cannot be used to enumerate accounts. */
-    private const NEUTRAL = 'If that account exists and has an email address, a reset link is on its way.';
-
     public function __construct(
         private readonly MailSettings $mail,
         private readonly OidcService $oidc,
@@ -63,14 +60,14 @@ class PasswordResetController extends Controller
             Log::info('Password reset refused', ['user' => $user->username, 'reason' => $this->refusal($user)]);
         }
 
-        return back()->with('status', self::NEUTRAL);
+        return back()->with('status', __('messages.reset_neutral'));
     }
 
     public function showReset(Request $request, string $token): View|RedirectResponse
     {
         if (! $this->available() || ! PasswordReset::findValid($token)) {
             return redirect()->route('login')
-                ->withErrors(['username' => 'That reset link is invalid or has expired. Request a new one.']);
+                ->withErrors(['username' => __('messages.reset_invalid')]);
         }
 
         return view('auth.password-reset', ['token' => $token]);
@@ -90,14 +87,14 @@ class PasswordResetController extends Controller
 
         if (! $reset || ! $reset->user || ! $this->mayReset($reset->user)) {
             return redirect()->route('login')
-                ->withErrors(['username' => 'That reset link is invalid or has expired. Request a new one.']);
+                ->withErrors(['username' => __('messages.reset_invalid')]);
         }
 
         // Burn the link BEFORE changing anything: if two submissions race, only
         // the one that claims the row proceeds.
         if (! $reset->claim()) {
             return redirect()->route('login')
-                ->withErrors(['username' => 'That reset link has already been used.']);
+                ->withErrors(['username' => __('messages.reset_used')]);
         }
 
         $user = $reset->user;
@@ -118,7 +115,7 @@ class PasswordResetController extends Controller
         ]);
 
         return redirect()->route('login')
-            ->with('status', 'Your password has been reset. Sign in with the new one.');
+            ->with('status', __('messages.password_reset_done'));
     }
 
     /** Send the link. Failures are logged, never surfaced (see NEUTRAL). */

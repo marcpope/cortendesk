@@ -210,13 +210,13 @@ class DeviceDetail extends Component
 
         $book = DeviceAddressBooks::writableBooks(auth()->user())->firstWhere('id', $this->abBookId);
         if (! $book) {
-            $this->addError('abBookId', 'Pick an address book.');
+            $this->addError('abBookId', __('messages.pick_address_book'));
 
             return;
         }
 
         if ($book->entries()->where('rustdesk_id', $device->rustdesk_id)->exists()) {
-            $this->abResult = 'Already in '.$book->name.'.';
+            $this->abResult = __('messages.already_in_book', ['book' => $book->name]);
         } else {
             $book->entries()->create(DeviceAddressBooks::entryAttributes($device));
             ConsoleAudit::record(
@@ -225,7 +225,7 @@ class DeviceDetail extends Component
                 'address-book',
                 $book->name,
             );
-            $this->abResult = 'Added to '.$book->name.'.';
+            $this->abResult = __('messages.added_to_book_single', ['book' => $book->name]);
         }
 
         $this->abPickerOpen = false;
@@ -249,7 +249,7 @@ class DeviceDetail extends Component
             );
         }
 
-        $this->abResult = 'Removed from '.$book->name.'.';
+        $this->abResult = __('messages.removed_from_book', ['book' => $book->name]);
     }
 
     public function render()

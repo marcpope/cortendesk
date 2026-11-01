@@ -4,16 +4,16 @@
         {{-- Toolbar --}}
         <div class="rd-toolbar">
             <div>
-                <h4 class="header-title">Client Downloads</h4>
+                <h4 class="header-title">{{ __('common.client_downloads') }}</h4>
                 <p class="rd-card-sub mb-0">
-                    Installers you built with <strong>Build Installers</strong>, published on the sign-in page and at
+                    {{ __('downloads.installers_you_built_with') }} <strong>{{ __('common.build_installers') }}</strong>{{ __('downloads.published_on_sign_in_page') }}
                     <a href="{{ route('downloads.index') }}" target="_blank" rel="noopener">{{ route('downloads.index') }}</a>
-                    — a link anyone can open, no console account needed.
+                    {{ __('downloads.link_anyone_can_open_no') }}
                 </p>
             </div>
             <div class="rd-toolbar-actions">
                 <button type="button" class="btn btn-primary" wire:click="create" @disabled(! $canManage)>
-                    <i class="ri-upload-2-line"></i>Upload Build
+                    <i class="ri-upload-2-line"></i>{{ __('downloads.upload_build') }}
                 </button>
             </div>
         </div>
@@ -23,14 +23,14 @@
             <table class="table table-hover table-centered mb-0">
                 <thead>
                 <tr>
-                    <th style="width: 42px;">OS</th>
-                    <th>Label</th>
-                    <th>File</th>
-                    <th>Size</th>
-                    <th>Version</th>
-                    <th>Downloads</th>
-                    <th>Status</th>
-                    <th class="text-end">Action</th>
+                    <th style="width: 42px;">{{ __('common.os') }}</th>
+                    <th>{{ __('downloads.label') }}</th>
+                    <th>{{ __('downloads.file') }}</th>
+                    <th>{{ __('common.size') }}</th>
+                    <th>{{ __('common.version') }}</th>
+                    <th>{{ __('downloads.downloads') }}</th>
+                    <th>{{ __('common.status') }}</th>
+                    <th class="text-end">{{ __('common.action') }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -48,7 +48,7 @@
                             @unless ($download->fileExists())
                                 {{-- The bytes live in the /data volume; a row without them
                                      means the volume was replaced, not that the row is wrong. --}}
-                                <span class="badge bg-danger-subtle text-danger ms-1" title="The stored file is missing from the downloads volume. Re-upload it.">file missing</span>
+                                <span class="badge bg-danger-subtle text-danger ms-1" title="{{ __('downloads.stored_file_is_missing_from') }}">{{ __('downloads.file_missing') }}</span>
                             @endunless
                         </td>
                         <td>{{ $download->humanSize() }}</td>
@@ -56,22 +56,22 @@
                         <td><span class="badge bg-secondary-subtle text-secondary">{{ $download->download_count }}</span></td>
                         <td>
                             @if ($download->is_published)
-                                <span class="badge bg-success-subtle text-success">Published</span>
+                                <span class="badge bg-success-subtle text-success">{{ __('downloads.published') }}</span>
                             @else
-                                <span class="badge bg-secondary-subtle text-secondary">Hidden</span>
+                                <span class="badge bg-secondary-subtle text-secondary">{{ __('downloads.hidden') }}</span>
                             @endif
                         </td>
                         <td class="text-end rd-rowact">
-                            <a href="javascript:void(0);" class="rd-iconbtn me-1" title="Move up"
+                            <a href="javascript:void(0);" class="rd-iconbtn me-1" title="{{ __('downloads.move_up') }}"
                                wire:click="move({{ $download->id }}, 'up')"><i class="ri-arrow-up-line"></i></a>
-                            <a href="javascript:void(0);" class="rd-iconbtn me-2" title="Move down"
+                            <a href="javascript:void(0);" class="rd-iconbtn me-2" title="{{ __('downloads.move_down') }}"
                                wire:click="move({{ $download->id }}, 'down')"><i class="ri-arrow-down-line"></i></a>
                             <a href="javascript:void(0);" class="rd-act me-2"
-                               wire:click="togglePublished({{ $download->id }})">{{ $download->is_published ? 'Hide' : 'Publish' }}</a>
-                            <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $download->id }})">Edit</a>
+                               wire:click="togglePublished({{ $download->id }})">{{ $download->is_published ? __('downloads.hide') : __('downloads.publish') }}</a>
+                            <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $download->id }})">{{ __('common.edit') }}</a>
                             <a href="javascript:void(0);" class="text-danger"
                                wire:click="deleteDownload({{ $download->id }})"
-                               wire:confirm="Delete this build? The uploaded file is removed too and any link to it stops working.">Delete</a>
+                               wire:confirm="{{ __('downloads.delete_this_build_uploaded_file') }}">{{ __('common.delete') }}</a>
                         </td>
                     </tr>
                 @empty
@@ -79,13 +79,11 @@
                         <td colspan="8" class="rd-empty-cell">
                             <div class="rd-empty">
                                 <div class="rd-empty-icon"><i class="ri-download-cloud-line"></i></div>
-                                <p class="rd-empty-title">No client builds uploaded yet.</p>
+                                <p class="rd-empty-title">{{ __('downloads.no_client_builds_uploaded_yet') }}</p>
                                 <p class="rd-empty-text">
-                                    Build an installer with <strong>Build Installers</strong>, then upload it here.
-                                    CortenDesk reads the platform off the filename and shows the matching icon on the
-                                    sign-in page.
+                                    {{ __('downloads.build_installer_with') }} <strong>{{ __('common.build_installers') }}</strong>{{ __('downloads.then_upload_it_here_cortendesk') }}
                                 </p>
-                                <button type="button" class="btn btn-sm btn-outline-light" wire:click="create" @disabled(! $canManage)>Upload Build</button>
+                                <button type="button" class="btn btn-sm btn-outline-light" wire:click="create" @disabled(! $canManage)>{{ __('downloads.upload_build') }}</button>
                             </div>
                         </td>
                     </tr>
@@ -106,32 +104,32 @@
                             <span class="rd-mini-sub">{{ $download->original_name }}</span>
                         </div>
                         @if ($download->is_published)
-                            <span class="badge bg-success-subtle text-success">Published</span>
+                            <span class="badge bg-success-subtle text-success">{{ __('downloads.published') }}</span>
                         @else
-                            <span class="badge bg-secondary-subtle text-secondary">Hidden</span>
+                            <span class="badge bg-secondary-subtle text-secondary">{{ __('downloads.hidden') }}</span>
                         @endif
                     </div>
                     <div class="rd-mini-foot">
                         <span class="rd-mini-sub">
                             {{ $download->humanSize() }}@if ($download->version) · {{ $download->version }}@endif ·
-                            {{ $download->download_count }} downloads
+                            {{ __('downloads.count_downloads', ['count' => $download->download_count]) }}
                         </span>
                         <div class="rd-mini-acts">
-                            <a href="javascript:void(0);" class="rd-iconbtn" title="{{ $download->is_published ? 'Hide' : 'Publish' }}"
+                            <a href="javascript:void(0);" class="rd-iconbtn" title="{{ $download->is_published ? __('downloads.hide') : __('downloads.publish') }}"
                                wire:click="togglePublished({{ $download->id }})"><i class="{{ $download->is_published ? 'ri-eye-off-line' : 'ri-eye-line' }}"></i></a>
-                            <a href="javascript:void(0);" class="rd-iconbtn" title="Edit"
+                            <a href="javascript:void(0);" class="rd-iconbtn" title="{{ __('common.edit') }}"
                                wire:click="edit({{ $download->id }})"><i class="ri-pencil-line"></i></a>
-                            <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="Delete"
+                            <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="{{ __('common.delete') }}"
                                wire:click="deleteDownload({{ $download->id }})"
-                               wire:confirm="Delete this build? The uploaded file is removed too and any link to it stops working."><i class="ri-delete-bin-line"></i></a>
+                               wire:confirm="{{ __('downloads.delete_this_build_uploaded_file') }}"><i class="ri-delete-bin-line"></i></a>
                         </div>
                     </div>
                 </div>
             @empty
                 <div class="rd-empty">
                     <div class="rd-empty-icon"><i class="ri-download-cloud-line"></i></div>
-                    <p class="rd-empty-title">No client builds uploaded yet.</p>
-                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="create" @disabled(! $canManage)>Upload Build</button>
+                    <p class="rd-empty-title">{{ __('downloads.no_client_builds_uploaded_yet') }}</p>
+                    <button type="button" class="btn btn-sm btn-outline-light" wire:click="create" @disabled(! $canManage)>{{ __('downloads.upload_build') }}</button>
                 </div>
             @endforelse
         </div>
@@ -141,7 +139,7 @@
     @if ($downloads->where('is_published', true)->isNotEmpty())
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Sign-in page preview</h5>
+                <h5 class="card-title mb-0">{{ __('downloads.sign_in_page_preview') }}</h5>
             </div>
             <div class="card-body">
                 <x-client-download-links :downloads="$downloads->where('is_published', true)->values()" compact />
@@ -156,44 +154,42 @@
                 <div class="modal-content">
                     <form wire:submit="save">
                         <div class="modal-header">
-                            <h5 class="modal-title">{{ $editing ? 'Edit Build' : 'Upload Build' }}</h5>
-                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="Close"></button>
+                            <h5 class="modal-title">{{ $editing ? __('downloads.edit_build') : __('downloads.upload_build') }}</h5>
+                            <button type="button" class="btn-close" wire:click="closeModal" aria-label="{{ __('common.close') }}"></button>
                         </div>
                         <div class="modal-body">
 
                             <div class="mb-3">
                                 <label class="form-label" for="cd-file">
-                                    Installer {!! $editing ? '' : '<span class="text-danger">*</span>' !!}
+                                    {{ __('downloads.installer') }} {!! $editing ? '' : '<span class="text-danger">*</span>' !!}
                                 </label>
                                 <input type="file" id="cd-file" class="form-control @error('file') is-invalid @enderror"
                                        wire:model="file">
                                 @error('file') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 <div class="form-text">
-                                    {{ $editing ? 'Pick a file only to replace the one already stored. ' : '' }}
-                                    Up to {{ round($maxKb / 1024) }} MB. The platform below is filled in from the
-                                    filename — change it if the guess is wrong.
+                                    {{ $editing ? __('downloads.pick_file_only_to_replace') : '' }}
+                                    {{ __('downloads.up_to_mb_mb_platform', ['mb' => round($maxKb / 1024)]) }}
                                 </div>
-                                <div wire:loading wire:target="file" class="form-text">Uploading…</div>
+                                <div wire:loading wire:target="file" class="form-text">{{ __('common.uploading') }}</div>
                                 {{-- Livewire validates the temporary upload at its own endpoint,
                                      before the component sees it. A rejection there (or a 413 from
                                      nginx) never re-renders anything, so without this the operator
                                      picks a too-large file and watches nothing happen. --}}
                                 <div class="invalid-feedback d-block" style="display: none;" data-cd-upload-error>
-                                    That file was rejected before it finished uploading — almost always
-                                    because it is bigger than the {{ round($maxKb / 1024) }} MB limit.
+                                    {{ __('downloads.that_file_was_rejected_before', ['mb' => round($maxKb / 1024)]) }}
                                 </div>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" for="cd-label">Label <span class="text-danger">*</span></label>
+                                <label class="form-label" for="cd-label">{{ __('downloads.label') }} <span class="text-danger">*</span></label>
                                 <input type="text" id="cd-label" class="form-control @error('label') is-invalid @enderror"
-                                       wire:model="label" autocomplete="off" placeholder="e.g. Windows (64-bit)">
+                                       wire:model="label" autocomplete="off" placeholder="{{ __('downloads.e_g_windows_64_bit') }}">
                                 @error('label') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="row">
                                 <div class="col-sm-6 mb-3">
-                                    <label class="form-label" for="cd-platform">Platform icon</label>
+                                    <label class="form-label" for="cd-platform">{{ __('downloads.platform_icon') }}</label>
                                     <select id="cd-platform" class="form-select @error('platform') is-invalid @enderror"
                                             wire:model="platform">
                                         @foreach ($platformOptions as $value => $text)
@@ -203,17 +199,17 @@
                                     @error('platform') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <div class="col-sm-6 mb-3">
-                                    <label class="form-label" for="cd-version">Version</label>
+                                    <label class="form-label" for="cd-version">{{ __('common.version') }}</label>
                                     <input type="text" id="cd-version" class="form-control @error('version') is-invalid @enderror"
-                                           wire:model="version" placeholder="e.g. 1.4.0">
+                                           wire:model="version" placeholder="{{ __('downloads.e_g_1_4_0') }}">
                                     @error('version') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" for="cd-notes">Note</label>
+                                <label class="form-label" for="cd-notes">{{ __('common.note') }}</label>
                                 <textarea id="cd-notes" rows="2" class="form-control @error('notes') is-invalid @enderror"
-                                          wire:model="notes" placeholder="Shown under the label in the console only."></textarea>
+                                          wire:model="notes" placeholder="{{ __('downloads.shown_under_label_in_console') }}"></textarea>
                                 @error('notes') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
@@ -221,20 +217,18 @@
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" role="switch" id="cd-published"
                                            wire:model="isPublished">
-                                    <label class="form-check-label" for="cd-published">Published</label>
+                                    <label class="form-check-label" for="cd-published">{{ __('downloads.published') }}</label>
                                 </div>
                                 <div class="form-text">
-                                    Published builds are downloadable by <strong>anyone</strong> with the link — that is
-                                    what makes them useful on a machine with no console account. Leave this off to stage
-                                    a build first.
+                                    {{ __('downloads.published_builds_are_downloadable_by') }} <strong>{{ __('downloads.anyone') }}</strong> {{ __('downloads.with_link_that_is_what') }}
                                 </div>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-light" wire:click="closeModal">Cancel</button>
+                            <button type="button" class="btn btn-light" wire:click="closeModal">{{ __('common.cancel') }}</button>
                             <button type="submit" class="btn btn-primary" wire:target="file" wire:loading.attr="disabled">
-                                <span wire:loading.remove wire:target="save">{{ $editing ? 'Save Changes' : 'Upload' }}</span>
-                                <span wire:loading wire:target="save">Saving…</span>
+                                <span wire:loading.remove wire:target="save">{{ $editing ? __('account.save_changes') : __('downloads.upload') }}</span>
+                                <span wire:loading wire:target="save">{{ __('common.saving') }}</span>
                             </button>
                         </div>
                     </form>

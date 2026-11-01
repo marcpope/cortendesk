@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Configura un client per questa console',
+    '2_confirm_first_heartbeat' => '2. Conferma il primo heartbeat',
+    '3_recommended_security' => '3. Sicurezza consigliata',
+    'administrator_2fa' => '2FA per amministratori',
+    'and_enter_your_id_server' => 'e inserisci ID server, server relay, chiave e server API.',
+    'complete_server_settings' => 'Completa prima le impostazioni Server',
+    'copy_them_from_client_setup' => 'Copiali da Configurazione client',
+    'device_approval' => 'Approvazione dispositivi',
+    'device_has_checked_in' => 'Un dispositivo si è collegato.',
+    'do_this_later' => 'Fallo più tardi',
+    'finish_setup' => 'Completa configurazione',
+    'first' => '.',
+    'first_run_setup' => 'Configurazione iniziale',
+    'hold_new_devices_for_review' => 'Trattieni i nuovi dispositivi per una verifica prima che compaiano nel parco dispositivi.',
+    'in_rustdesk_open' => 'In RustDesk apri',
+    'one_or_more_of_those' => 'Uno o più di questi valori non sono ancora impostati.',
+    'protect_console_access_with_authenticato' => 'Proteggi l\'accesso alla console con un\'app di autenticazione e codici di recupero.',
+    'review_security_settings' => 'Controlla le impostazioni di sicurezza',
+    'set_up_your_first_rustdesk' => 'Configura il tuo primo dispositivo RustDesk',
+    'two_steps_configure_client_then' => 'Due passaggi: configura un client, poi conferma che si colleghi.',
+    'waiting_for_device_to_check' => 'In attesa che un dispositivo si colleghi. Questa pagina controlla ogni 10 secondi.',
+];

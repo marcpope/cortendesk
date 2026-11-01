@@ -57,7 +57,7 @@ class ApiTokenManager extends Component
 
         // Reject an all-"none" token: it could do nothing.
         if (! collect($this->permissions)->contains(fn ($l) => $l !== 'none')) {
-            $this->addError('permissions', 'Grant at least one resource permission.');
+            $this->addError('permissions', __('messages.grant_one_permission'));
 
             return;
         }

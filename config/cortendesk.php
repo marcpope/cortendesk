@@ -22,6 +22,10 @@ return [
     */
     'id_server' => env('CORTENDESK_ID_SERVER', ''),
     'relay_server' => env('CORTENDESK_RELAY_SERVER', ''),
+    // hbbs and hbbr run in this container (the Docker image's default).
+    // Diagnostics then checks them over loopback: their public address often
+    // does not loop back from inside the container (#114).
+    'embedded_server' => filter_var(env('CORTENDESK_EMBEDDED_SERVER', false), FILTER_VALIDATE_BOOL),
     // Trimmed: id_ed25519.pub is written without a trailing newline, so a key
     // that arrives with surrounding whitespace picked it up in transit (an
     // editor, a copy-paste, a heredoc in a compose file). The comparison is

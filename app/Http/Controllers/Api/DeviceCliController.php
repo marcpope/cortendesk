@@ -149,7 +149,7 @@ class DeviceCliController extends Controller
         $device = Device::where('rustdesk_id', $id)->first();
         $isNew = $device === null;
         if ($isNew) {
-            $device = new Device(['rustdesk_id' => $id]);
+            $device = new Device(['rustdesk_id' => $id, 'can_initiate' => ! DeviceEnrollment::newDevicesIncomingOnly()]);
         }
         $device->uuid = $uuid;
 

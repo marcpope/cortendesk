@@ -45,8 +45,7 @@ class RequireMailHealthy
 
         return redirect()->route('settings', ['tab' => 'email'])->with(
             'mail_broken',
-            'This console cannot send email, so nobody else can sign in while '
-            .'verification is enabled. Fix the settings below and send a test message.',
+            __('messages.mail_broken'),
         );
     }
 

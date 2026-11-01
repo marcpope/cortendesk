@@ -32,6 +32,7 @@ import {
   parentRemote,
 } from '../core/file-transfer';
 import { escapeHtml, iconHtml } from './common';
+import { htl, tl, tn } from '../i18n';
 
 type PickerWindow = Window & {
   showDirectoryPicker?(opts?: { mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
@@ -176,9 +177,9 @@ export class FilePanel {
     this.render();
     this.ticker = setInterval(() => this.tickJobs(), 500);
     window.addEventListener('beforeunload', this.beforeUnload);
-    this.log('File transfer panel ready.');
+    this.log(tl('file_transfer_panel_ready'));
     if (!this.fsMode) {
-      this.log('This browser lacks the File System Access API — uploads use staged files, downloads go to the Downloads folder.');
+      this.log(tl('this_browser_lacks_file_system'));
     }
   }
 
@@ -217,7 +218,7 @@ export class FilePanel {
     if (this.worker && this.state !== 'error' && this.state !== 'closed') return;
     const config = this.opts.getConfig();
     if (!config) {
-      this.setStatus('error', 'Desktop session is not connected');
+      this.setStatus('error', tl('desktop_session_is_not_connected'));
       return;
     }
     this.peerLabel = config.peerId;
@@ -231,7 +232,7 @@ export class FilePanel {
     };
     this.post({ c: 'connectFile', config });
     this.state = 'connecting';
-    this.setStatus('busy', 'Opening file channel…');
+    this.setStatus('busy', tl('opening_file_channel'));
   }
 
   private teardown(): void {
@@ -273,11 +274,11 @@ export class FilePanel {
           ${pathBtns}
           <input id="rd-ft-${side}-path" class="rd-ft-path" type="text" spellcheck="false" autocomplete="off"
                  placeholder="${side === 'remote' ? 'Remote path' : ''}" ${side === 'local' ? 'readonly' : ''}>
-          <button type="button" class="rd-btn" id="rd-ft-${side}-refresh" title="Refresh">${iconHtml('refresh')}</button>
+          <button type="button" class="rd-btn" id="rd-ft-${side}-refresh" title="${htl('refresh')}">${iconHtml('refresh')}</button>
         </div>
         <div class="rd-ft-listwrap">
           <table class="rd-ft-table">
-            <thead><tr><th>Name</th><th class="rd-ft-col-size">Size</th><th class="rd-ft-col-mod">Modified</th></tr></thead>
+            <thead><tr><th>${htl('name')}</th><th class="rd-ft-col-size">${htl('size')}</th><th class="rd-ft-col-mod">${htl('modified')}</th></tr></thead>
             <tbody id="rd-ft-${side}-body"></tbody>
           </table>
           <div class="rd-ft-empty" id="rd-ft-${side}-empty" hidden></div>
@@ -293,48 +294,48 @@ export class FilePanel {
     panel.className = 'rd-ft-closed';
     panel.innerHTML = `
       <header class="rd-ft-head">
-        <span class="rd-ft-title">${iconHtml('folderTransfer')}<span>File Transfer</span></span>
+        <span class="rd-ft-title">${iconHtml('folderTransfer')}<span>${htl('file_transfer_2')}</span></span>
         <span class="rd-ft-status" id="rd-ft-status"></span>
         <span class="rd-ft-head-spacer"></span>
-        ${sBtn('rd-ft-hidden', iconHtml('eyeOff'), 'Show hidden files')}
-        ${sBtn('rd-ft-close', iconHtml('close'), 'Close file transfer')}
+        ${sBtn('rd-ft-hidden', iconHtml('eyeOff'), tl('show_hidden_files'))}
+        ${sBtn('rd-ft-close', iconHtml('close'), tl('close_file_transfer'))}
       </header>
       <div class="rd-ft-panes">
         ${pane(
           'local',
-          'This computer',
-          sBtn('rd-ft-local-send', iconHtml('fileUpload'), 'Send files… (pick files from anywhere)') +
+          tl('this_computer'),
+          sBtn('rd-ft-local-send', iconHtml('fileUpload'), tl('send_files_pick_files_from')) +
             (this.fsMode
-              ? sBtn('rd-ft-local-open', iconHtml('folderOpen'), 'Open a local folder')
-              : sBtn('rd-ft-local-add', iconHtml('folderOpen'), 'Add files to stage')),
-          sBtn('rd-ft-local-up', iconHtml('arrowUp'), 'Up one level'),
+              ? sBtn('rd-ft-local-open', iconHtml('folderOpen'), tl('open_local_folder'))
+              : sBtn('rd-ft-local-add', iconHtml('folderOpen'), tl('add_files_stage'))),
+          sBtn('rd-ft-local-up', iconHtml('arrowUp'), tl('up_one_level')),
         )}
         <div class="rd-ft-mid">
-          <button type="button" class="rd-ft-go" id="rd-ft-send" title="Send selected to the remote computer" disabled>
-            <span>Send</span>${iconHtml('sendRight')}
+          <button type="button" class="rd-ft-go" id="rd-ft-send" title="${htl('send_selected_remote_computer')}" disabled>
+            <span>${htl('send')}</span>${iconHtml('sendRight')}
           </button>
-          <button type="button" class="rd-ft-go rd-ft-go-recv" id="rd-ft-recv" title="Receive selected from the remote computer" disabled>
-            ${iconHtml('sendLeft')}<span>Receive</span>
+          <button type="button" class="rd-ft-go rd-ft-go-recv" id="rd-ft-recv" title="${htl('receive_selected_from_remote_computer')}" disabled>
+            ${iconHtml('sendLeft')}<span>${htl('receive')}</span>
           </button>
         </div>
         ${pane(
           'remote',
-          'Remote computer',
+          tl('remote_computer'),
           [
-            sBtn('rd-ft-remote-new', iconHtml('newFolder'), 'New folder'),
-            sBtn('rd-ft-remote-rename', iconHtml('rename'), 'Rename selected'),
-            sBtn('rd-ft-remote-del', iconHtml('trash'), 'Delete selected'),
+            sBtn('rd-ft-remote-new', iconHtml('newFolder'), tl('new_folder')),
+            sBtn('rd-ft-remote-rename', iconHtml('rename'), tl('rename_selected')),
+            sBtn('rd-ft-remote-del', iconHtml('trash'), tl('delete_selected')),
           ].join(''),
-          sBtn('rd-ft-remote-up', iconHtml('arrowUp'), 'Up one level') +
-            sBtn('rd-ft-remote-home', iconHtml('home'), 'Home directory'),
+          sBtn('rd-ft-remote-up', iconHtml('arrowUp'), tl('up_one_level')) +
+            sBtn('rd-ft-remote-home', iconHtml('home'), tl('home_directory')),
         )}
       </div>
       <div class="rd-ft-bottom">
         <div class="rd-ft-tabs">
-          <button type="button" class="rd-ft-tab rd-active" id="rd-ft-tab-jobs">Transfers</button>
-          <button type="button" class="rd-ft-tab" id="rd-ft-tab-log">Event log</button>
+          <button type="button" class="rd-ft-tab rd-active" id="rd-ft-tab-jobs">${htl('transfers')}</button>
+          <button type="button" class="rd-ft-tab" id="rd-ft-tab-log">${htl('event_log')}</button>
         </div>
-        <div class="rd-ft-jobs" id="rd-ft-jobs"><div class="rd-ft-none">No transfers yet.</div></div>
+        <div class="rd-ft-jobs" id="rd-ft-jobs"><div class="rd-ft-none">${htl('no_transfers_yet')}</div></div>
         <div class="rd-ft-log" id="rd-ft-log" hidden></div>
       </div>
       <div id="rd-ft-dialog" hidden></div>`;
@@ -364,13 +365,13 @@ export class FilePanel {
       dialog: q(m, '#rd-ft-dialog'),
     };
 
-    this.el.localSub.textContent = this.fsMode ? 'browser · no folder opened' : 'browser · staged files';
+    this.el.localSub.textContent = this.fsMode ? tl('browser_no_folder_opened') : tl('browser_staged_files');
 
     q<HTMLButtonElement>(m, '#rd-ft-close').addEventListener('click', () => this.close());
     this.el.btnHidden.addEventListener('click', () => {
       this.showHidden = !this.showHidden;
       this.el.btnHidden.innerHTML = iconHtml(this.showHidden ? 'eye' : 'eyeOff');
-      this.el.btnHidden.title = this.showHidden ? 'Hide hidden files' : 'Show hidden files';
+      this.el.btnHidden.title = this.showHidden ? tl('hide_hidden_files') : tl('show_hidden_files');
       this.readRemote(this.remotePathValue);
       void this.refreshLocal();
     });
@@ -441,7 +442,7 @@ export class FilePanel {
     s.innerHTML =
       (kind === 'busy' ? '<span class="rd-spinner" aria-hidden="true"></span>' : '') +
       `<span>${escapeHtml(text)}</span>` +
-      (kind === 'error' ? '<button type="button" class="rd-ft-retry" id="rd-ft-retry">Retry</button>' : '');
+      (kind === 'error' ? '<button type="button" class="rd-ft-retry" id="rd-ft-retry">' + htl('retry') + '</button>' : '');
     s.querySelector('#rd-ft-retry')?.addEventListener('click', () => this.connectIfNeeded());
   }
 
@@ -497,24 +498,24 @@ export class FilePanel {
         switch (ev.state) {
           case 'streaming':
             this.setStatus('ok', `Connected · ${this.peerLabel}`);
-            this.log(`File channel to ${this.peerLabel} established.`);
+            this.log(tl('file_channel_established', { peer: this.peerLabel }));
             if (!this.remotePathValue) this.readRemote('');
             break;
           case 'error':
             this.teardown();
-            this.setStatus('error', ev.detail || 'Connection failed');
-            this.log(`File channel error: ${ev.detail || 'unknown'}`);
+            this.setStatus('error', ev.detail || tl('connection_failed'));
+            this.log(tl('file_channel_error', { detail: ev.detail || tl('unknown_error') }));
             break;
           case 'closed':
             this.teardown();
-            this.setStatus('error', 'File channel closed');
-            this.log('File channel closed.');
+            this.setStatus('error', tl('file_channel_closed'));
+            this.log(tl('file_channel_closed_2'));
             break;
           case 'needAccept':
-            this.setStatus('busy', 'Waiting for the remote user to accept…');
+            this.setStatus('busy', tl('waiting_for_remote_user_accept_3'));
             break;
           default:
-            this.setStatus('busy', 'Opening file channel…');
+            this.setStatus('busy', tl('opening_file_channel'));
         }
         this.updateButtons();
         this.renderRemote();
@@ -527,8 +528,8 @@ export class FilePanel {
         // surface it honestly if the peer rejects the file channel.
         this.teardown();
         this.state = 'error';
-        this.setStatus('error', ev.message || 'File channel login failed');
-        this.log(`File channel login failed: ${ev.message}`);
+        this.setStatus('error', ev.message || tl('file_channel_login_failed_2'));
+        this.log(tl('file_channel_login_failed', { message: ev.message }));
         this.updateButtons();
         break;
       case 'msgbox': {
@@ -626,9 +627,9 @@ export class FilePanel {
     });
     this.el.remoteBody.innerHTML = rows.join('');
     this.el.remoteEmpty.hidden = this.remoteEntries.length > 0;
-    this.el.remoteEmpty.textContent = this.state === 'streaming' ? 'Empty folder' : 'Not connected';
+    this.el.remoteEmpty.textContent = this.state === 'streaming' ? tl('empty_folder') : tl('not_connected');
     const selSize = [...this.remoteSel].reduce((s, i) => s + (this.remoteEntries[i]?.size ?? 0), 0);
-    this.el.remoteFoot.textContent = `${this.remoteSel.size} of ${this.remoteEntries.length} selected` +
+    this.el.remoteFoot.textContent = tl('n_of_m_selected', { n: this.remoteSel.size, m: this.remoteEntries.length }) +
       (selSize > 0 ? ` · ${formatBytes(selSize)}` : '');
   }
 
@@ -642,9 +643,9 @@ export class FilePanel {
 
   private newRemoteFolder(): void {
     if (this.state !== 'streaming') return;
-    this.promptDialog('New folder', 'Folder name', '', (name) => {
+    this.promptDialog(tl('new_folder'), tl('folder_name'), '', (name) => {
       if (!name) return;
-      const id = this.op(`Create folder "${name}"`, true);
+      const id = this.op(tl('create_folder', { name }), true);
       this.post({ c: 'ftCreateDir', id, path: joinRemote(this.remotePathValue, name, this.sep) });
     });
   }
@@ -653,9 +654,9 @@ export class FilePanel {
     const idx = [...this.remoteSel][0];
     const entry = idx !== undefined ? this.remoteEntries[idx] : undefined;
     if (!entry || this.state !== 'streaming') return;
-    this.promptDialog(`Rename "${entry.name}"`, 'New name', entry.name, (name) => {
+    this.promptDialog(tl('rename_title', { name: entry.name }), tl('new_name'), entry.name, (name) => {
       if (!name || name === entry.name) return;
-      const id = this.op(`Rename "${entry.name}" to "${name}"`, true);
+      const id = this.op(tl('rename_op', { old: entry.name, name }), true);
       this.post({ c: 'ftRename', id, path: joinRemote(this.remotePathValue, entry.name, this.sep), newName: name });
     });
   }
@@ -663,11 +664,11 @@ export class FilePanel {
   private deleteRemote(): void {
     const entries = [...this.remoteSel].map((i) => this.remoteEntries[i]).filter((e): e is FtEntry => !!e);
     if (!entries.length || this.state !== 'streaming') return;
-    const what = entries.length === 1 ? `"${entries[0]!.name}"` : `${entries.length} items`;
-    this.confirmDialog(`Delete ${what} from the remote computer? This cannot be undone.`, () => {
+    const what = entries.length === 1 ? `"${entries[0]!.name}"` : tn('n_items', entries.length);
+    this.confirmDialog(tl('delete_remote_confirm', { what }), () => {
       for (const e of entries) {
         const path = joinRemote(this.remotePathValue, e.name, this.sep);
-        const id = this.op(`Delete "${e.name}"`, true);
+        const id = this.op(tl('delete_op', { name: e.name }), true);
         if (isDirKind(e.kind)) this.post({ c: 'ftRemoveDir', id, path });
         else this.post({ c: 'ftRemoveFile', id, path, fileNum: 0 });
       }
@@ -762,7 +763,7 @@ export class FilePanel {
         }),
       );
     } catch (e) {
-      this.opts.toast(`Could not read folder: ${(e as Error).message}`);
+      this.opts.toast(tl('folder_read_failed', { message: (e as Error).message }));
     }
     if (gen !== this.localListGen) return; // superseded by a newer navigation
     const cmp = (a: LocalEntry, b: LocalEntry): number =>
@@ -791,7 +792,7 @@ export class FilePanel {
   // straight to the current remote folder.
   private pickAndSendFiles(): void {
     if (this.state !== 'streaming') {
-      this.opts.toast('Not connected');
+      this.opts.toast(tl('not_connected'));
       return;
     }
     const input = document.createElement('input');
@@ -833,7 +834,7 @@ export class FilePanel {
     this.el.localBody.innerHTML = rows.join('');
     this.updateLocalEmpty();
     const selSize = [...this.localSel].reduce((s, i) => s + (this.localEntries[i]?.size ?? 0), 0);
-    this.el.localFoot.textContent = `${this.localSel.size} of ${this.localEntries.length} selected` +
+    this.el.localFoot.textContent = tl('n_of_m_selected', { n: this.localSel.size, m: this.localEntries.length }) +
       (selSize > 0 ? ` · ${formatBytes(selSize)}` : '');
   }
 
@@ -846,15 +847,15 @@ export class FilePanel {
     empty.hidden = false;
     if (this.fsMode) {
       empty.innerHTML = this.rootHandle
-        ? 'Empty folder'
-        : `<div class="rd-ft-cta">${iconHtml('folderOpen')}<p>Open a local folder to browse it here — or use
-           <b>Send files…</b> above, or drag files onto the remote pane, to send from anywhere.</p>
-           <button type="button" class="rd-ft-cta-btn" id="rd-ft-cta-open">Open folder…</button></div>`;
+        ? htl('empty_folder')
+        : `<div class="rd-ft-cta">${iconHtml('folderOpen')}<p>${htl('open_local_folder_or_use')}
+           <b>${htl('send_files')}</b> ${htl('above_or_drag_files_onto')}</p>
+           <button type="button" class="rd-ft-cta-btn" id="rd-ft-cta-open">${htl('open_folder')}</button></div>`;
       empty.querySelector('#rd-ft-cta-open')?.addEventListener('click', () => void this.openLocalFolder());
     } else {
-      empty.innerHTML = `<div class="rd-ft-cta">${iconHtml('folderOpen')}<p>Drop files here or add them to stage for sending.<br>
-        Received files are saved to your Downloads folder.</p>
-        <button type="button" class="rd-ft-cta-btn" id="rd-ft-cta-add">Add files…</button></div>`;
+      empty.innerHTML = `<div class="rd-ft-cta">${iconHtml('folderOpen')}<p>${htl('drop_files_here_or_add')}<br>
+        ${htl('received_files_saved_to_downloads')}</p>
+        <button type="button" class="rd-ft-cta-btn" id="rd-ft-cta-add">${htl('add_files')}</button></div>`;
       empty.querySelector('#rd-ft-cta-add')?.addEventListener('click', () => this.pickStagedFiles());
     }
   }
@@ -871,10 +872,10 @@ export class FilePanel {
     let destDir = this.fsMode ? this.localCwd() ?? null : null;
     if (destDir && !(await this.ensureWritable(destDir))) {
       destDir = null;
-      this.log('Chrome refused write access to this folder — received files will be saved to your Downloads folder instead.');
-      this.opts.toast('Saving to your Downloads folder (folder is read-only)');
+      this.log(tl('chrome_refused_write_access_this'));
+      this.opts.toast(tl('saving_your_downloads_folder_folder'));
     } else if (this.fsMode && !destDir) {
-      this.log('No local folder open — received files will be saved to your Downloads folder.');
+      this.log(tl('no_local_folder_open_received'));
     }
     for (const entry of entries) {
       const id = this.nextId++;
@@ -907,7 +908,7 @@ export class FilePanel {
       });
       this.log(`Receiving "${entry.name}"…`);
       if (!destDir && entry.size > MEM_DOWNLOAD_WARN) {
-        this.log(`Warning: "${entry.name}" is ${formatBytes(entry.size)} and will be buffered in memory before saving.`);
+        this.log(tl('buffered_warning', { name: entry.name, size: formatBytes(entry.size) }));
       }
     }
     this.renderJobs();
@@ -942,7 +943,7 @@ export class FilePanel {
       return;
     }
     this.post({ c: 'ftConfirm', id: job.id, fileNum: ev.fileNum, skip: decision === 'skip', offsetBlk: 0 });
-    if (decision === 'skip') this.log(`Skipped "${rel}" (already exists).`);
+    if (decision === 'skip') this.log(tl('skipped_exists', { name: rel }));
     this.renderJobs();
   }
 
@@ -986,7 +987,7 @@ export class FilePanel {
         job.status = 'error';
         job.error = `write failed: ${(e as Error).message}`;
         this.post({ c: 'ftCancel', id: job.id });
-        this.log(`Receive failed for "${job.label}": ${job.error}`);
+        this.log(tl('receive_failed', { label: job.label, error: job.error }));
         this.renderJobs();
       }
     });
@@ -1036,7 +1037,7 @@ export class FilePanel {
     const opInfo = this.ops.get(id);
     if (opInfo) {
       this.ops.delete(id);
-      this.log(`${opInfo.desc} — done.`);
+      this.log(tl('op_done', { desc: opInfo.desc }));
       if (opInfo.refresh) this.readRemote(this.remotePathValue);
       return;
     }
@@ -1050,7 +1051,7 @@ export class FilePanel {
           job.status = 'done';
           job.doneBytes = Math.max(job.doneBytes, job.totalSize);
           this.log(`Received "${job.label}" (${formatBytes(job.doneBytes)}).`);
-          this.opts.toast(`Received ${job.label}`);
+          this.opts.toast(tl('received_label', { label: job.label }));
           if (this.fsMode) void this.refreshLocal();
         }
         this.renderJobs();
@@ -1061,7 +1062,7 @@ export class FilePanel {
       if (job.status === 'running' || job.status === 'starting') {
         job.status = 'done';
         this.log(`Sent "${job.label}" (${formatBytes(job.doneBytes)}).`);
-        this.opts.toast(`Sent ${job.label}`);
+        this.opts.toast(tl('sent_label', { label: job.label }));
         this.readRemote(this.remotePathValue);
       }
       this.renderJobs();
@@ -1073,8 +1074,8 @@ export class FilePanel {
     const opInfo = this.ops.get(id);
     if (opInfo) {
       this.ops.delete(id);
-      this.log(`${opInfo.desc} — failed: ${error}`);
-      this.opts.toast(`${opInfo.desc} failed: ${error}`);
+      this.log(tl('op_failed_dash', { desc: opInfo.desc, error }));
+      this.opts.toast(tl('op_failed', { desc: opInfo.desc, error }));
       if (opInfo.refresh) this.readRemote(this.remotePathValue);
       return;
     }
@@ -1121,7 +1122,7 @@ export class FilePanel {
         try {
           out.push({ rel: `${prefix}/${handle.name}`, file: await (handle as FileSystemFileHandle).getFile() });
         } catch {
-          this.log(`Skipping unreadable file "${prefix}/${handle.name}".`);
+          this.log(tl('skipping_unreadable', { name: `${prefix}/${handle.name}` }));
         }
       }
     }
@@ -1131,7 +1132,7 @@ export class FilePanel {
     if (this.state !== 'streaming' || !files.length) return;
     const id = this.nextId++;
     const totalSize = files.reduce((s, f) => s + f.file.size, 0);
-    const label = files.length === 1 ? files[0]!.rel : `${files.length} files`;
+    const label = files.length === 1 ? files[0]!.rel : tn('n_files', files.length);
     const job: Job = {
       id,
       kind: 'upload',
@@ -1150,7 +1151,7 @@ export class FilePanel {
     };
     this.jobs.unshift(job);
     this.renderJobs();
-    this.log(`Sending ${label} to ${this.remotePathValue || 'home'}…`);
+    this.log(tl('sending_to', { label, path: this.remotePathValue || tl('home') }));
 
     this.post({
       c: 'ftReceive',
@@ -1188,7 +1189,7 @@ export class FilePanel {
         if (confirm === 'cancelled' || this.jobStopped(job)) return;
         if (confirm.skip) {
           job.doneBytes += file.size;
-          this.log(`Skipped "${rel}" (already exists on remote).`);
+          this.log(tl('skipped_exists_remote', { name: rel }));
           continue;
         }
         let offset = confirm.offsetBytes;
@@ -1220,7 +1221,7 @@ export class FilePanel {
         job.status = 'error';
         job.error = (e as Error).message;
         this.post({ c: 'ftError', id, fileNum: -1, error: job.error ?? 'read failed' });
-        this.log(`Send failed for "${job.label}": ${job.error}`);
+        this.log(tl('send_failed', { label: job.label, error: job.error }));
         this.renderJobs();
       }
     }
@@ -1244,9 +1245,9 @@ export class FilePanel {
     if (job.policy === 'overwrite') return 'overwrite';
     if (job.policy === 'skip') return 'skip';
     const detail =
-      `${ev.fileSize ? formatBytes(ev.fileSize) : '—'} · modified ` +
+      `${ev.fileSize ? formatBytes(ev.fileSize) : '—'} · ${tl('modified_lower')} ` +
       (ev.lastModifiedSec ? new Date(ev.lastModifiedSec * 1000).toLocaleString() : '—') +
-      (job.kind === 'upload' ? ' (on remote)' : ' (incoming)');
+      ' ' + (job.kind === 'upload' ? tl('on_remote') : tl('incoming'));
     const decision = await new Promise<ConflictDecision>((resolve) => {
       this.conflicts.push({ jobId: job.id, name, detail, resolve });
       this.pumpConflicts();
@@ -1264,14 +1265,14 @@ export class FilePanel {
     d.hidden = false;
     d.innerHTML = `
       <div class="rd-ft-dlg">
-        <h3>File already exists</h3>
+        <h3>${htl('file_already_exists')}</h3>
         <p class="rd-ft-dlg-file">${iconHtml('file')}<span>${escapeHtml(next.name)}</span></p>
         <p class="rd-ft-dlg-detail">${escapeHtml(next.detail)}</p>
-        <label class="rd-save rd-ft-dlg-all"><input type="checkbox" id="rd-ft-dlg-applyall"><span>Apply to all files in this transfer</span></label>
+        <label class="rd-save rd-ft-dlg-all"><input type="checkbox" id="rd-ft-dlg-applyall"><span>${htl('apply_all_files_in_this')}</span></label>
         <div class="rd-ft-dlg-btns">
-          <button type="button" class="rd-ft-dlg-btn rd-ft-dlg-primary" data-act="overwrite">Overwrite</button>
-          <button type="button" class="rd-ft-dlg-btn" data-act="skip">Skip</button>
-          <button type="button" class="rd-ft-dlg-btn rd-ft-dlg-danger" data-act="cancel">Cancel transfer</button>
+          <button type="button" class="rd-ft-dlg-btn rd-ft-dlg-primary" data-act="overwrite">${htl('overwrite')}</button>
+          <button type="button" class="rd-ft-dlg-btn" data-act="skip">${htl('skip')}</button>
+          <button type="button" class="rd-ft-dlg-btn rd-ft-dlg-danger" data-act="cancel">${htl('cancel_transfer')}</button>
         </div>
       </div>`;
     const finish = (action: ConflictDecision['action']): void => {
@@ -1298,8 +1299,8 @@ export class FilePanel {
         <input type="text" class="rd-ft-dlg-input" id="rd-ft-dlg-input" placeholder="${escapeHtml(placeholder)}"
                value="${escapeHtml(initial)}" spellcheck="false" autocomplete="off">
         <div class="rd-ft-dlg-btns">
-          <button type="button" class="rd-ft-dlg-btn rd-ft-dlg-primary" data-act="ok">OK</button>
-          <button type="button" class="rd-ft-dlg-btn" data-act="no">Cancel</button>
+          <button type="button" class="rd-ft-dlg-btn rd-ft-dlg-primary" data-act="ok">${htl('ok')}</button>
+          <button type="button" class="rd-ft-dlg-btn" data-act="no">${htl('cancel')}</button>
         </div>
       </div>`;
     const input = q<HTMLInputElement>(d, '#rd-ft-dlg-input');
@@ -1324,11 +1325,11 @@ export class FilePanel {
     d.hidden = false;
     d.innerHTML = `
       <div class="rd-ft-dlg">
-        <h3>Are you sure?</h3>
+        <h3>${htl('are_you_sure')}</h3>
         <p class="rd-ft-dlg-detail">${escapeHtml(text)}</p>
         <div class="rd-ft-dlg-btns">
-          <button type="button" class="rd-ft-dlg-btn rd-ft-dlg-danger" data-act="ok">Delete</button>
-          <button type="button" class="rd-ft-dlg-btn" data-act="no">Cancel</button>
+          <button type="button" class="rd-ft-dlg-btn rd-ft-dlg-danger" data-act="ok">${htl('delete')}</button>
+          <button type="button" class="rd-ft-dlg-btn" data-act="no">${htl('cancel')}</button>
         </div>
       </div>`;
     const finish = (ok: boolean): void => {
@@ -1377,7 +1378,7 @@ export class FilePanel {
   private renderJobs(): void {
     const wrap = this.el.jobsWrap;
     if (!this.jobs.length) {
-      wrap.innerHTML = '<div class="rd-ft-none">No transfers yet.</div>';
+      wrap.innerHTML = '<div class="rd-ft-none">' + htl('no_transfers_yet') + '</div>';
       return;
     }
     wrap.innerHTML = this.jobs
@@ -1386,13 +1387,13 @@ export class FilePanel {
         const dirIcon = j.kind === 'download' ? iconHtml('sendLeft') : iconHtml('sendRight');
         const status =
           j.status === 'running' || j.status === 'starting'
-            ? `${formatBytes(j.doneBytes)} of ${j.totalSize ? formatBytes(j.totalSize) : '?'}` +
+            ? tl('bytes_of', { done: formatBytes(j.doneBytes), total: j.totalSize ? formatBytes(j.totalSize) : '?' }) +
               (j.speedBps > 0 ? ` · ${formatBytes(j.speedBps)}/s` : '')
             : j.status === 'done'
-              ? `Completed · ${formatBytes(Math.max(j.doneBytes, j.totalSize))}`
+              ? tl('completed_size', { size: formatBytes(Math.max(j.doneBytes, j.totalSize)) })
               : j.status === 'cancelled'
-                ? 'Cancelled'
-                : `Failed: ${j.error ?? 'unknown error'}`;
+                ? tl('cancelled')
+                : tl('failed_error', { error: j.error ?? tl('unknown_error') });
         const cancellable = j.status === 'running' || j.status === 'starting';
         return `<div class="rd-ft-job rd-ft-job-${j.status}">
           <span class="rd-ft-job-dir">${dirIcon}</span>
@@ -1401,7 +1402,7 @@ export class FilePanel {
               <span class="rd-ft-job-status">${escapeHtml(status)}</span></div>
             <div class="rd-ft-bar"><div class="rd-ft-bar-fill" style="width:${pct}%"></div></div>
           </div>
-          ${cancellable ? `<button type="button" class="rd-btn rd-ft-job-cancel" data-job="${j.id}" title="Cancel">${iconHtml('close')}</button>` : ''}
+          ${cancellable ? `<button type="button" class="rd-btn rd-ft-job-cancel" data-job="${j.id}" title="${htl('cancel')}">${iconHtml('close')}</button>` : ''}
         </div>`;
       })
       .join('');

@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\Label;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\ConsoleAudit;
 use App\Models\Device;
@@ -185,6 +186,12 @@ class StrategyList extends Component
             'label' => 'IP whitelist',
             'help' => 'Comma-separated IPs or CIDRs that may connect; empty means allow all. Entries that do not parse simply never match, so a typo here can lock everyone out of the device.',
         ],
+        // RustDesk 1.5.0+ (#107). Older clients ignore it. A refused ID shows
+        // up as an "ID whitelist block" alarm.
+        'id-whitelist' => [
+            'label' => 'ID whitelist',
+            'help' => 'Comma-separated RustDesk IDs that may connect; * matches any run of characters. Empty means allow all. Needs RustDesk 1.5.0 or later on the device; older clients ignore it. A typo here can lock everyone out of the device.',
+        ],
         'allow-only-conn-window-open' => ['label' => 'Only accept while the client window is open', 'help' => 'Desktop only.'],
         'enable-trusted-devices' => ['label' => 'Offer "trust this device" on 2FA'],
         // Client wording is "Enable remote configuration modification". Ours
@@ -305,7 +312,7 @@ class StrategyList extends Component
         $this->authorizeConsole('strategy', 'rw');
 
         if (! $this->previewing || $this->previewFingerprint === null || $this->previewTargetId === null) {
-            $this->addError('preview', 'Review the strategy impact before applying it.');
+            $this->addError('preview', __('messages.review_impact_first'));
 
             return;
         }
@@ -317,14 +324,14 @@ class StrategyList extends Component
         // block registrations and approvals behind an operator's confirmation.
         $currentImpact = StrategyImpact::preview($target, $snapshot);
         if (! hash_equals($this->previewFingerprint, $currentImpact['fingerprint'])) {
-            $this->addError('preview', 'The strategy or fleet changed after the preview. Review the impact again.');
+            $this->addError('preview', __('messages.strategy_changed'));
 
             return;
         }
 
         if ($this->pendingDeleteId !== null) {
             if ($target === null || $target->id !== $this->pendingDeleteId) {
-                $this->addError('preview', 'The deletion target changed after the preview. Review the impact again.');
+                $this->addError('preview', __('messages.deletion_target_changed'));
 
                 return;
             }
@@ -656,8 +663,7 @@ class StrategyList extends Component
             if ($spec['type'] === 'int' && ! (ctype_digit($value)
                 && (int) $value >= ($spec['min'] ?? 0)
                 && (int) $value <= ($spec['max'] ?? PHP_INT_MAX))) {
-                $this->addError('formOptions.'.$key, 'Enter a whole number between '
-                    .($spec['min'] ?? 0).' and '.($spec['max'] ?? PHP_INT_MAX).'.');
+                $this->addError('formOptions.'.$key, __('messages.whole_number_between', ['min' => $spec['min'] ?? 0, 'max' => $spec['max'] ?? PHP_INT_MAX]));
 
                 continue;
             }
@@ -684,25 +690,32 @@ class StrategyList extends Component
             foreach ($keys as $key => $spec) {
                 $meta = self::OPTION_META[$key] ?? [];
                 // `allow-*` keys read as a permission, the rest as a switch.
-                $on = str_starts_with($key, 'allow-') ? 'Allowed' : 'Enabled';
-                $off = str_starts_with($key, 'allow-') ? 'Not allowed' : 'Disabled';
+                $isAllow = str_starts_with($key, 'allow-');
+                $on = Label::get('strategy_state', $isAllow ? 'allowed' : 'enabled', $isAllow ? 'Allowed' : 'Enabled');
+                $off = Label::get('strategy_state', $isAllow ? 'not_allowed' : 'disabled', $isAllow ? 'Not allowed' : 'Disabled');
 
                 $choices = match ($spec['type']) {
                     'bool' => ['Y' => $on, 'N' => $off],
-                    'enum' => $meta['choices'] ?? [],
+                    'enum' => collect($meta['choices'] ?? [])
+                        ->map(fn ($text, $value) => Label::get('strategy_choice', $key.'_'.$value, $text))
+                        ->all(),
                     default => null,
                 };
 
                 $options[$key] = [
                     'key' => $key,
                     'type' => $spec['type'],
-                    'label' => $meta['label'] ?? $key,
-                    'help' => $meta['help'] ?? null,
+                    'label' => Label::get('strategy_opt', $key, $meta['label'] ?? $key),
+                    'help' => isset($meta['help']) ? Label::get('strategy_help', $key, $meta['help']) : null,
                     'choices' => $choices,
                 ];
             }
 
-            $catalog[$group] = self::GROUP_META[$group] + ['options' => $options];
+            $groupMeta = self::GROUP_META[$group];
+            $catalog[$group] = [
+                'title' => Label::get('strategy_group_title', $group, $groupMeta['title']),
+                'help' => Label::get('strategy_group_help', $group, $groupMeta['help']),
+            ] + $groupMeta + ['options' => $options];
         }
 
         return $catalog;

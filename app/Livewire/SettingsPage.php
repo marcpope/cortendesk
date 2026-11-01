@@ -56,6 +56,8 @@ class SettingsPage extends Component
     /** Approve a pending device when its client signs in with a user account (issue #95). */
     public bool $autoApproveSignedIn = false;
 
+    public bool $newDevicesIncomingOnly = false;
+
     /** Device group every first-seen device lands in; 0 = none (issue #97). */
     public int $defaultDeviceGroupId = 0;
 
@@ -214,6 +216,7 @@ class SettingsPage extends Component
         $this->logRetentionDays = (int) (Setting::get('log_retention_days', (string) config('cortendesk.log_retention_days')) ?: 0);
         $this->requireDeviceApproval = (bool) Setting::get('require_device_approval', '0');
         $this->autoApproveSignedIn = DeviceEnrollment::autoApproveSignedIn();
+        $this->newDevicesIncomingOnly = DeviceEnrollment::newDevicesIncomingOnly();
         $this->defaultDeviceGroupId = DeviceEnrollment::defaultGroup()?->id ?? 0;
         $this->serverAccessMode = ServerLink::mode();
         $this->serverIpMatch = ServerLink::ipMatch();
@@ -302,7 +305,7 @@ class SettingsPage extends Component
             str_starts_with($root, 'apprise') => 'notifications',
             $root === 'logRetentionDays' => 'maintenance',
             in_array($root, ['twoFactorRequired', 'twoFactorRequiredAdmins', 'emailLoginVerification', 'emailTrustedDeviceDays'], true) => 'security',
-            in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'clientUrlScheme', 'downloadsOnLogin', 'relayServers', 'requireDeviceApproval', 'autoApproveSignedIn', 'defaultDeviceGroupId', 'serverAccessMode', 'serverIpMatch'], true) => 'server',
+            in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'clientUrlScheme', 'downloadsOnLogin', 'relayServers', 'requireDeviceApproval', 'autoApproveSignedIn', 'newDevicesIncomingOnly', 'defaultDeviceGroupId', 'serverAccessMode', 'serverIpMatch'], true) => 'server',
             default => null,
         };
     }
@@ -357,14 +360,14 @@ class SettingsPage extends Component
 
         if (trim($this->clientUrlScheme) !== '' && ClientLink::normalize($this->clientUrlScheme) === '') {
             $this->tab = 'server';
-            $this->addError('clientUrlScheme', 'Letters, digits, "+", "-" and "." only, starting with a letter.');
+            $this->addError('clientUrlScheme', __('messages.url_scheme_rule'));
 
             return;
         }
 
         if ($this->defaultDeviceGroupId > 0 && ! DeviceGroup::query()->whereKey($this->defaultDeviceGroupId)->exists()) {
             $this->tab = 'server';
-            $this->addError('defaultDeviceGroupId', 'That device group no longer exists.');
+            $this->addError('defaultDeviceGroupId', __('messages.group_gone'));
 
             return;
         }
@@ -376,7 +379,7 @@ class SettingsPage extends Component
 
             if ($this->oidcDiscoveryUrl === '' || $this->oidcClientId === '' || $missingSecret) {
                 $this->tab = 'sso';
-                $this->addError('oidcDiscoveryUrl', 'Provider URL, client ID and client secret are all required to enable SSO.');
+                $this->addError('oidcDiscoveryUrl', __('messages.sso_fields_required'));
 
                 return;
             }
@@ -386,7 +389,7 @@ class SettingsPage extends Component
         // swallow every invitation and sign-in code.
         if ($this->smtpEnabled && (trim($this->smtpHost) === '' || trim($this->smtpFromAddress) === '')) {
             $this->tab = 'email';
-            $this->addError('smtpHost', 'Host and From address are both required to enable email.');
+            $this->addError('smtpHost', __('messages.smtp_fields_required'));
 
             return;
         }
@@ -415,6 +418,7 @@ class SettingsPage extends Component
         Setting::put('log_retention_days', (string) $this->logRetentionDays);
         Setting::put('require_device_approval', $this->requireDeviceApproval ? '1' : '0');
         Setting::put(DeviceEnrollment::SETTING_AUTO_APPROVE, $this->autoApproveSignedIn ? '1' : '0');
+        Setting::put(DeviceEnrollment::SETTING_NEW_INCOMING_ONLY, $this->newDevicesIncomingOnly ? '1' : '0');
         Setting::put(DeviceEnrollment::SETTING_DEFAULT_GROUP, (string) $this->defaultDeviceGroupId);
         if ($this->serverAccessMode !== ServerLink::mode()) {
             Setting::put('server_access_mode', $this->serverAccessMode);
@@ -533,7 +537,7 @@ class SettingsPage extends Component
 
         if (! $service->isConfigured()) {
             $this->oidcTestOk = false;
-            $this->oidcTestMessage = 'Save the provider URL, client ID and client secret first.';
+            $this->oidcTestMessage = __('messages.sso_save_first');
 
             return;
         }
@@ -556,7 +560,7 @@ class SettingsPage extends Component
 
         if (! $mail->isConfigured()) {
             $this->smtpTestOk = false;
-            $this->smtpTestMessage = 'Save the SMTP settings first.';
+            $this->smtpTestMessage = __('messages.smtp_save_first');
 
             return;
         }
@@ -565,7 +569,7 @@ class SettingsPage extends Component
 
         if ($to === '' || ! filter_var($to, FILTER_VALIDATE_EMAIL)) {
             $this->smtpTestOk = false;
-            $this->smtpTestMessage = 'Enter a valid address to send the test to.';
+            $this->smtpTestMessage = __('messages.test_address_invalid');
 
             return;
         }
@@ -612,8 +616,8 @@ class SettingsPage extends Component
         $delivery = app(AppriseNotifications::class)->test();
         $this->appriseTestOk = $delivery->status === NotificationDelivery::STATUS_SENT;
         $this->appriseTestMessage = $this->appriseTestOk
-            ? 'Test notification sent.'
-            : ($delivery->error ?: 'Notification delivery failed.');
+            ? __('messages.test_notification_sent')
+            : ($delivery->error ?: __('messages.notification_failed'));
         ConsoleAudit::record('settings.notification-test', 'Sent an Apprise test notification', 'settings', null);
     }
 
@@ -696,7 +700,7 @@ class SettingsPage extends Component
             'oidcCallbackUrl' => route('login.oidc.callback'),
             'mailEnabled' => app(MailSettings::class)->isEnabled(),
             'usersWithoutEmail' => LoginEmailVerification::usersWithoutEmail(),
-            'appriseEventLabels' => AppriseNotifications::EVENTS,
+            'appriseEventLabels' => collect(AppriseNotifications::EVENTS)->map(fn ($label, $event) => AppriseNotifications::eventLabel($event))->all(),
             'appriseDeviceGroups' => DeviceGroup::query()->orderBy('name')->get(['id', 'name']),
             'deviceGroups' => $this->selectableDefaultGroups(),
             'appriseDevices' => Device::query()->approved()->orderByRaw("COALESCE(NULLIF(alias, ''), NULLIF(hostname, ''), rustdesk_id)")->get(['id', 'rustdesk_id', 'alias', 'hostname']),

@@ -29,7 +29,7 @@ class OidcController extends Controller
     {
         if (! $this->oidc->isEnabled()) {
             return redirect()->route('login')
-                ->withErrors(['username' => 'Single sign-on is not enabled on this console.']);
+                ->withErrors(['username' => __('messages.sso_not_enabled')]);
         }
 
         try {
@@ -48,7 +48,7 @@ class OidcController extends Controller
     {
         if (! $this->oidc->isEnabled()) {
             return redirect()->route('login')
-                ->withErrors(['username' => 'Single sign-on is not enabled on this console.']);
+                ->withErrors(['username' => __('messages.sso_not_enabled')]);
         }
 
         try {

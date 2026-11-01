@@ -83,6 +83,8 @@ case "${CORTENDESK_EMBEDDED_SERVER:-true}" in
     0|false|FALSE|no|NO|off|OFF) EMBEDDED=0 ;;
     *)                           EMBEDDED=1 ;;
 esac
+# Normalised for the console's config, which reads it as a boolean.
+if [ "$EMBEDDED" = 1 ]; then export CORTENDESK_EMBEDDED_SERVER=true; else export CORTENDESK_EMBEDDED_SERVER=false; fi
 
 # The public address clients use to reach this host. Everything below is
 # derived from it, so a single APP_URL is enough for a working deployment.

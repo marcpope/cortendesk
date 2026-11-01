@@ -27,6 +27,8 @@ class DeviceEnrollment
 
     public const SETTING_AUTO_APPROVE = 'auto_approve_signed_in';
 
+    public const SETTING_NEW_INCOMING_ONLY = 'new_devices_incoming_only';
+
     /** The configured default group, or null when none is set or it no longer exists. */
     public static function defaultGroup(): ?DeviceGroup
     {
@@ -40,6 +42,12 @@ class DeviceEnrollment
         return Setting::get(self::SETTING_AUTO_APPROVE, '0') === '1';
     }
 
+    /** New devices start incoming only: they can be controlled but cannot start sessions (#107). */
+    public static function newDevicesIncomingOnly(): bool
+    {
+        return Setting::get(self::SETTING_NEW_INCOMING_ONLY, '0') === '1';
+    }
+
     /**
      * Fill in what a first-seen device gets by default. Call before the row
      * is saved; returns the attributes to merge.
@@ -51,6 +59,7 @@ class DeviceEnrollment
         if (empty($attributes['device_group_id']) && ($group = self::defaultGroup()) !== null) {
             $attributes['device_group_id'] = $group->id;
         }
+        $attributes['can_initiate'] ??= ! self::newDevicesIncomingOnly();
 
         return $attributes;
     }

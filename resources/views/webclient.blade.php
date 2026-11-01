@@ -4,7 +4,7 @@
 @endphp
 <!DOCTYPE html>
 @php($rdTheme = auth()->user()?->themePreference() ?? 'dark')
-<html lang="en" data-bs-theme="{{ $rdTheme === 'light' ? 'light' : 'dark' }}" data-rd-theme-pref="{{ $rdTheme }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="{{ $rdTheme === 'light' ? 'light' : 'dark' }}" data-rd-theme-pref="{{ $rdTheme }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -39,6 +39,7 @@
             myName: @json($myName),
             signalToken: @json($signalToken ?? ''),
             version: @json(config('cortendesk.api_version')),
+            messages: @json($messages),
             workerUrl: '/rdclient/session.worker.js?v={{ $rdVer }}'
         };
         // No ?id= given: app.js shows the connect overlay asking for peer id + password.

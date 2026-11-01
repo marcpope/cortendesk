@@ -9,6 +9,7 @@ use App\Http\Controllers\ClientDownloadController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiagnosticsController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OidcController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\WebClientPageController;
@@ -16,6 +17,10 @@ use Illuminate\Support\Facades\Route;
 
 // Web-client bootstrap script (loaded by the static V1 web client pre-login)
 Route::get('/webclient-config/index.js', [WebClientController::class, 'configJs']);
+
+// The language menu works signed out too (sign-in page) and signed in (top bar).
+Route::post('/locale', [LocaleController::class, 'update'])
+    ->middleware('throttle:30,1,locale')->name('locale');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');

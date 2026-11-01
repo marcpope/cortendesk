@@ -9,6 +9,7 @@ use App\Http\Middleware\RequireEmailAddress;
 use App\Http\Middleware\RequireMailHealthy;
 use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\SessionCookieFollowsScheme;
+use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\ThrottleHealthProbe;
 use App\Http\Middleware\TrustConfiguredProxies;
 use App\Models\TrustedDevice;
@@ -44,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'health-probe' => ThrottleHealthProbe::class,
         ]);
         $middleware->prependToGroup('web', SessionCookieFollowsScheme::class);
+        $middleware->appendToGroup('web', SetLocale::class);
         $middleware->appendToGroup('web', EnsureUserIsActive::class);
         // 2FA enrollment enforcement runs after the active-user check.
         $middleware->appendToGroup('web', RequireTwoFactor::class);

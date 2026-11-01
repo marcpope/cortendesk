@@ -1,5 +1,6 @@
 import { ControlKey } from '../gen/message';
 import type { UiCommand } from '../core/contracts';
+import { DOM_CODE_KEYCODES } from './keycodes';
 
 export const MouseType = { MOVE: 0, DOWN: 1, UP: 2, WHEEL: 3, TRACKPAD: 4, MOVE_RELATIVE: 5 } as const;
 export const MouseButton = { LEFT: 0x01, RIGHT: 0x02, MIDDLE: 0x04, BACK: 0x08, FORWARD: 0x10 } as const;
@@ -175,6 +176,178 @@ function modifierList(e: ModifierState): number[] {
   return m;
 }
 
+export type LegacyKeyMessage = {
+  down: boolean;
+  keyKind: 'chr' | 'control' | 'unicode';
+  value: number;
+  modifiers: number[];
+};
+
+const LOCATION_LEFT = 1; // KeyboardEvent.DOM_KEY_LOCATION_LEFT
+// Windows emits the synthetic Control and the AltGraph key-down for one
+// physical AltGr press back to back, with the same OS event time.
+const ALTGR_FAKE_CTRL_MS = 50;
+
+type KeyEventLike = ModifierState &
+  Pick<KeyboardEvent, 'key' | 'location' | 'repeat' | 'timeStamp'>;
+
+/**
+ * Turns browser key events into the legacy KeyEvents the host expects.
+ *
+ * The host types a `unicode` key on every event it receives, ignoring down/up
+ * (input_service.rs process_unicode), so æøå are sent on key-down only —
+ * otherwise each is typed again on release.
+ *
+ * AltGr: Windows browsers report it as a synthetic left Control followed by
+ * AltGraph, and keep ctrlKey/altKey set for every key pressed under it. The
+ * host then sees `|` as the hotkey Ctrl+Alt+| instead of text. Like the native
+ * client (keyboard.rs legacy_keyboard_mode), drop the fake Control and send
+ * characters typed under AltGr without Ctrl/Alt.
+ */
+export class LegacyKeyTranslator {
+  private altGrHeld = false;
+  private ctrlDownAt: number | null = null;
+
+  translate(e: KeyEventLike, down: boolean): LegacyKeyMessage[] {
+    const k = legacyKeyCommand(e as KeyboardEvent, down);
+    if (!k) return [];
+    const out: LegacyKeyMessage[] = [];
+    const isAltGraph = e.key === 'AltGraph';
+    const fakeCtrlAt = this.ctrlDownAt;
+    this.ctrlDownAt = down && !e.repeat && e.key === 'Control' && e.location === LOCATION_LEFT
+      ? e.timeStamp
+      : null;
+
+    if (isAltGraph) {
+      if (down && !e.repeat && fakeCtrlAt !== null && e.timeStamp - fakeCtrlAt < ALTGR_FAKE_CTRL_MS) {
+        out.push({ down: false, keyKind: 'control', value: ControlKey.Control, modifiers: [] });
+      }
+      this.altGrHeld = down;
+    }
+    if (k.keyKind === 'unicode' && !down) return out;
+
+    let modifiers = modifierList(e);
+    if (this.altGrHeld && (isAltGraph || k.keyKind !== 'control')) {
+      modifiers = modifiers.filter((m) => m !== ControlKey.Control && m !== ControlKey.Alt);
+    }
+    out.push({ down, keyKind: k.keyKind, value: k.value, modifiers });
+    return out;
+  }
+
+  /** Focus left the canvas: the matching key-ups will never arrive. */
+  reset(): void {
+    this.altGrHeld = false;
+    this.ctrlDownAt = null;
+  }
+}
+
+/** Host platforms that take Map-mode keycodes (DOM_CODE_KEYCODES columns). */
+export type KeyTarget = 'windows' | 'linux';
+
+/**
+ * Map mode needs a Windows or Linux host on RustDesk 1.2.0 or later; anything
+ * else (macOS, Android, unknown) stays on legacy character input.
+ */
+export function mapKeyboardTarget(platform: string, version: string): KeyTarget | null {
+  const target = platform === 'Windows' ? 'windows' : platform === 'Linux' ? 'linux' : null;
+  if (!target) return null;
+  const m = /^(\d+)\.(\d+)/.exec(version);
+  if (!m) return null;
+  const major = Number(m[1]);
+  return major > 1 || (major === 1 && Number(m[2]) >= 2) ? target : null;
+}
+
+export type MapKeyMessage = { down: boolean; keyCode: number; modifiers: number[] };
+
+type MapKeyEventLike = Pick<
+  KeyboardEvent,
+  'code' | 'key' | 'repeat' | 'isComposing' | 'getModifierState'
+>;
+
+// Lock keys are not pressed on the host: each key carries the browser's lock
+// state in `modifiers` and the host syncs to it (input_service.rs
+// LockModesHandler). Pressing the key as well would toggle it twice.
+const LOCK_CODES = new Set(['CapsLock', 'NumLock', 'ScrollLock']);
+
+/**
+ * Map keyboard mode: send the physical key (KeyboardEvent.code) as the host's
+ * own keycode, and let the host's layout produce the character. With the same
+ * layout on both sides every key works as it does locally — punctuation,
+ * AltGr, dead keys, shortcuts. Legacy mode can't do that on a Wayland host,
+ * which types ASCII through a built-in US key table (uinput.rs
+ * KEY_MAP_LAYOUT), so `|` on a Danish layout came out as `*`.
+ */
+export class MapKeyTranslator {
+  private held = new Map<string, number>(); // code -> keycode the host has down
+  private pendingCtrl: { timer: ReturnType<typeof setTimeout>; modifiers: number[] } | null = null;
+
+  constructor(
+    readonly target: KeyTarget,
+    private readonly emit: (m: MapKeyMessage) => void,
+  ) {}
+
+  /** False when the key has no keycode here; the caller sends it as legacy input. */
+  handle(e: MapKeyEventLike, down: boolean): boolean {
+    if (e.isComposing || e.key === 'Process') return false; // IME owns the key
+    const keyCode = DOM_CODE_KEYCODES[e.code]?.[this.target === 'windows' ? 0 : 1] ?? 0;
+    // Windows has no scancode for Pause; the native client sends it as a
+    // legacy control key too.
+    if (keyCode === 0 || (this.target === 'windows' && e.code === 'Pause')) {
+      this.flushCtrl();
+      return false;
+    }
+    if (LOCK_CODES.has(e.code)) return true;
+    const modifiers: number[] = [];
+    if (e.getModifierState('CapsLock')) modifiers.push(ControlKey.CapsLock);
+    if (e.getModifierState('NumLock')) modifiers.push(ControlKey.NumLock);
+
+    // Windows browsers precede AltGr with a synthetic left Control. Hold a
+    // left Control press back briefly and drop it if AltGr follows, as the
+    // native client does — otherwise a Linux host sees Ctrl+AltGr.
+    if (down && e.code === 'AltRight' && this.pendingCtrl) {
+      clearTimeout(this.pendingCtrl.timer);
+      this.pendingCtrl = null;
+    } else {
+      this.flushCtrl();
+    }
+    if (down && !e.repeat && e.code === 'ControlLeft') {
+      this.pendingCtrl = { timer: setTimeout(() => this.flushCtrl(), ALTGR_FAKE_CTRL_MS), modifiers };
+      return true;
+    }
+
+    if (down) {
+      // Pass the browser's repeats on: neither host auto-repeats our keys.
+      // Windows doesn't repeat injected keys, and a Linux host turns every
+      // non-modifier key-down into a click (connection.rs, rustdesk#6793).
+      this.send(e.code, keyCode, true, modifiers);
+    } else if (this.held.has(e.code)) {
+      this.send(e.code, keyCode, false, modifiers);
+    }
+    return true;
+  }
+
+  /** Focus left the canvas: release everything the host still holds. */
+  reset(): void {
+    if (this.pendingCtrl) clearTimeout(this.pendingCtrl.timer);
+    this.pendingCtrl = null;
+    for (const [code, keyCode] of [...this.held]) this.send(code, keyCode, false, []);
+  }
+
+  private flushCtrl(): void {
+    if (!this.pendingCtrl) return;
+    clearTimeout(this.pendingCtrl.timer);
+    const { modifiers } = this.pendingCtrl;
+    this.pendingCtrl = null;
+    this.send('ControlLeft', DOM_CODE_KEYCODES.ControlLeft[this.target === 'windows' ? 0 : 1], true, modifiers);
+  }
+
+  private send(code: string, keyCode: number, down: boolean, modifiers: number[]): void {
+    if (down) this.held.set(code, keyCode);
+    else this.held.delete(code);
+    this.emit({ down, keyCode, modifiers });
+  }
+}
+
 type KeyboardLock = { lock?: (keyCodes?: string[]) => Promise<void>; unlock?: () => void };
 
 export type InputOptions = {
@@ -191,6 +364,12 @@ export type InputOptions = {
    * modes.
    */
   isTouchMode?: () => boolean;
+  /**
+   * Host platform to send Map-mode keycodes for, or null for legacy
+   * character input. Read on every key, so it can change mid-session (peer
+   * info arriving, the keyboard setting).
+   */
+  keyboardTarget?: () => KeyTarget | null;
 };
 
 const TOUCH_TAP_MS = 500;      // tap = shorter than this…
@@ -296,14 +475,32 @@ export function attachInput(
     e.preventDefault();
   };
 
+  const keys = new LegacyKeyTranslator();
+  const postMapKey = (k: MapKeyMessage): void =>
+    post({ c: 'key', down: k.down, press: false, keyKind: 'map', value: k.keyCode, modifiers: k.modifiers });
+  let mapKeys: MapKeyTranslator | null = null;
   const onKey = (down: boolean) => (e: KeyboardEvent): void => {
-    const k = legacyKeyCommand(e, down);
-    if (!k) return;
-    e.preventDefault(); // keeps Ctrl+W / F5 / Tab from hitting the browser while focused
-    post({ c: 'key', down, press: false, keyKind: k.keyKind, value: k.value, modifiers: modifierList(e) });
+    const target = options.keyboardTarget?.() ?? null;
+    if (target !== (mapKeys?.target ?? null)) {
+      mapKeys?.reset();
+      mapKeys = target ? new MapKeyTranslator(target, postMapKey) : null;
+    }
+    if (mapKeys?.handle(e, down)) {
+      e.preventDefault(); // keeps Ctrl+W / F5 / Tab from hitting the browser while focused
+      return;
+    }
+    if (!legacyKeyCommand(e, down)) return;
+    e.preventDefault();
+    for (const k of keys.translate(e, down)) {
+      post({ c: 'key', down: k.down, press: false, keyKind: k.keyKind, value: k.value, modifiers: k.modifiers });
+    }
   };
   const onKeyDown = onKey(true);
   const onKeyUp = onKey(false);
+  const onBlur = (): void => {
+    keys.reset();
+    mapKeys?.reset();
+  };
 
   const kb: KeyboardLock | undefined =
     typeof navigator !== 'undefined' && 'keyboard' in navigator
@@ -326,9 +523,11 @@ export function attachInput(
   el.addEventListener('contextmenu', onContextMenu);
   el.addEventListener('keydown', onKeyDown);
   el.addEventListener('keyup', onKeyUp);
+  el.addEventListener('blur', onBlur);
   document.addEventListener('fullscreenchange', onFullscreenChange);
 
   return () => {
+    mapKeys?.reset();
     el.removeEventListener('pointermove', onPointerMove);
     el.removeEventListener('pointerdown', onPointerDown);
     el.removeEventListener('pointerup', onPointerUp);
@@ -336,6 +535,7 @@ export function attachInput(
     el.removeEventListener('contextmenu', onContextMenu);
     el.removeEventListener('keydown', onKeyDown);
     el.removeEventListener('keyup', onKeyUp);
+    el.removeEventListener('blur', onBlur);
     document.removeEventListener('fullscreenchange', onFullscreenChange);
     kb?.unlock?.();
   };

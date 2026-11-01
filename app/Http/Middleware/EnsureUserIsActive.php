@@ -23,7 +23,7 @@ class EnsureUserIsActive
             $request->session()->regenerateToken();
 
             return redirect()->route('login')->withErrors([
-                'username' => 'This account has been disabled.',
+                'username' => __('messages.account_disabled'),
             ]);
         }
 

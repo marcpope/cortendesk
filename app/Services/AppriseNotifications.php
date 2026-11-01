@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\Label;
 use App\Models\Device;
 use App\Models\DevicePresenceSnooze;
 use App\Models\NotificationDelivery;
@@ -24,6 +25,12 @@ class AppriseNotifications
     public const MODE_CONFIG = 'config';
 
     public const MODE_URLS = 'urls';
+
+    /** The translated name of an event, or the event code when it is unknown. */
+    public static function eventLabel(string $event): string
+    {
+        return Label::get('event', $event, self::EVENTS[$event] ?? $event);
+    }
 
     public const EVENTS = [
         'device.offline' => 'Device offline',

@@ -1,6 +1,6 @@
 @extends('layouts.guest')
 
-@section('title', 'Two-Factor Authentication')
+@section('title', __('common.two_factor_authentication'))
 
 @section('content')
     <div class="card">
@@ -15,8 +15,8 @@
         <div class="card-body p-4">
 
             <div class="text-center mb-4">
-                <h4 class="rd-auth-title">Two-Step Verification</h4>
-                <p class="rd-auth-sub">Enter the 6-digit code from your authenticator app, or one of your recovery codes.</p>
+                <h4 class="rd-auth-title">{{ __('auth.two_step_verification') }}</h4>
+                <p class="rd-auth-sub">{{ __('auth.enter_6_digit_code_from') }}</p>
             </div>
 
             @if ($errors->any())
@@ -29,22 +29,22 @@
                 @csrf
 
                 <div class="mb-3">
-                    <label for="code" class="form-label">Authentication code</label>
+                    <label for="code" class="form-label">{{ __('auth.authentication_code') }}</label>
                     <input class="form-control rd-code-input rd-mono" type="text" id="code" name="code"
                            required autofocus autocomplete="one-time-code" inputmode="text"
                            placeholder="123456">
-                    <div class="form-text">A recovery code (XXXXX-XXXXX) works here too.</div>
+                    <div class="form-text">{{ __('auth.recovery_code_xxxxx_xxxxx_works') }}</div>
                 </div>
 
                 <div class="mb-0 d-grid">
                     <button class="btn btn-primary" type="submit">
-                        <i class="ri-shield-check-line me-1"></i> Verify
+                        <i class="ri-shield-check-line me-1"></i> {{ __('auth.verify') }}
                     </button>
                 </div>
             </form>
 
             <div class="rd-auth-foot">
-                <a href="{{ route('login') }}">Sign in as someone else</a>
+                <a href="{{ route('login') }}">{{ __('auth.sign_in_as_someone_else') }}</a>
             </div>
         </div>
     </div>

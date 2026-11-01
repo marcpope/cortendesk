@@ -156,7 +156,7 @@ class OidcService
         $endpoint = $this->browserFacing($discovery['authorization_endpoint'] ?? '');
 
         if ($endpoint === '') {
-            throw new OidcException('The provider did not advertise an authorization endpoint.');
+            throw new OidcException(__('messages.oidc_no_auth_endpoint'));
         }
 
         return $endpoint.(str_contains($endpoint, '?') ? '&' : '?').$query;
@@ -174,21 +174,20 @@ class OidcService
         $verifier = $request->session()->pull(self::SESSION_VERIFIER);
 
         if ($request->query('error')) {
-            throw new OidcException('The identity provider rejected the sign-in: '
-                .(string) $request->query('error_description', $request->query('error')));
+            throw new OidcException(__('messages.idp_rejected_detail', ['detail' => (string) $request->query('error_description', $request->query('error'))]));
         }
 
         $code = (string) $request->query('code', '');
         $state = (string) $request->query('state', '');
 
         if ($code === '') {
-            throw new OidcException('The identity provider did not return an authorization code.');
+            throw new OidcException(__('messages.oidc_no_code'));
         }
 
         // Constant-time compare, and treat a missing session value as a failure
         // rather than a match — this is the CSRF guard for the callback.
         if (! is_string($expectedState) || $expectedState === '' || ! hash_equals($expectedState, $state)) {
-            throw new OidcException('The sign-in request expired or was tampered with. Please try again.');
+            throw new OidcException(__('messages.oidc_state_invalid'));
         }
 
         return $this->exchangeCode($code, $redirectUri, (string) $verifier, is_string($nonce) ? $nonce : null);
@@ -218,18 +217,17 @@ class OidcService
                     'code_verifier' => $verifier,
                 ]);
         } catch (ConnectionException) {
-            throw new OidcException('Could not reach the provider to finish sign-in. Try again.');
+            throw new OidcException(__('messages.oidc_unreachable'));
         }
 
         if (! $response->successful()) {
-            throw new OidcException('Token exchange failed ('.$response->status().'). '
-                .'Check the client ID and secret.');
+            throw new OidcException(__('messages.oidc_token_exchange_failed', ['status' => $response->status()]));
         }
 
         $idToken = (string) ($response->json('id_token') ?? '');
 
         if ($idToken === '') {
-            throw new OidcException('The provider returned no ID token. Ensure the "openid" scope is granted.');
+            throw new OidcException(__('messages.oidc_no_id_token'));
         }
 
         $claims = $this->verifyIdToken($idToken, $nonce);
@@ -267,8 +265,7 @@ class OidcService
 
         if (! in_array($alg, $accepted, true)) {
             throw new OidcException(
-                'The ID token was signed with an algorithm this provider does not advertise'
-                .($alg === '' ? '.' : ' ('.$alg.').')
+                $alg === '' ? __('messages.oidc_bad_alg') : __('messages.oidc_bad_alg_named', ['alg' => $alg])
             );
         }
 
@@ -286,7 +283,7 @@ class OidcService
                 $claims = JWT::decode($idToken, JWK::parseKeySet($this->jwks(), $alg));
             }
         } catch (\Throwable $e) {
-            throw new OidcException('The ID token failed verification: '.$e->getMessage());
+            throw new OidcException(__('messages.oidc_verification_failed', ['error' => $e->getMessage()]));
         }
 
         $claims = json_decode(json_encode($claims), true);
@@ -294,14 +291,14 @@ class OidcService
         $issuer = (string) ($discovery['issuer'] ?? '');
 
         if ($issuer === '' || ! hash_equals($issuer, (string) ($claims['iss'] ?? ''))) {
-            throw new OidcException('The ID token was issued by an unexpected issuer.');
+            throw new OidcException(__('messages.oidc_wrong_issuer'));
         }
 
         $audience = $claims['aud'] ?? null;
         $audiences = is_array($audience) ? $audience : [$audience];
 
         if (! in_array($this->setting('oidc_client_id'), array_map('strval', $audiences), true)) {
-            throw new OidcException('The ID token was not issued for this client.');
+            throw new OidcException(__('messages.oidc_wrong_client'));
         }
 
         // Replay guard: the nonce ties this token to the authorize request we
@@ -309,12 +306,12 @@ class OidcService
         // must come back identical.
         if ($expectedNonce !== null && $expectedNonce !== '') {
             if (! hash_equals($expectedNonce, (string) ($claims['nonce'] ?? ''))) {
-                throw new OidcException('The ID token nonce did not match. Please try signing in again.');
+                throw new OidcException(__('messages.oidc_nonce_mismatch'));
             }
         }
 
         if (empty($claims['sub'])) {
-            throw new OidcException('The ID token carried no subject claim.');
+            throw new OidcException(__('messages.oidc_no_subject'));
         }
 
         return $claims;
@@ -362,7 +359,7 @@ class OidcService
         $configured = $this->setting('oidc_discovery_url');
 
         if ($configured === '') {
-            throw new OidcException('No identity provider URL is configured.');
+            throw new OidcException(__('messages.oidc_no_url'));
         }
 
         $url = $this->discoveryUrl($configured);
@@ -388,7 +385,7 @@ class OidcService
         });
 
         if (! is_array($document)) {
-            throw new OidcException("Could not read the provider's configuration from {$url}.");
+            throw new OidcException(__('messages.oidc_config_unreadable', ['url' => $url]));
         }
 
         return $document;
@@ -467,7 +464,7 @@ class OidcService
 
         return [
             'ok' => true,
-            'message' => 'Connected to '.$discovery['issuer'].' — '.$keys.' signing key(s) published.',
+            'message' => __('messages.oidc_connected', ['issuer' => $discovery['issuer'], 'keys' => $keys]),
         ];
     }
 
@@ -529,7 +526,7 @@ class OidcService
         });
 
         if (! is_array($jwks)) {
-            throw new OidcException('Could not read the signing keys from the provider.');
+            throw new OidcException(__('messages.oidc_no_keys'));
         }
 
         return $jwks;
@@ -625,7 +622,7 @@ class OidcService
         $segments = explode('.', $jwt);
 
         if (count($segments) !== 3) {
-            throw new OidcException('The provider returned a malformed ID token.');
+            throw new OidcException(__('messages.oidc_malformed_token'));
         }
 
         $decoded = json_decode(

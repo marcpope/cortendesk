@@ -27,7 +27,15 @@ class WebClientPageController extends Controller
 
         $user = $request->user();
 
+        // The web client's own strings: the active language over English, so a
+        // key missing from a translation still shows readable text.
+        $messages = array_replace(
+            (array) trans('webclient', [], 'en'),
+            (array) trans('webclient'),
+        );
+
         return view('webclient', [
+            'messages' => $messages,
             'peerId' => (string) $request->query('id', ''),
             'serverKeyB64' => Setting::server('public_key'),
             'wsIdUrl' => $wsIdUrl,

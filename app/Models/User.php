@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-#[Fillable(['username', 'name', 'email', 'password', 'avatar', 'is_admin', 'role_id', 'is_active', 'note', 'devices_columns', 'devices_sort', 'devices_sort_direction', 'theme', 'setup_wizard_dismissed_at', 'setup_wizard_completed_at'])]
+#[Fillable(['username', 'name', 'email', 'password', 'avatar', 'is_admin', 'role_id', 'is_active', 'note', 'devices_columns', 'devices_sort', 'devices_sort_direction', 'theme', 'locale', 'setup_wizard_dismissed_at', 'setup_wizard_completed_at'])]
 #[Hidden(['password', 'remember_token', 'totp_secret'])]
 class User extends Authenticatable
 {
@@ -36,6 +36,21 @@ class User extends Authenticatable
      */
     /** Console themes a user can pick (issue #94). "system" follows the browser. */
     public const THEMES = ['dark', 'light', 'system'];
+
+    /** Console languages, by code, with the name each is shown under (always its own). */
+    public const LOCALES = [
+        'en' => 'English',
+        'de' => 'Deutsch',
+        'es' => 'Español',
+        'fr' => 'Français',
+        'it' => 'Italiano',
+        'hu' => 'Magyar',
+        'nl' => 'Nederlands',
+        'pl' => 'Polski',
+        'pt_BR' => 'Português (Brasil)',
+        'ru' => 'Русский',
+        'zh_CN' => '简体中文',
+    ];
 
     /** The saved theme, or dark when none is saved. */
     public function themePreference(): string

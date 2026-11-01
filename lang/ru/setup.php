@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Направьте клиент на эту консоль',
+    '2_confirm_first_heartbeat' => '2. Подтвердите первый heartbeat-сигнал',
+    '3_recommended_security' => '3. Рекомендуемая защита',
+    'administrator_2fa' => '2FA для администратора',
+    'and_enter_your_id_server' => 'и введите ваш сервер ID, ретранслятор, ключ и сервер API.',
+    'complete_server_settings' => 'Заполните настройки сервера',
+    'copy_them_from_client_setup' => 'Скопируйте их из раздела «Настройка клиента»',
+    'device_approval' => 'Одобрение устройств',
+    'device_has_checked_in' => 'Устройство вышло на связь.',
+    'do_this_later' => 'Сделать позже',
+    'finish_setup' => 'Завершить настройку',
+    'first' => 'сначала.',
+    'first_run_setup' => 'Первоначальная настройка',
+    'hold_new_devices_for_review' => 'Задерживать новые устройства для проверки, прежде чем они появятся в парке.',
+    'in_rustdesk_open' => 'В RustDesk откройте',
+    'one_or_more_of_those' => 'Одно или несколько из этих значений ещё не заданы.',
+    'protect_console_access_with_authenticato' => 'Защитите доступ к консоли аутентификатором и кодами восстановления.',
+    'review_security_settings' => 'Проверить настройки безопасности',
+    'set_up_your_first_rustdesk' => 'Настройте первое устройство RustDesk',
+    'two_steps_configure_client_then' => 'Два шага: настройте клиент, затем убедитесь, что он вышел на связь.',
+    'waiting_for_device_to_check' => 'Ожидание выхода устройства на связь. Страница проверяет каждые 10 секунд.',
+];

@@ -42,14 +42,17 @@ import {
   parsePrivacyModeImpls,
 } from './session-controls';
 import { parseAdvancedPeerCapabilities } from './advanced-capabilities';
+import { hasText, tl } from '../i18n';
 
 export const CLIENT_VERSION = '1.4.0';
 
-// Per-frame flow control. With ack ON, the host sends one frame and waits for
-// our video_received before capturing the next — this can never flood the
-// browser's decode queue (stable), at the cost of ~1 frame per relay RTT.
-// Free-run (ack OFF) is smoother but needs decode-queue backpressure to avoid
-// wedging the renderer on a high-bitrate stream; until that's in, keep this ON.
+// Per-frame flow control, the default. With ack ON the host sends one frame
+// and waits for our video_received before capturing the next: it can never
+// flood the decoder, but it caps the frame rate at one frame per relay round
+// trip (about 10 fps at 100 ms). The worker turns it off for the WebCodecs
+// path, whose decoder drops frames when its queue backs up (media/video.ts);
+// the MSE fallback has no such queue and keeps it on. The native client never
+// asks for acks.
 export const VIDEO_ACK_REQUIRED = true;
 // Drop real-time voice frames before the relay queue can grow without bound.
 export const VOICE_RELAY_BUFFER_LIMIT = 128 * 1024;
@@ -115,9 +118,31 @@ function isManualAccept(error: string): boolean {
   return e.includes('wait') && e.includes('accept');
 }
 
+/**
+ * A host sends a PeerInfo carrying only the display list whenever its displays
+ * change (display_service.rs) — on Wayland that happens right after login.
+ * Fill in who the peer is and what it supports from the login PeerInfo, or the
+ * UI loses its platform and version (and with them Map keyboard mode) and its
+ * privacy/terminal/camera features.
+ */
+export function withLoginPeerInfo(pi: PeerInfo, login: PeerInfo | undefined): PeerInfo {
+  if (pi.platform || !login) return pi;
+  return {
+    ...pi,
+    username: login.username,
+    hostname: login.hostname,
+    platform: login.platform,
+    version: login.version,
+    features: pi.features ?? login.features,
+    platform_additions: pi.platform_additions || login.platform_additions,
+  };
+}
+
 export class Session {
   /** Display index we asked for and have not had confirmed yet; null when settled. */
   private pendingDisplay: number | null = null;
+  /** The last PeerInfo that said who the peer is (the login one). */
+  private loginPeerInfo: PeerInfo | undefined;
 
   private readonly config: SessionConfig;
   private readonly sinks: SessionSinks;
@@ -137,11 +162,15 @@ export class Session {
     this.config = config;
     this.sinks = sinks;
     this.serverEdPk = decodeB64(config.serverKeyB64);
-    this.sessionId = randomSessionId();
+    this.sessionId = config.sessionId ? BigInt(config.sessionId) : randomSessionId();
   }
 
   get currentState(): SessionState {
     return this.state;
+  }
+
+  private get videoAck(): boolean {
+    return this.config.videoAck ?? VIDEO_ACK_REQUIRED;
   }
 
   private get connType(): ConnType {
@@ -172,19 +201,19 @@ export class Session {
     try {
       parsed = parseRendezvous(b);
     } catch {
-      this.fail('malformed rendezvous message');
+      this.fail(tl('error_malformed_rendezvous'));
       return;
     }
     switch (parsed.kind) {
       case 'relayResponse': {
         if (!parsed.pk || parsed.pk.length === 0) {
-          this.fail('relay response missing server-signed pk');
+          this.fail(tl('error_relay_response_unsigned'));
           return;
         }
         try {
           this.peerEdPk = verifyServerRelayPk(parsed.pk, this.serverEdPk, this.config.peerId);
         } catch (e) {
-          this.fail(`server trust link failed: ${(e as Error).message}`);
+          this.fail(tl('error_server_trust_failed', { message: (e as Error).message }));
           return;
         }
         this.uuid = parsed.uuid;
@@ -194,7 +223,12 @@ export class Session {
       }
       case 'punchHoleResponse':
         // The server's own text when it sends one: it says why (e.g. not approved).
-        if (parsed.failure) this.fail(parsed.message || `punch hole failed: ${parsed.failure}`);
+        if (parsed.failure) {
+          // The plain-language reason, with the server's code kept so a
+          // pasted error still says exactly what failed.
+          const key = `failure_${parsed.failure.toLowerCase()}`;
+          this.fail(parsed.message || `${tl(hasText(key) ? key : 'failure_other')} (${parsed.failure})`);
+        }
         return;
       default:
         return;
@@ -319,7 +353,7 @@ export class Session {
             sessionId: this.sessionId,
             version: CLIENT_VERSION,
             supportedDecoding: this.decoding,
-            videoAckRequired: VIDEO_ACK_REQUIRED,
+            videoAckRequired: this.videoAck,
             fileTransfer:
               this.config.connType === 'fileTransfer' ? { dir: '', showHidden: false } : undefined,
             viewCamera: this.config.connType === 'viewCamera',
@@ -332,7 +366,7 @@ export class Session {
             initialOptions: this.config.initialOptions,
           }),
         );
-        if (manualAccept) this.setState('needAccept', 'Waiting for the remote user to accept');
+        if (manualAccept) this.setState('needAccept', tl('waiting_for_remote_user_accept_2'));
         return;
       }
       case 'login_response': {
@@ -353,7 +387,7 @@ export class Session {
         return;
       case 'video_frame':
         this.sinks.onVideo(u.video_frame);
-        if (VIDEO_ACK_REQUIRED) {
+        if (this.videoAck) {
           this.sendMisc({ $case: 'video_received', video_received: true });
         }
         return;
@@ -444,7 +478,7 @@ export class Session {
         if (!u.voice_call_request.is_connect && hadCall) {
           this.pendingVoiceCallTimestamp = null;
           this.voiceCallAccepted = false;
-          this.sinks.emit({ t: 'voiceCall', state: 'closed', detail: 'Remote user ended the call' });
+          this.sinks.emit({ t: 'voiceCall', state: 'closed', detail: tl('remote_user_ended_call') });
         }
         return;
       }
@@ -458,7 +492,7 @@ export class Session {
           this.sinks.emit({
             t: 'voiceCall',
             state: 'closed',
-            detail: 'Voice call response could not be verified',
+            detail: tl('voice_call_response_could_not'),
           });
           return;
         }
@@ -574,7 +608,9 @@ export class Session {
     this.sinks.onClipboard?.(cb); // zstd / non-text: worker's job
   }
 
-  private emitPeerInfo(pi: PeerInfo): void {
+  private emitPeerInfo(update: PeerInfo): void {
+    const pi = withLoginPeerInfo(update, this.loginPeerInfo);
+    if (update.platform) this.loginPeerInfo = update;
     const advanced = parseAdvancedPeerCapabilities(pi.platform_additions);
     const resolutions = (pi.resolutions?.resolutions ?? []).map((r) => ({ width: r.width, height: r.height }));
     const displays: DisplayInfo[] = pi.displays.map((d, index) => ({
@@ -634,12 +670,13 @@ export class Session {
   sendKey(
     down: boolean,
     press: boolean,
-    keyKind: 'chr' | 'control' | 'unicode',
+    keyKind: 'chr' | 'control' | 'unicode' | 'map',
     value: number,
     modifiers: number[],
   ): void {
+    // Map mode carries the host-platform keycode in `chr`.
     const union: KeyEvent['union'] =
-      keyKind === 'chr'
+      keyKind === 'chr' || keyKind === 'map'
         ? { $case: 'chr', chr: value }
         : keyKind === 'unicode'
           ? { $case: 'unicode', unicode: value }
@@ -651,7 +688,7 @@ export class Session {
         press,
         union,
         modifiers: modifiers as ControlKey[],
-        mode: KeyboardMode.Legacy,
+        mode: keyKind === 'map' ? KeyboardMode.Map : KeyboardMode.Legacy,
       }),
     });
   }

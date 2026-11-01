@@ -9,7 +9,7 @@
         </span>
     </a>
 
-    <div class="rd-sidebar-close" data-rd-dismiss="sidebar" role="button" aria-label="Close menu">
+    <div class="rd-sidebar-close" data-rd-dismiss="sidebar" role="button" aria-label="{{ __('nav.close_menu') }}">
         <i class="ri-close-fill align-middle"></i>
     </div>
 
@@ -37,19 +37,19 @@
             <li class="rd-nav-item {{ request()->routeIs('overview') ? 'rd-current' : '' }}">
                 <a href="{{ route('overview') }}" class="rd-nav-link {{ request()->routeIs('overview') ? 'active' : '' }}">
                     <i class="ri-home-4-line"></i>
-                    <span> Overview </span>
+                    <span> {{ __('common.overview') }} </span>
                 </a>
             </li>
 
             @if ($canDevices || $canAddressBooks || $canGroups || $canUsers || $canStrategies || $canRoles)
-                <li class="rd-nav-title">Manage</li>
+                <li class="rd-nav-title">{{ __('common.manage') }}</li>
             @endif
 
             @if ($canDevices)
                 <li class="rd-nav-item {{ request()->routeIs('devices') ? 'rd-current' : '' }}">
                     <a href="{{ route('devices') }}" class="rd-nav-link {{ request()->routeIs('devices') ? 'active' : '' }}">
                         <i class="ri-computer-line"></i>
-                        <span> Devices </span>
+                        <span> {{ __('common.devices') }} </span>
                     </a>
                 </li>
             @endif
@@ -58,7 +58,7 @@
                 <li class="rd-nav-item {{ request()->routeIs('address-books') ? 'rd-current' : '' }}">
                     <a href="{{ route('address-books') }}" class="rd-nav-link {{ request()->routeIs('address-books') ? 'active' : '' }}">
                         <i class="ri-contacts-book-2-line"></i>
-                        <span> Address Books </span>
+                        <span> {{ __('common.address_books') }} </span>
                     </a>
                 </li>
             @endif
@@ -67,14 +67,14 @@
                 <li class="rd-nav-item">
                     <a href="{{ route('webclient') }}" target="cortendesk-webclient" rel="noopener" class="rd-nav-link">
                         <i class="ri-global-line"></i>
-                        <span> Web Client </span>
+                        <span> {{ __('common.web_client') }} </span>
                     </a>
                 </li>
             @elseif (config('cortendesk.webclient_url'))
                 <li class="rd-nav-item">
                     <a href="{{ config('cortendesk.webclient_url') }}" target="_blank" rel="noopener" class="rd-nav-link">
                         <i class="ri-global-line"></i>
-                        <span> Web Client </span>
+                        <span> {{ __('common.web_client') }} </span>
                     </a>
                 </li>
             @endif
@@ -83,7 +83,7 @@
                 <li class="rd-nav-item {{ request()->routeIs('groups') ? 'rd-current' : '' }}">
                     <a href="{{ route('groups') }}" class="rd-nav-link {{ request()->routeIs('groups') ? 'active' : '' }}">
                         <i class="ri-group-line"></i>
-                        <span> Groups </span>
+                        <span> {{ __('common.groups') }} </span>
                     </a>
                 </li>
             @endif
@@ -92,7 +92,7 @@
                 <li class="rd-nav-item {{ request()->routeIs('users') ? 'rd-current' : '' }}">
                     <a href="{{ route('users') }}" class="rd-nav-link {{ request()->routeIs('users') ? 'active' : '' }}">
                         <i class="ri-user-settings-line"></i>
-                        <span> Users </span>
+                        <span> {{ __('common.users') }} </span>
                     </a>
                 </li>
             @endif
@@ -103,7 +103,7 @@
                 <li class="rd-nav-item {{ request()->routeIs('roles') ? 'rd-current' : '' }}">
                     <a href="{{ route('roles') }}" class="rd-nav-link {{ request()->routeIs('roles') ? 'active' : '' }}">
                         <i class="ri-shield-user-line"></i>
-                        <span> Roles </span>
+                        <span> {{ __('common.roles') }} </span>
                     </a>
                 </li>
             @endif
@@ -112,28 +112,28 @@
                 <li class="rd-nav-item {{ request()->routeIs('strategies') ? 'rd-current' : '' }}">
                     <a href="{{ route('strategies') }}" class="rd-nav-link {{ request()->routeIs('strategies') ? 'active' : '' }}">
                         <i class="ri-shield-keyhole-line"></i>
-                        <span> Strategies </span>
+                        <span> {{ __('common.strategies') }} </span>
                     </a>
                 </li>
             @endif
 
             @if ($canAudit)
-                <li class="rd-nav-title">Monitor</li>
+                <li class="rd-nav-title">{{ __('nav.monitor') }}</li>
 
                 <li class="rd-nav-item {{ request()->routeIs('logs.*') ? 'rd-current' : '' }}">
                     <a data-bs-toggle="collapse" href="#sidebarLogs" aria-expanded="{{ request()->routeIs('logs.*') ? 'true' : 'false' }}" aria-controls="sidebarLogs" class="rd-nav-link">
                         <i class="ri-file-list-3-line"></i>
-                        <span> Logs </span>
+                        <span> {{ __('common.logs') }} </span>
                         <span class="rd-nav-arrow"></span>
                     </a>
                     <div class="collapse {{ request()->routeIs('logs.*') ? 'show' : '' }}" id="sidebarLogs">
                         <ul class="rd-nav-sub">
-                            <li class="{{ request()->routeIs('logs.connections') ? 'rd-current' : '' }}"><a href="{{ route('logs.connections') }}">Connections</a></li>
-                            <li class="{{ request()->routeIs('logs.file-transfers') ? 'rd-current' : '' }}"><a href="{{ route('logs.file-transfers') }}">File Transfers</a></li>
-                            <li class="{{ request()->routeIs('logs.alarms') ? 'rd-current' : '' }}"><a href="{{ route('logs.alarms') }}">Alarms</a></li>
+                            <li class="{{ request()->routeIs('logs.connections') ? 'rd-current' : '' }}"><a href="{{ route('logs.connections') }}">{{ __('common.connections') }}</a></li>
+                            <li class="{{ request()->routeIs('logs.file-transfers') ? 'rd-current' : '' }}"><a href="{{ route('logs.file-transfers') }}">{{ __('nav.file_transfers') }}</a></li>
+                            <li class="{{ request()->routeIs('logs.alarms') ? 'rd-current' : '' }}"><a href="{{ route('logs.alarms') }}">{{ __('common.alarms') }}</a></li>
                             @if ($canAuditManage)
-                                <li class="{{ request()->routeIs('logs.logins') ? 'rd-current' : '' }}"><a href="{{ route('logs.logins') }}">Logins</a></li>
-                                <li class="{{ request()->routeIs('logs.console') ? 'rd-current' : '' }}"><a href="{{ route('logs.console') }}">Console</a></li>
+                                <li class="{{ request()->routeIs('logs.logins') ? 'rd-current' : '' }}"><a href="{{ route('logs.logins') }}">{{ __('nav.logins') }}</a></li>
+                                <li class="{{ request()->routeIs('logs.console') ? 'rd-current' : '' }}"><a href="{{ route('logs.console') }}">{{ __('common.console') }}</a></li>
                             @endif
                         </ul>
                     </div>
@@ -141,26 +141,26 @@
             @endif
 
             @if ($canSettings)
-                <li class="rd-nav-title">System</li>
+                <li class="rd-nav-title">{{ __('common.system') }}</li>
 
                 <li class="rd-nav-item {{ request()->routeIs('settings') ? 'rd-current' : '' }}">
                     <a href="{{ route('settings') }}" class="rd-nav-link {{ request()->routeIs('settings') ? 'active' : '' }}">
                         <i class="ri-settings-3-line"></i>
-                        <span> Settings </span>
+                        <span> {{ __('common.settings') }} </span>
                     </a>
                 </li>
 
                 <li class="rd-nav-item {{ request()->routeIs('diagnostics*') ? 'rd-current' : '' }}">
                     <a href="{{ route('diagnostics') }}" class="rd-nav-link {{ request()->routeIs('diagnostics*') ? 'active' : '' }}">
                         <i class="ri-pulse-line"></i>
-                        <span> Diagnostics </span>
+                        <span> {{ __('nav.diagnostics') }} </span>
                     </a>
                 </li>
 
                 <li class="rd-nav-item {{ request()->routeIs('client-downloads') ? 'rd-current' : '' }}">
                     <a href="{{ route('client-downloads') }}" class="rd-nav-link {{ request()->routeIs('client-downloads') ? 'active' : '' }}">
                         <i class="ri-download-cloud-line"></i>
-                        <span> Client Downloads </span>
+                        <span> {{ __('common.client_downloads') }} </span>
                     </a>
                 </li>
 
@@ -171,7 +171,7 @@
                     <li class="rd-nav-item">
                         <a href="{{ $rdgenUrl }}" target="_blank" rel="noopener" class="rd-nav-link">
                             <i class="ri-install-line"></i>
-                            <span> Build Installers </span>
+                            <span> {{ __('common.build_installers') }} </span>
                         </a>
                     </li>
                 @endif
@@ -192,15 +192,15 @@
             {{-- With the update check off there is nothing to report. --}}
             @if (\App\Support\UpdateChecker::enabled())
             <span class="rd-sidebar-status {{ $rdUpgrade ? 'rd-sidebar-status-warn' : ($rdChecked ? 'rd-sidebar-status-ok' : 'rd-sidebar-status-unknown') }}"
-                  title="CortenDesk compares the running version against the latest published release.">
+                  title="{{ __('nav.cortendesk_compares_running_version_agai') }}">
                 <i class="rd-dot rd-dot-lg"></i>
                 <span class="rd-sidebar-status-label">
                     @if ($rdUpgrade)
-                        Update available
+                        {{ __('nav.update_available') }}
                     @elseif ($rdChecked)
-                        Running the latest release
+                        {{ __('nav.running_latest_release') }}
                     @else
-                        Release check unavailable
+                        {{ __('nav.release_check_unavailable') }}
                     @endif
                 </span>
             </span>
@@ -211,7 +211,7 @@
             @if ($rdUpgrade)
                 <a href="{{ \App\Support\UpdateChecker::releaseNotesUrl($rdUpgrade) }}" target="_blank" rel="noopener"
                    class="rd-shell-badge"
-                   title="Version {{ $rdUpgrade }} is available. Opens the release notes."><i class="ri-download-cloud-2-line"></i>Update to v{{ $rdUpgrade }}</a>
+                   title="{{ __('nav.version_version_is_available_opens', ['version' => $rdUpgrade]) }}"><i class="ri-download-cloud-2-line"></i>{{ __('nav.update_to_v_version', ['version' => $rdUpgrade]) }}</a>
             @endif
         </div>
     @endif

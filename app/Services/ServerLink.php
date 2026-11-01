@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\Label;
 use App\Models\ClientToken;
 use App\Models\Device;
 use App\Models\Setting;
@@ -144,11 +145,18 @@ class ServerLink
             || Device::query()->approved()->where('can_initiate', false)->exists();
         $configured = self::configured();
 
-        $note = match (true) {
-            ! $configured => 'Not configured. Approved-only mode and incoming-only devices are not enforced.',
-            $at === null => 'Configured, but the ID server has never fetched the policy.',
-            ! $fresh => 'The ID server last fetched the policy '.Carbon::parse($at)->diffForHumans().'.',
-            default => 'The ID server fetched the policy '.Carbon::parse($at)->diffForHumans().'.',
+        $noteCode = match (true) {
+            ! $configured => 'not_configured',
+            $at === null => 'never_fetched',
+            ! $fresh => 'stale',
+            default => 'fresh',
+        };
+        $noteWhen = $at === null ? '' : Carbon::parse($at)->diffForHumans();
+        $note = match ($noteCode) {
+            'not_configured' => 'Not configured. Approved-only mode and incoming-only devices are not enforced.',
+            'never_fetched' => 'Configured, but the ID server has never fetched the policy.',
+            'stale' => 'The ID server last fetched the policy '.$noteWhen.'.',
+            default => 'The ID server fetched the policy '.$noteWhen.'.',
         };
 
         return [
@@ -159,6 +167,18 @@ class ServerLink
             'needed' => $needed,
             'ok' => $configured && $fresh ? true : ($needed ? false : null),
             'note' => $note,
+            'note_code' => $noteCode,
+            'note_when' => $noteWhen,
         ];
+    }
+
+    /** The status note in the current language; the English note when the status carries no code. */
+    public static function translatedNote(array $status): string
+    {
+        if (! isset($status['note_code'])) {
+            return (string) ($status['note'] ?? '');
+        }
+
+        return Label::get('serverlink_note', $status['note_code'], (string) ($status['note'] ?? ''), ['when' => $status['note_when'] ?? '']);
     }
 }

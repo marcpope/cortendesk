@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'My Account')
-@section('subtitle', 'Account')
+@section('title', __('common.my_account'))
+@section('subtitle', __('account.account'))
 
 @section('content')
     @if (session('email_required'))
@@ -12,8 +12,7 @@
         {{-- Not enforced, just overdue: without an address we cannot send an
              invitation, a sign-in code, or anything else this account needs. --}}
         <div class="alert alert-info">
-            <i class="ri-mail-line me-1"></i>Your account has no email address. Add one so the
-            console can reach you.
+            <i class="ri-mail-line me-1"></i>{{ __('account.your_account_has_no_email') }}
         </div>
     @endif
 

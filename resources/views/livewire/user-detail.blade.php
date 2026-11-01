@@ -11,16 +11,16 @@
             </div>
             <div class="d-flex flex-wrap gap-1">
                 @if ($user->is_admin)
-                    <span class="badge bg-danger-subtle text-danger">Administrator</span>
+                    <span class="badge bg-danger-subtle text-danger">{{ __('common.administrator') }}</span>
                 @elseif ($user->role)
                     <span class="badge bg-info-subtle text-info">{{ $user->role->name }}</span>
                 @else
-                    <span class="badge bg-secondary-subtle text-secondary">User</span>
+                    <span class="badge bg-secondary-subtle text-secondary">{{ __('common.user') }}</span>
                 @endif
                 @if ($user->is_active)
-                    <span class="badge bg-success-subtle text-success">Active</span>
+                    <span class="badge bg-success-subtle text-success">{{ __('common.active') }}</span>
                 @else
-                    <span class="badge bg-warning-subtle text-warning">Disabled</span>
+                    <span class="badge bg-warning-subtle text-warning">{{ __('common.disabled') }}</span>
                 @endif
             </div>
         </div>
@@ -29,16 +29,16 @@
     <div class="row g-3">
         <div class="col-lg-5">
             <div class="card">
-                <div class="card-header"><h5 class="card-title mb-0">Profile</h5></div>
+                <div class="card-header"><h5 class="card-title mb-0">{{ __('common.profile') }}</h5></div>
                 <div class="card-body pt-0">
                     <dl class="rd-deflist">
-                        <div class="rd-def"><dt>Username</dt><dd>{{ $user->username }}</dd></div>
-                        <div class="rd-def"><dt>Name</dt><dd>{{ $user->name ?: '—' }}</dd></div>
-                        <div class="rd-def"><dt>Email</dt><dd>{{ $user->email ?: '—' }}</dd></div>
-                        <div class="rd-def"><dt>Role</dt>
-                            <dd>{{ $user->is_admin ? 'Administrator' : ($user->role?->name ?? 'User') }}</dd>
+                        <div class="rd-def"><dt>{{ __('common.username') }}</dt><dd>{{ $user->username }}</dd></div>
+                        <div class="rd-def"><dt>{{ __('common.name') }}</dt><dd>{{ $user->name ?: '—' }}</dd></div>
+                        <div class="rd-def"><dt>{{ __('common.email') }}</dt><dd>{{ $user->email ?: '—' }}</dd></div>
+                        <div class="rd-def"><dt>{{ __('common.role') }}</dt>
+                            <dd>{{ $user->is_admin ? __('common.administrator') : ($user->role?->name ?? __('common.user')) }}</dd>
                         </div>
-                        <div class="rd-def"><dt>Groups</dt>
+                        <div class="rd-def"><dt>{{ __('common.groups') }}</dt>
                             <dd>
                                 @forelse ($user->groups as $g)
                                     <span class="badge bg-secondary-subtle text-secondary">{{ $g->name }}</span>
@@ -47,38 +47,38 @@
                                 @endforelse
                             </dd>
                         </div>
-                        <div class="rd-def"><dt>Two-factor</dt>
+                        <div class="rd-def"><dt>{{ __('users.two_factor') }}</dt>
                             <dd>
                                 @if ($user->totp_enabled)
-                                    <span class="badge bg-info-subtle text-info"><i class="ri-shield-keyhole-line me-1"></i>Enabled</span>
+                                    <span class="badge bg-info-subtle text-info"><i class="ri-shield-keyhole-line me-1"></i>{{ __('common.enabled') }}</span>
                                 @else
-                                    Off
+                                    {{ __('users.off') }}
                                 @endif
                             </dd>
                         </div>
-                        <div class="rd-def"><dt>Sign-in method</dt>
+                        <div class="rd-def"><dt>{{ __('users.sign_in_method') }}</dt>
                             <dd>
                                 @if ($user->isSsoPending())
-                                    <span class="badge bg-warning-subtle text-warning">SSO, awaiting approval</span>
+                                    <span class="badge bg-warning-subtle text-warning">{{ __('users.sso_awaiting_approval') }}</span>
                                 @elseif ($user->isSsoProvisioned())
-                                    SSO only
+                                    {{ __('users.sso_only') }}
                                 @elseif ($user->isSsoLinked())
-                                    Password and SSO
+                                    {{ __('users.password_and_sso') }}
                                 @else
-                                    Password
+                                    {{ __('common.password') }}
                                 @endif
                             </dd>
                         </div>
-                        <div class="rd-def"><dt>Created</dt>
+                        <div class="rd-def"><dt>{{ __('common.created') }}</dt>
                             <dd><span title="{{ $user->created_at }}">{{ $user->created_at?->format('Y-m-d') ?? '—' }}</span></dd>
                         </div>
                         @if ($canSignIns)
-                            <div class="rd-def"><dt>Last sign-in</dt>
+                            <div class="rd-def"><dt>{{ __('users.last_sign_in') }}</dt>
                                 <dd>
                                     @if ($lastSignIn)
                                         <span title="{{ $lastSignIn->created_at }}">{{ $lastSignIn->created_at->diffForHumans() }}</span>
                                     @else
-                                        never
+                                        {{ __('common.never') }}
                                     @endif
                                 </dd>
                             </div>
@@ -90,9 +90,9 @@
             @if ($canDevices)
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Devices <span class="text-muted fw-normal fs-13">({{ $deviceCount }})</span></h5>
+                        <h5 class="card-title mb-0">{{ __('common.devices') }} <span class="text-muted fw-normal fs-13">({{ $deviceCount }})</span></h5>
                         @if ($deviceCount > $devices->count() && auth()->user()?->is_admin)
-                            <a href="{{ route('devices') }}?owner={{ $user->id }}" class="fs-13 text-muted">All</a>
+                            <a href="{{ route('devices') }}?owner={{ $user->id }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
                         @endif
                     </div>
                     <div class="card-body pt-0">
@@ -105,14 +105,14 @@
                                 </dt>
                                 <dd class="text-end mb-0">
                                     @if ($d->isOnline())
-                                        <span class="badge bg-success-subtle text-success"><i class="rd-dot"></i>Online</span>
+                                        <span class="badge bg-success-subtle text-success"><i class="rd-dot"></i>{{ __('common.online') }}</span>
                                     @else
-                                        <span class="text-muted">{{ $d->last_online_at?->diffForHumans() ?? 'never' }}</span>
+                                        <span class="text-muted">{{ $d->last_online_at?->diffForHumans() ?? __('common.never') }}</span>
                                     @endif
                                 </dd>
                             </div>
                         @empty
-                            <span class="text-muted">Owns no device you can see.</span>
+                            <span class="text-muted">{{ __('users.owns_no_device_you_can') }}</span>
                         @endforelse
                     </div>
                 </div>
@@ -120,7 +120,7 @@
 
             @if ($canBooks)
                 <div class="card">
-                    <div class="card-header"><h5 class="card-title mb-0">Address books</h5></div>
+                    <div class="card-header"><h5 class="card-title mb-0">{{ __('common.address_books_2') }}</h5></div>
                     <div class="card-body pt-0">
                         @forelse ($books as $book)
                             <div class="rd-def">
@@ -131,12 +131,12 @@
                                     @else
                                         {{ $book->name }}
                                     @endif
-                                    <span class="text-muted">· {{ $book->is_personal ? 'personal' : 'shared' }}</span>
+                                    <span class="text-muted">· {{ $book->is_personal ? __('users.book_kind_personal') : __('users.book_kind_shared') }}</span>
                                 </dt>
-                                <dd class="text-end text-muted mb-0">{{ $book->entries_count }} {{ Str::plural('entry', $book->entries_count) }}</dd>
+                                <dd class="text-end text-muted mb-0">{{ trans_choice('common.count_entries', $book->entries_count) }}</dd>
                             </div>
                         @empty
-                            <span class="text-muted">Owns no address book.</span>
+                            <span class="text-muted">{{ __('users.owns_no_address_book') }}</span>
                         @endforelse
                     </div>
                 </div>
@@ -147,8 +147,8 @@
             @if ($canSignIns)
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Recent sign-ins</h5>
-                        <a href="{{ route('logs.logins') }}?search={{ urlencode($user->username) }}" class="fs-13 text-muted">All</a>
+                        <h5 class="card-title mb-0">{{ __('users.recent_sign_ins') }}</h5>
+                        <a href="{{ route('logs.logins') }}?search={{ urlencode($user->username) }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
                     </div>
                     <div class="card-body pt-0">
                         @forelse ($signIns as $log)
@@ -166,22 +166,22 @@
                                 <dd class="text-end text-muted mb-0 text-nowrap">
                                     <span title="{{ $log->created_at }}">{{ $log->created_at->diffForHumans() }}</span>
                                     @if ($log->successful)
-                                        <span class="badge bg-success-subtle text-success ms-1">Success</span>
+                                        <span class="badge bg-success-subtle text-success ms-1">{{ __('common.success') }}</span>
                                     @else
-                                        <span class="badge bg-danger-subtle text-danger ms-1">Failed</span>
+                                        <span class="badge bg-danger-subtle text-danger ms-1">{{ __('common.failed') }}</span>
                                     @endif
                                 </dd>
                             </div>
                         @empty
-                            <span class="text-muted">No sign-ins recorded.</span>
+                            <span class="text-muted">{{ __('users.no_sign_ins_recorded') }}</span>
                         @endforelse
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Recent console actions</h5>
-                        <a href="{{ route('logs.console') }}?search={{ urlencode($user->username) }}" class="fs-13 text-muted">All</a>
+                        <h5 class="card-title mb-0">{{ __('users.recent_console_actions') }}</h5>
+                        <a href="{{ route('logs.console') }}?search={{ urlencode($user->username) }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
                     </div>
                     <div class="card-body pt-0">
                         @forelse ($actions as $a)
@@ -193,7 +193,7 @@
                                 <dd class="text-end text-muted mb-0 text-nowrap"><span title="{{ $a->created_at }}">{{ $a->created_at->diffForHumans() }}</span></dd>
                             </div>
                         @empty
-                            <span class="text-muted">No console actions recorded.</span>
+                            <span class="text-muted">{{ __('users.no_console_actions_recorded') }}</span>
                         @endforelse
                     </div>
                 </div>
@@ -203,7 +203,7 @@
                 @if ($canDevices)
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="card-title mb-0">Connections to their devices</h5>
+                            <h5 class="card-title mb-0">{{ __('users.connections_to_their_devices') }}</h5>
                         </div>
                         <div class="card-body pt-0">
                             @forelse ($incoming as $c)
@@ -219,7 +219,7 @@
                                     </dd>
                                 </div>
                             @empty
-                                <span class="text-muted">No connections recorded.</span>
+                                <span class="text-muted">{{ __('common.no_connections_recorded') }}</span>
                             @endforelse
                         </div>
                     </div>
@@ -227,12 +227,11 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">Connections from devices they signed in on</h5>
+                        <h5 class="card-title mb-0">{{ __('users.connections_from_devices_they_signed') }}</h5>
                     </div>
                     <div class="card-body pt-0">
                         <p class="fs-13 text-muted">
-                            Matched by the controlling device's RustDesk ID, from this user's RustDesk client sign-ins.
-                            The log records the device, not the person, so anyone else using the same device shows here too.
+                            {{ __('users.matched_by_controlling_devices_rustdesk') }}
                         </p>
                         @forelse ($outgoing as $c)
                             <div class="rd-def">
@@ -246,7 +245,7 @@
                                 </dd>
                             </div>
                         @empty
-                            <span class="text-muted">{{ $clientIds === [] ? 'This user has not signed in on a RustDesk client.' : 'No connections recorded.' }}</span>
+                            <span class="text-muted">{{ $clientIds === [] ? __('users.this_user_has_not_signed') : __('common.no_connections_recorded') }}</span>
                         @endforelse
                     </div>
                 </div>
@@ -255,7 +254,7 @@
             @unless ($canSignIns || $canConnections)
                 <div class="card">
                     <div class="card-body text-muted">
-                        Activity history needs the audit permission.
+                        {{ __('common.activity_history_needs_audit_permission') }}
                     </div>
                 </div>
             @endunless

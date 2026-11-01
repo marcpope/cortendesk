@@ -1,11 +1,12 @@
 import type { SessionState } from '../core/contracts';
+import { tl } from '../i18n';
 
 export type VoiceCallUiState = 'idle' | 'preparing' | 'waiting' | 'connected';
 
 export type VoiceCallUiModel = {
   disabled: boolean;
-  label: 'Voice call' | 'End call';
-  ariaLabel: 'Start voice call' | 'End voice call';
+  label: string;
+  ariaLabel: string;
   status: string;
 };
 
@@ -23,34 +24,34 @@ export function voiceCallUiModel(
   if (!browserSupported && !active) {
     return {
       disabled: true,
-      label: 'Voice call',
-      ariaLabel: 'Start voice call',
-      status: 'Voice calls need Chrome or Edge over HTTPS',
+      label: tl('voice_call'),
+      ariaLabel: tl('start_voice_call'),
+      status: tl('voice_calls_need_chrome_or'),
     };
   }
   if (callState === 'preparing') {
     return {
       disabled: true,
-      label: 'Voice call',
-      ariaLabel: 'Start voice call',
-      status: 'Requesting microphone…',
+      label: tl('voice_call'),
+      ariaLabel: tl('start_voice_call'),
+      status: tl('requesting_microphone'),
     };
   }
   const unavailable = sessionState !== 'streaming' || !audioAllowed;
   const status = callState === 'waiting'
-    ? 'Waiting for the remote user…'
+    ? tl('waiting_for_remote_user')
     : callState === 'connected'
-      ? 'Voice call connected'
+      ? tl('voice_call_connected')
       : !audioAllowed
-        ? 'Voice calls are not permitted by this device'
+        ? tl('voice_calls_are_not_permitted')
         : sessionState !== 'streaming'
-          ? 'Voice calls require a connected session'
-          : 'Voice calls are off';
+          ? tl('voice_calls_require_connected_session')
+          : tl('voice_calls_are_off');
 
   return {
     disabled: unavailable && !active,
-    label: active ? 'End call' : 'Voice call',
-    ariaLabel: active ? 'End voice call' : 'Start voice call',
+    label: active ? tl('end_call') : tl('voice_call'),
+    ariaLabel: active ? tl('end_voice_call') : tl('start_voice_call'),
     status,
   };
 }

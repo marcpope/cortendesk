@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Pointer un client vers cette console',
+    '2_confirm_first_heartbeat' => '2. Confirmer le premier signal de présence',
+    '3_recommended_security' => '3. Sécurité recommandée',
+    'administrator_2fa' => '2FA des administrateurs',
+    'and_enter_your_id_server' => 'et saisissez votre serveur ID, votre serveur relais, la clé et le serveur API.',
+    'complete_server_settings' => 'Complétez les paramètres du serveur',
+    'copy_them_from_client_setup' => 'Copiez-les depuis Configuration du client',
+    'device_approval' => 'Approbation des appareils',
+    'device_has_checked_in' => 'Un appareil s’est signalé.',
+    'do_this_later' => 'Plus tard',
+    'finish_setup' => 'Terminer la configuration',
+    'first' => 'd’abord.',
+    'first_run_setup' => 'Configuration initiale',
+    'hold_new_devices_for_review' => 'Retenir les nouveaux appareils pour vérification avant qu’ils n’apparaissent dans le parc.',
+    'in_rustdesk_open' => 'Dans RustDesk, ouvrez',
+    'one_or_more_of_those' => 'Une ou plusieurs de ces valeurs ne sont pas encore définies.',
+    'protect_console_access_with_authenticato' => 'Protégez l’accès à la console avec une application d’authentification et des codes de récupération.',
+    'review_security_settings' => 'Vérifier les paramètres de sécurité',
+    'set_up_your_first_rustdesk' => 'Configurez votre premier appareil RustDesk',
+    'two_steps_configure_client_then' => 'Deux étapes : configurez un client, puis vérifiez qu’il se signale.',
+    'waiting_for_device_to_check' => 'En attente du signalement d’un appareil. Cette page vérifie toutes les 10 secondes.',
+];

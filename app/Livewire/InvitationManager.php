@@ -84,8 +84,8 @@ class InvitationManager extends Component
             'device_group_ids' => ['array'],
             'device_group_ids.*' => [Rule::exists('device_groups', 'id')],
         ], [
-            'email.unique' => 'That address already has an account or a pending invitation.',
-            'username.unique' => 'That username is already taken or reserved by a pending invitation.',
+            'email.unique' => __('messages.invite_email_taken'),
+            'username.unique' => __('messages.invite_username_taken'),
         ]);
 
         // Same escalation guards as UserList::save (PLAN D4): a delegated
@@ -231,7 +231,7 @@ class InvitationManager extends Component
         $url = route('invite.show', $plain);
 
         $this->mailSent = app(MailSettings::class)->send(
-            new UserInvitation($invitation, $url, auth()->user()?->displayName() ?? 'An administrator'),
+            new UserInvitation($invitation, $url, auth()->user()?->displayName() ?? __('messages.an_administrator')),
             $invitation->email,
         );
 

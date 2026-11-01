@@ -68,7 +68,7 @@ class TwoFactorSettings extends Component
         $timestep = $secret !== '' ? TwoFactor::verify($secret, $this->confirmCode) : null;
 
         if ($timestep === null) {
-            $this->addError('confirmCode', 'That code is incorrect or has expired. Try the current one.');
+            $this->addError('confirmCode', __('messages.totp_wrong_try_current'));
 
             return;
         }
@@ -102,7 +102,7 @@ class TwoFactorSettings extends Component
         ], [], ['disablePassword' => 'password']);
 
         if (! Hash::check($this->disablePassword, $user->password)) {
-            $this->addError('disablePassword', 'That password is incorrect.');
+            $this->addError('disablePassword', __('messages.password_incorrect'));
 
             return;
         }
@@ -122,7 +122,7 @@ class TwoFactorSettings extends Component
 
         // Never let an enforced user disable their way out of the requirement.
         if (RequireTwoFactor::isRequiredFor($user)) {
-            $this->addError('disablePassword', 'Two-factor authentication is required for your account and cannot be disabled.');
+            $this->addError('disablePassword', __('messages.twofactor_cannot_disable'));
 
             return;
         }
@@ -132,7 +132,7 @@ class TwoFactorSettings extends Component
         ], [], ['disablePassword' => 'password']);
 
         if (! Hash::check($this->disablePassword, $user->password)) {
-            $this->addError('disablePassword', 'That password is incorrect.');
+            $this->addError('disablePassword', __('messages.password_incorrect'));
 
             return;
         }

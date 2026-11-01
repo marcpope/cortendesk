@@ -1,3 +1,4 @@
+import { tl } from '../i18n';
 export interface VoiceTrack { stop(): void }
 export interface VoiceStream {
   getAudioTracks(): VoiceTrack[];
@@ -77,28 +78,28 @@ export class VoiceCaptureController {
     this.stop();
     const epoch = this.epoch;
     if (!this.deps.available()) {
-      return { ok: false, message: 'Voice calls require Chrome or Edge with secure microphone and Opus support.' };
+      return { ok: false, message: tl('voice_calls_require_chrome_or') };
     }
     try {
       if (!await this.deps.supportsOpus(PREFERRED_CONFIG)) {
-        return { ok: false, message: 'This browser cannot encode Opus voice audio.' };
+        return { ok: false, message: tl('this_browser_cannot_encode_opus') };
       }
-      if (epoch !== this.epoch) return { ok: false, message: 'Microphone request was cancelled.' };
+      if (epoch !== this.epoch) return { ok: false, message: tl('microphone_request_was_cancelled') };
       const stream = await this.deps.getUserMedia({ audio: MIC_CONSTRAINTS });
       if (epoch !== this.epoch) {
         for (const track of stream.getTracks?.() ?? stream.getAudioTracks()) track.stop();
-        return { ok: false, message: 'Microphone request was cancelled.' };
+        return { ok: false, message: tl('microphone_request_was_cancelled') };
       }
       this.stream = stream;
       if (stream.getAudioTracks().length === 0) {
         this.stop();
-        return { ok: false, message: 'No microphone was available.' };
+        return { ok: false, message: tl('no_microphone_was_available') };
       }
       return { ok: true };
     } catch {
-      if (epoch !== this.epoch) return { ok: false, message: 'Microphone request was cancelled.' };
+      if (epoch !== this.epoch) return { ok: false, message: tl('microphone_request_was_cancelled') };
       this.stop();
-      return { ok: false, message: 'Microphone access was denied or is unavailable.' };
+      return { ok: false, message: tl('microphone_access_was_denied_or') };
     }
   }
 
@@ -112,7 +113,7 @@ export class VoiceCaptureController {
       void this.pump(epoch);
       return true;
     } catch {
-      this.fail('Could not start microphone capture.');
+      this.fail(tl('could_not_start_microphone_capture'));
       return false;
     }
   }
@@ -149,11 +150,11 @@ export class VoiceCaptureController {
       try {
         result = await reader.read();
       } catch {
-        if (this.active && epoch === this.epoch) this.fail('Microphone capture failed.');
+        if (this.active && epoch === this.epoch) this.fail(tl('microphone_capture_failed'));
         return;
       }
       if (result.done) {
-        if (this.active && epoch === this.epoch) this.fail('Microphone capture stopped.');
+        if (this.active && epoch === this.epoch) this.fail(tl('microphone_capture_stopped'));
         return;
       }
       const data = result.value;
@@ -163,7 +164,7 @@ export class VoiceCaptureController {
         if (!this.encoder) {
           const channels = data.numberOfChannels;
           if (channels !== 1 && channels !== 2) {
-            this.fail('Only mono or stereo microphone input is supported.');
+            this.fail(tl('only_mono_or_stereo_microphone'));
             return;
           }
           const config = {
@@ -175,7 +176,7 @@ export class VoiceCaptureController {
           const supported = await this.deps.supportsOpus(config);
           if (!this.active || epoch !== this.epoch) return;
           if (!supported) {
-            this.fail('This microphone format cannot be encoded as Opus.');
+            this.fail(tl('this_microphone_format_cannot_be'));
             return;
           }
           this.encoder = this.deps.createEncoder(config, {
@@ -186,7 +187,7 @@ export class VoiceCaptureController {
               this.sinks.sendFrame(bytes);
             },
             error: () => {
-              if (this.active && epoch === this.epoch) this.fail('The Opus microphone encoder failed.');
+              if (this.active && epoch === this.epoch) this.fail(tl('opus_microphone_encoder_failed'));
             },
           });
           // RustDesk requires AudioFormat before the first AudioFrame.
@@ -194,7 +195,7 @@ export class VoiceCaptureController {
         }
         if (this.encoder.encodeQueueSize < 2) this.encoder.encode(data);
       } catch {
-        if (this.active && epoch === this.epoch) this.fail('Could not start the Opus microphone encoder.');
+        if (this.active && epoch === this.epoch) this.fail(tl('could_not_start_opus_microphone'));
         return;
       } finally {
         data.close();

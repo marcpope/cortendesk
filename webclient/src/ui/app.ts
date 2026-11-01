@@ -28,7 +28,7 @@ import type {
   SessionStats,
   UiCommand,
 } from '../core/contracts';
-import { attachInput, type DisplayRect } from '../input/mouse-keyboard';
+import { attachInput, mapKeyboardTarget, type DisplayRect, type KeyTarget } from '../input/mouse-keyboard';
 import { readLocalClipboardText } from '../input/clipboard-cursor';
 import {
   BackNotification_BlockInputState,
@@ -43,6 +43,7 @@ import {
   QUALITY,
   STATE_LABEL,
   buildSessionConfig,
+  newSessionId,
   buildTypeCommands,
   clearSavedHash,
   cursorCss,
@@ -84,6 +85,7 @@ import { VoiceCaptureController, browserVoiceCaptureDeps } from '../media/voice-
 import { voiceCallUiModel } from './voice-call-ui';
 import { VoiceCallAttemptOwner } from './voice-call-attempt';
 import { remoteInputAllowed, type RemoteInputChannel } from './view-only-policy';
+import { htl, tl, tn, lowerLabel } from '../i18n';
 import {
   loadPrefs,
   resetCommands,
@@ -175,9 +177,9 @@ function q<T extends Element>(scope: ParentNode, sel: string): T {
  * permission, not the widgets.
  */
 export const PERMISSION_CONTROLS: Record<string, { id: string; title: string }> = {
-  File: { id: 'rd-btn-files', title: 'File transfer' },
-  Clipboard: { id: 'rd-btn-clip', title: 'Send clipboard to remote' },
-  Keyboard: { id: 'rd-btn-cad', title: 'Keyboard shortcuts' },
+  File: { id: 'rd-btn-files', title: tl('file_transfer') },
+  Clipboard: { id: 'rd-btn-clip', title: tl('send_clipboard_remote') },
+  Keyboard: { id: 'rd-btn-cad', title: tl('keyboard_shortcuts') },
 };
 
 /** Controls beyond the canonical one that a withdrawn Keyboard permission disables. */
@@ -269,6 +271,8 @@ export class RdApp {
   private voiceCallSupported: boolean | undefined;
   private peerWho = ''; // user@host once peerInfo arrives
   private peerPlatform = '';
+  private peerVersion = '';
+  private keyboardMode: SessionPrefs['keyboardMode'] = 'map';
   private pop: HTMLElement | undefined; // the one open popover
   private popAnchor: HTMLElement | undefined;
   private popCleanup: (() => void) | undefined;
@@ -535,7 +539,7 @@ export class RdApp {
         <img src="/rdclient/logo.png" alt="" width="30" height="30">
         <span class="rd-tb-brandtext">
           <span class="rd-tb-name">Corten<span>Desk</span></span>
-          <span class="rd-tb-sub">RustDesk Remote Console</span>
+          <span class="rd-tb-sub">${htl('rustdesk_remote_console')}</span>
         </span>
       </div>
       <div class="rd-tb-island">
@@ -547,18 +551,18 @@ export class RdApp {
           </span>
         </span>
         <span class="rd-island-sep rd-stream-only" aria-hidden="true"></span>
-        <span class="rd-recording-indicator rd-stream-only" id="rd-recording-indicator" hidden aria-live="polite">REC <span>00:00</span></span>
-        <button type="button" class="rd-ib rd-stream-only" id="rd-btn-monitors" title="Select monitor" aria-label="Select monitor" aria-haspopup="true" hidden>${iconHtml('monitor')}</button>
-        <button type="button" class="rd-ib rd-stream-only" id="rd-btn-fullscreen" title="Fullscreen" aria-label="Fullscreen" aria-pressed="false">${iconHtml('fullscreen')}</button>
-        <button type="button" class="rd-ib rd-stream-only" id="rd-btn-more" title="More options" aria-label="More options" aria-haspopup="true">${iconHtml('more')}</button>
+        <span class="rd-recording-indicator rd-stream-only" id="rd-recording-indicator" hidden aria-live="polite">${htl('rec')} <span>00:00</span></span>
+        <button type="button" class="rd-ib rd-stream-only" id="rd-btn-monitors" title="${htl('select_monitor')}" aria-label="${htl('select_monitor')}" aria-haspopup="true" hidden>${iconHtml('monitor')}</button>
+        <button type="button" class="rd-ib rd-stream-only" id="rd-btn-fullscreen" title="${htl('fullscreen')}" aria-label="${htl('fullscreen')}" aria-pressed="false">${iconHtml('fullscreen')}</button>
+        <button type="button" class="rd-ib rd-stream-only" id="rd-btn-more" title="${htl('more_options')}" aria-label="${htl('more_options')}" aria-haspopup="true">${iconHtml('more')}</button>
         <span class="rd-island-sep rd-stream-only" aria-hidden="true"></span>
-        <button type="button" class="rd-chip rd-stream-only" id="rd-btn-fit" aria-haspopup="true" title="Scale mode">
-          <span id="rd-fit-label">Fit to screen</span>${iconHtml('chevronDown')}
+        <button type="button" class="rd-chip rd-stream-only" id="rd-btn-fit" aria-haspopup="true" title="${htl('scale_mode')}">
+          <span id="rd-fit-label">${htl('fit_screen')}</span>${iconHtml('chevronDown')}
         </button>
-        <button type="button" class="rd-chip rd-stream-only" id="rd-btn-viewonly" aria-pressed="false" title="Block all input to the remote device">
-          ${iconHtml('eye')}<span>View only</span>
+        <button type="button" class="rd-chip rd-stream-only" id="rd-btn-viewonly" aria-pressed="false" title="${htl('block_all_input_remote_device')}">
+          ${iconHtml('eye')}<span>${htl('view_only')}</span>
         </button>
-        <button type="button" class="rd-disconnect rd-stream-only" id="rd-btn-disconnect">Disconnect</button>
+        <button type="button" class="rd-disconnect rd-stream-only" id="rd-btn-disconnect">${htl('disconnect')}</button>
       </div>
       <div class="rd-tb-user">
         <span class="rd-avatar" title="${escapeHtml(this.cfg?.myName || this.cfg?.myId || '')}">${escapeHtml(initials)}</span>
@@ -605,7 +609,7 @@ export class RdApp {
       this.terminalPanel = undefined;
       this.removeClipboardSyncOffer();
     }
-    this.toast(this.viewOnly ? 'View only — input is not sent' : 'Input enabled');
+    this.toast(this.viewOnly ? tl('view_only_input_is_not') : tl('input_enabled'));
   }
 
   // --- bottom dock ---------------------------------------------------------------
@@ -615,27 +619,27 @@ export class RdApp {
       `<button type="button" class="rd-db" id="${id}" title="${title}" aria-label="${title}">` +
       `${iconHtml(icon)}<span>${label}</span></button>`;
     this.el.dock.innerHTML = `
-      <div class="rd-dock-group" role="group" aria-label="Keyboard">
-        ${db('rd-lat-ctrl', 'keyboard', 'Ctrl', 'Hold Ctrl for clicks and keys')}
-        ${db('rd-lat-alt', 'keyboard', 'Alt', 'Hold Alt for clicks and keys')}
-        ${db('rd-key-del', 'keyboard', 'Del', 'Send Delete')}
-        ${db('rd-btn-cad', 'keyboard', 'Keys', 'Keyboard shortcuts')}
+      <div class="rd-dock-group" role="group" aria-label="${htl('keyboard')}">
+        ${db('rd-lat-ctrl', 'keyboard', 'Ctrl', tl('hold_ctrl_for_clicks_and'))}
+        ${db('rd-lat-alt', 'keyboard', 'Alt', tl('hold_alt_for_clicks_and'))}
+        ${db('rd-key-del', 'keyboard', 'Del', tl('send_delete'))}
+        ${db('rd-btn-cad', 'keyboard', tl('keys'), tl('keyboard_shortcuts'))}
       </div>
       <span class="rd-dock-sep" aria-hidden="true"></span>
-      <div class="rd-dock-group" role="group" aria-label="Input mode">
-        ${db('rd-mode-pointer', 'pointer', 'Pointer', 'Pointer mode — touch acts as a pressed button')}
-        ${db('rd-mode-touch', 'touch', 'Touch', 'Touch mode — drag moves the cursor, tap clicks, long-press right-clicks')}
+      <div class="rd-dock-group" role="group" aria-label="${htl('input_mode')}">
+        ${db('rd-mode-pointer', 'pointer', tl('pointer'), tl('pointer_mode_touch_acts_as'))}
+        ${db('rd-mode-touch', 'touch', tl('touch'), tl('touch_mode_drag_moves_cursor'))}
       </div>
       <span class="rd-dock-sep" aria-hidden="true"></span>
-      <div class="rd-dock-group" role="group" aria-label="Send">
-        ${db('rd-btn-type', 'typeText', 'Type', 'Type text on the remote device')}
-        ${db('rd-btn-clip', 'clipboard', 'Clipboard', 'Send clipboard to remote')}
+      <div class="rd-dock-group" role="group" aria-label="${htl('send')}">
+        ${db('rd-btn-type', 'typeText', tl('type'), tl('type_text_on_remote_device'))}
+        ${db('rd-btn-clip', 'clipboard', tl('clipboard'), tl('send_clipboard_remote'))}
       </div>
       <span class="rd-dock-sep" aria-hidden="true"></span>
-      <div class="rd-dock-group" role="group" aria-label="Panels">
-        ${db('rd-btn-files', 'folderTransfer', 'File Transfer')}
-        ${db('rd-btn-chat', 'chat', 'Chat')}
-        ${db('rd-btn-session', 'info', 'Session', 'Session details')}
+      <div class="rd-dock-group" role="group" aria-label="${htl('panels')}">
+        ${db('rd-btn-files', 'folderTransfer', tl('file_transfer_2'))}
+        ${db('rd-btn-chat', 'chat', tl('chat'))}
+        ${db('rd-btn-session', 'info', tl('session'), tl('session_details'))}
       </div>`;
     const d = this.el.dock;
     q<HTMLButtonElement>(d, '#rd-lat-ctrl').addEventListener('click', () =>
@@ -645,7 +649,7 @@ export class RdApp {
       this.setLatches(this.latchCtrl, !this.latchAlt),
     );
     q<HTMLButtonElement>(d, '#rd-key-del').addEventListener('click', () => {
-      this.pressControl(ControlKey.Delete, 'Delete sent');
+      this.pressControl(ControlKey.Delete, tl('delete_sent'));
     });
     q<HTMLButtonElement>(d, '#rd-btn-cad').addEventListener('click', (e) =>
       this.openKeysPop(e.currentTarget as HTMLElement),
@@ -698,44 +702,44 @@ export class RdApp {
     this.el.side.innerHTML = `
       <header class="rd-side-head">
         <div class="rd-side-tabs" role="tablist">
-          ${tab('files', 'folderTransfer', 'Files')}
-          ${tab('chat', 'chat', 'Chat')}
-          ${tab('details', 'info', 'Details')}
+          ${tab('files', 'folderTransfer', tl('files'))}
+          ${tab('chat', 'chat', tl('chat'))}
+          ${tab('details', 'info', tl('details'))}
         </div>
-        <button type="button" class="rd-ib" id="rd-side-close" title="Close panel" aria-label="Close panel">${iconHtml('close')}</button>
+        <button type="button" class="rd-ib" id="rd-side-close" title="${htl('close_panel')}" aria-label="${htl('close_panel')}">${iconHtml('close')}</button>
       </header>
       <div class="rd-side-body">
         <section class="rd-pane" data-pane="files" hidden></section>
         <section class="rd-pane rd-pane-chat" data-pane="chat" hidden>
           <div class="rd-voice-call">
-            <button type="button" class="rd-voice-call-btn" id="rd-voice-call" aria-describedby="rd-voice-call-status">Voice call</button>
-            <span id="rd-voice-call-status" role="status" aria-live="polite">Voice calls are off</span>
+            <button type="button" class="rd-voice-call-btn" id="rd-voice-call" aria-describedby="rd-voice-call-status">${htl('voice_call')}</button>
+            <span id="rd-voice-call-status" role="status" aria-live="polite">${htl('voice_calls_are_off')}</span>
           </div>
           <div class="rd-chat-list" id="rd-chat-list"></div>
           <form class="rd-chat-compose" id="rd-chat-form">
-            <input type="text" id="rd-chat-input" autocomplete="off" placeholder="Message the remote user…" maxlength="2000">
-            <button type="submit" class="rd-ib rd-chat-send" title="Send" aria-label="Send message">${iconHtml('send')}</button>
+            <input type="text" id="rd-chat-input" autocomplete="off" placeholder="${htl('message_remote_user')}" maxlength="2000">
+            <button type="submit" class="rd-ib rd-chat-send" title="${htl('send')}" aria-label="${htl('send_message')}">${iconHtml('send')}</button>
           </form>
         </section>
         <section class="rd-pane rd-pane-details" data-pane="details" hidden>
           <dl class="rd-stats-body">
-            <div class="rd-stat-row"><dt>Device</dt><dd id="rd-stat-device">—</dd></div>
-            <div class="rd-stat-row"><dt>User</dt><dd id="rd-stat-user">—</dd></div>
-            <div class="rd-stat-row"><dt>Platform</dt><dd id="rd-stat-platform">—</dd></div>
-            <div class="rd-stat-row"><dt>Peer version</dt><dd id="rd-stat-version">—</dd></div>
-            <div class="rd-stat-row"><dt>Codec</dt><dd id="rd-stat-codec">—</dd></div>
-            <div class="rd-stat-row"><dt>Resolution</dt><dd id="rd-stat-res">—</dd></div>
-            <div class="rd-stat-row"><dt>FPS</dt><dd id="rd-stat-fps">—</dd></div>
-            <div class="rd-stat-row"><dt>Bitrate</dt><dd id="rd-stat-bitrate">—</dd></div>
-            <div class="rd-stat-row"><dt>Frames dropped</dt><dd id="rd-stat-dropped">—</dd></div>
-            <div class="rd-stat-row"><dt>Duration</dt><dd id="rd-stat-duration">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('device')}</dt><dd id="rd-stat-device">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('user')}</dt><dd id="rd-stat-user">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('platform')}</dt><dd id="rd-stat-platform">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('peer_version')}</dt><dd id="rd-stat-version">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('codec')}</dt><dd id="rd-stat-codec">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('resolution')}</dt><dd id="rd-stat-res">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('fps')}</dt><dd id="rd-stat-fps">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('bitrate')}</dt><dd id="rd-stat-bitrate">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('frames_dropped')}</dt><dd id="rd-stat-dropped">—</dd></div>
+            <div class="rd-stat-row"><dt>${htl('duration')}</dt><dd id="rd-stat-duration">—</dd></div>
           </dl>
         </section>
       </div>`;
     this.el.edge.innerHTML = `
-      <button type="button" class="rd-edge-btn" data-open="files" title="File transfer" aria-label="Open file transfer">${iconHtml('folderTransfer')}</button>
-      <button type="button" class="rd-edge-btn" data-open="chat" title="Chat" aria-label="Open chat">${iconHtml('chat')}<i class="rd-badge" hidden></i></button>
-      <button type="button" class="rd-edge-btn" data-open="details" title="Session details" aria-label="Open session details">${iconHtml('info')}</button>`;
+      <button type="button" class="rd-edge-btn" data-open="files" title="${htl('file_transfer')}" aria-label="${htl('open_file_transfer')}">${iconHtml('folderTransfer')}</button>
+      <button type="button" class="rd-edge-btn" data-open="chat" title="${htl('chat')}" aria-label="${htl('open_chat')}">${iconHtml('chat')}<i class="rd-badge" hidden></i></button>
+      <button type="button" class="rd-edge-btn" data-open="details" title="${htl('session_details')}" aria-label="${htl('open_session_details')}">${iconHtml('info')}</button>`;
 
     const s = this.el.side;
     this.el.chatList = q(s, '#rd-chat-list');
@@ -774,7 +778,7 @@ export class RdApp {
 
   private openSide(tabName: SideTab): void {
     if (this.state !== 'streaming') {
-      this.toast('Connect to a device first');
+      this.toast(tl('connect_device_first'));
       return;
     }
     // Same tab, already open -> the dock button acts as a toggle.
@@ -784,7 +788,7 @@ export class RdApp {
     }
     if (tabName === 'files') {
       if (this.permissions.File === false) {
-        this.toast('This device does not permit file transfer');
+        this.toast(tl('this_device_does_not_permit'));
         return;
       }
       this.ensureFilePanel();
@@ -823,6 +827,18 @@ export class RdApp {
     }
   }
 
+  /**
+   * Config for a connection opened from the live session. It reuses the
+   * session's h1 credential and session_id, so the host lets it in without a
+   * second password prompt, even after a one-time password has rotated.
+   */
+  private sideConfig(connType: SessionConfig['connType']): SessionConfig {
+    return {
+      ...buildSessionConfig(this.cfg!, this.peerId, '', this.sessionHashHex, connType),
+      sessionId: this.reconnectConfig?.sessionId,
+    };
+  }
+
   // The file panel mounts INSIDE the Files pane. Its FILE_TRANSFER connection
   // reuses this session's h1 credential — no second password prompt.
   private ensureFilePanel(): void {
@@ -837,7 +853,7 @@ export class RdApp {
       toast: (msg) => this.toast(msg),
       getConfig: () => {
         if (!this.cfg || this.state !== 'streaming') return null;
-        return buildSessionConfig(this.cfg, this.peerId, '', this.sessionHashHex, 'fileTransfer');
+        return this.sideConfig('fileTransfer');
       },
     });
     this.filePanel.open();
@@ -845,7 +861,7 @@ export class RdApp {
 
   private openTerminalPanel(): void {
     if (!remoteInputAllowed(this.viewOnly, 'terminal')) {
-      this.toast('Remote terminal is unavailable in view-only mode');
+      this.toast(tl('remote_terminal_is_unavailable_in'));
       return;
     }
     if (!this.terminalPanel) {
@@ -856,7 +872,7 @@ export class RdApp {
         getConfig: () => {
           if (!this.cfg || this.state !== 'streaming' || !this.terminalSupported
               || !remoteInputAllowed(this.viewOnly, 'terminal')) return null;
-          return buildSessionConfig(this.cfg, this.peerId, '', this.sessionHashHex, 'terminal');
+          return this.sideConfig('terminal');
         },
       });
     }
@@ -871,7 +887,7 @@ export class RdApp {
         toast: (message) => this.toast(message),
         getConfig: () => {
           if (!this.cfg || this.state !== 'streaming' || !this.cameraSupported) return null;
-          return buildSessionConfig(this.cfg, this.peerId, '', this.sessionHashHex, 'viewCamera');
+          return this.sideConfig('viewCamera');
         },
       });
     }
@@ -898,17 +914,17 @@ export class RdApp {
       return;
     }
     if (this.state !== 'streaming') {
-      this.toast('Voice calls require a connected session');
+      this.toast(tl('voice_calls_require_connected_session'));
       return;
     }
     if (this.permissions.Audio === false) {
-      this.toast('This device does not permit audio calls');
+      this.toast(tl('this_device_does_not_permit_2'));
       return;
     }
     if (!this.remoteAudioEnabled) {
       // The peer drops call audio and never opens its mic while we have
       // remote audio off, so the call would connect and stay silent.
-      this.toast('Turn on "Receive remote audio" before starting a voice call');
+      this.toast(tl('turn_on_receive_remote_audio'));
       return;
     }
     // Same click that grants the mic also unlocks playback of the peer's voice.
@@ -936,7 +952,7 @@ export class RdApp {
     if (!prepared.ok) {
       this.voiceCallState = 'idle';
       this.renderVoiceCall();
-      this.toast(prepared.message ?? 'Microphone is unavailable');
+      this.toast(prepared.message ?? tl('microphone_is_unavailable'));
       return;
     }
     const currentPermissions = this.permissions as Record<string, boolean | undefined>;
@@ -962,7 +978,7 @@ export class RdApp {
       this.voiceCallAttempts?.invalidate();
       this.voiceCall?.stop();
       this.voiceCallState = 'idle';
-      if (state === 'rejected') this.toast('Voice call was declined');
+      if (state === 'rejected') this.toast(tl('voice_call_was_declined'));
       else if (detail) this.toast(detail);
     }
     this.renderVoiceCall();
@@ -994,7 +1010,7 @@ export class RdApp {
     } else {
       this.chatUnread++;
       this.renderChatBadges();
-      this.toast(`Chat: ${text.length > 80 ? text.slice(0, 77) + '…' : text}`);
+      this.toast(tl('chat_toast', { text: text.length > 80 ? text.slice(0, 77) + '…' : text }));
     }
   }
 
@@ -1011,7 +1027,7 @@ export class RdApp {
               `<span class="rd-msg-time">${fmt(m.at)}</span></div>`,
           )
           .join('')
-      : '<div class="rd-chat-empty">No messages yet. Anything you send pops up on the remote screen.</div>';
+      : '<div class="rd-chat-empty">' + htl('no_messages_yet_anything_you') + '</div>';
     this.el.chatList.scrollTop = this.el.chatList.scrollHeight;
   }
 
@@ -1115,24 +1131,24 @@ export class RdApp {
         isVirtual: isVirtualDisplay,
       }) : [];
       const resolutionHtml = currentDisplay && resolutions.length
-        ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">Resolution</div>' + resolutions.map((resolution) =>
+        ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('resolution') + '</div>' + resolutions.map((resolution) =>
             `<button type="button" class="rd-mi rd-resolution" data-width="${resolution.width}" data-height="${resolution.height}"><span class="rd-mi-pad"></span><span class="rd-mi-label">${escapeHtml(resolution.label)}</span></button>`,
           ).join('') +
-          (isVirtualDisplay ? '<button type="button" class="rd-mi" data-custom-resolution><span class="rd-mi-pad"></span><span class="rd-mi-label">Custom resolution…</span></button>' : '')
+          (isVirtualDisplay ? '<button type="button" class="rd-mi" data-custom-resolution><span class="rd-mi-pad"></span><span class="rd-mi-label">' + htl('custom_resolution') + '</span></button>' : '')
         : '';
       const virtualHtml = virtual
-        ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">Virtual displays</div>' +
+        ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('virtual_displays') + '</div>' +
           (virtual.impl === 'rustdesk_idd'
-            ? [1, 2, 3, 4].map((id) => this.menuItem(null, `Virtual display ${id}`, virtual.rustdeskIds.includes(id), `virtual:${id}`)).join('') +
-              this.menuItem(null, 'Unplug all virtual displays', false, 'virtual:all')
-            : this.menuItem(null, 'Add virtual display', false, 'virtual:add') +
-              this.menuItem(null, 'Remove virtual display', false, 'virtual:remove') +
-              this.menuItem(null, 'Unplug all virtual displays', false, 'virtual:all'))
+            ? [1, 2, 3, 4].map((id) => this.menuItem(null, tl('virtual_display_n', { id }), virtual.rustdeskIds.includes(id), `virtual:${id}`)).join('') +
+              this.menuItem(null, tl('unplug_all_virtual_displays'), false, 'virtual:all')
+            : this.menuItem(null, tl('add_virtual_display'), false, 'virtual:add') +
+              this.menuItem(null, tl('remove_virtual_display'), false, 'virtual:remove') +
+              this.menuItem(null, tl('unplug_all_virtual_displays'), false, 'virtual:all'))
         : '';
       pop.innerHTML =
-        '<div class="rd-pop-title">Select monitor</div>' +
+        '<div class="rd-pop-title">' + htl('select_monitor') + '</div>' +
         this.displays.map((display, index) => {
-          const label = display.name?.trim() || `Monitor ${index + 1}`;
+          const label = display.name?.trim() || tl('monitor_n', { n: index + 1 });
           return (
             `<button type="button" class="rd-mon-tile${index === this.current ? ' rd-checked' : ''}" data-idx="${index}" role="menuitem"${display.online ? '' : ' disabled'}>` +
             `<span class="rd-mon-num">${index + 1}</span>` +
@@ -1154,12 +1170,12 @@ export class RdApp {
             c: 'displayResolution', display: this.current,
             width: Number(button.dataset.width), height: Number(button.dataset.height),
           });
-          this.toast('Resolution change requested');
+          this.toast(tl('resolution_change_requested'));
           this.closePop();
         });
       }
       pop.querySelector<HTMLButtonElement>('[data-custom-resolution]')?.addEventListener('click', () => {
-        const value = window.prompt('Custom resolution (width×height)', `${currentDisplay?.width ?? 1920}×${currentDisplay?.height ?? 1080}`);
+        const value = window.prompt(tl('custom_resolution_width_height'), `${currentDisplay?.width ?? 1920}×${currentDisplay?.height ?? 1080}`);
         const match = value?.trim().match(/^(\d{2,5})\s*[x×]\s*(\d{2,5})$/i);
         if (!match) return;
         const width = Number(match[1]);
@@ -1179,7 +1195,7 @@ export class RdApp {
             const display = Number(action);
             this.post({ c: 'virtualDisplay', display, on: !virtual.rustdeskIds.includes(display) });
           }
-          this.toast('Virtual-display change requested');
+          this.toast(tl('virtual_display_change_requested'));
           this.closePop();
         });
       }
@@ -1200,20 +1216,25 @@ export class RdApp {
         viewOnly: this.viewOnly,
       });
       const securityHtml = security.length
-        ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">Remote controls</div>'
+        ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('remote_controls') + '</div>'
           + security.map((item) => this.menuItem(null, item.label, item.checked, undefined, item.id)).join('')
         : '';
       const canTerminal = this.terminalSupported && remoteInputAllowed(this.viewOnly, 'terminal');
       const canCamera = this.cameraSupported;
       const tools =
         canTerminal || canCamera
-          ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">Tools</div>' +
-            (canTerminal ? this.menuItem(null, 'Remote terminal', false, 'terminal') : '') +
-            (canCamera ? this.menuItem(null, 'View camera', false, 'camera') : '')
+          ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('tools') + '</div>' +
+            (canTerminal ? this.menuItem(null, tl('remote_terminal'), false, 'terminal') : '') +
+            (canCamera ? this.menuItem(null, tl('view_camera'), false, 'camera') : '')
           : '';
       const canRemoteCursor = canUseRemoteCursor(this.peerPlatform, this.displays[this.current]);
+      const keyboardHtml = mapKeyboardTarget(this.peerPlatform, this.peerVersion)
+        ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + escapeHtml(tl('keyboard')) + '</div>' +
+          this.menuItem(null, tl('keyboard_map'), this.keyboardMode === 'map', 'keyboard:map') +
+          this.menuItem(null, tl('keyboard_translate'), this.keyboardMode === 'legacy', 'keyboard:legacy')
+        : '';
       const codecHtml = this.codecSupport.map((codec) =>
-        this.menuItem(null, codec === 'auto' ? 'Automatic codec' : codec.toUpperCase(), this.preferredCodec === codec, `codec:${codec}`),
+        this.menuItem(null, codec === 'auto' ? tl('automatic_codec') : codec.toUpperCase(), this.preferredCodec === codec, `codec:${codec}`),
       ).join('');
       const canAudio = !!this.audioPlayback && this.permissions.Audio !== false;
       const canClipboard = this.permissions.Clipboard !== false;
@@ -1222,52 +1243,53 @@ export class RdApp {
       const volumePercent = Math.round(this.audioVolume * 100);
       const mediaHtml =
         canAudio || canClipboard || canRecord
-          ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">Session media</div>' +
+          ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('session_media') + '</div>' +
             (canAudio
-              ? this.menuItem(null, this.audioStarted ? 'Remote audio ready' : 'Start remote audio', this.audioStarted, 'audioResume') +
-                this.menuItem(null, 'Receive remote audio', this.remoteAudioEnabled, 'audioToggle') +
-                this.menuItem(null, 'Mute playback', this.audioMuted, 'audioMute') +
-                `<label class="rd-media-volume"><span>Volume</span><input data-action="audioVolume" type="range" min="0" max="100" value="${volumePercent}"><output>${volumePercent}%</output></label>`
+              ? this.menuItem(null, this.audioStarted ? tl('remote_audio_ready') : tl('start_remote_audio'), this.audioStarted, 'audioResume') +
+                this.menuItem(null, tl('receive_remote_audio'), this.remoteAudioEnabled, 'audioToggle') +
+                this.menuItem(null, tl('mute_playback'), this.audioMuted, 'audioMute') +
+                `<label class="rd-media-volume"><span>${htl('volume')}</span><input data-action="audioVolume" type="range" min="0" max="100" value="${volumePercent}"><output>${volumePercent}%</output></label>`
               : '') +
             (canClipboard
-              ? this.menuItem(null, 'Text clipboard', this.clipboardEnabled, 'clipboardToggle') +
-                (canSendClipboard ? this.menuItem(null, 'Sync local clipboard now', false, 'clipboardSync') : '')
+              ? this.menuItem(null, tl('text_clipboard'), this.clipboardEnabled, 'clipboardToggle') +
+                (canSendClipboard ? this.menuItem(null, tl('sync_local_clipboard_now'), false, 'clipboardSync') : '')
               : '') +
             (canRecord
-              ? this.menuItem(null, this.recording ? 'Stop local recording' : 'Start local recording', this.recording, 'recording')
+              ? this.menuItem(null, this.recording ? tl('stop_local_recording') : tl('start_local_recording'), this.recording, 'recording')
               : '')
           : '';
       pop.innerHTML =
-        this.menuItem('refresh', 'Refresh video', false, 'refresh') +
-        '<div class="rd-pop-sep"></div><div class="rd-pop-title">Image quality</div>' +
-        this.menuItem(null, 'Best', !this.customQualityActive && this.quality === QUALITY.best, 'quality:best') +
-        this.menuItem(null, 'Balanced', !this.customQualityActive && this.quality === QUALITY.balanced, 'quality:balanced') +
-        this.menuItem(null, 'Speed', !this.customQualityActive && this.quality === QUALITY.speed, 'quality:speed') +
-        `<label class="rd-display-slider${this.customQualityActive ? ' rd-checked' : ''}"><span>Custom quality</span><input data-action="customQuality" type="range" min="10" max="100" value="${this.customQuality}"><output>${this.customQuality}</output></label>` +
-        '<div class="rd-pop-sep"></div><div class="rd-pop-title">Frame rate and codec</div>' +
-        this.menuItem(null, 'Adaptive FPS', this.adaptiveFps, 'adaptiveFps') +
+        this.menuItem('refresh', tl('refresh_video'), false, 'refresh') +
+        '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('image_quality') + '</div>' +
+        this.menuItem(null, tl('best'), !this.customQualityActive && this.quality === QUALITY.best, 'quality:best') +
+        this.menuItem(null, tl('balanced'), !this.customQualityActive && this.quality === QUALITY.balanced, 'quality:balanced') +
+        this.menuItem(null, tl('speed'), !this.customQualityActive && this.quality === QUALITY.speed, 'quality:speed') +
+        `<label class="rd-display-slider${this.customQualityActive ? ' rd-checked' : ''}"><span>${htl('custom_quality')}</span><input data-action="customQuality" type="range" min="10" max="100" value="${this.customQuality}"><output>${this.customQuality}</output></label>` +
+        '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('frame_rate_and_codec') + '</div>' +
+        this.menuItem(null, tl('adaptive_fps'), this.adaptiveFps, 'adaptiveFps') +
         `<label class="rd-display-slider"><span>${this.adaptiveFps ? 'Maximum FPS' : 'Custom FPS'}</span><input data-action="customFps" type="range" min="5" max="120" step="5" value="${this.customFps}"><output>${this.customFps}</output></label>` +
         codecHtml +
         (canRemoteCursor
-          ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">Remote cursor</div>' +
-            this.menuItem(null, 'Show remote cursor', this.showRemoteCursor, 'showRemoteCursor') +
-            this.menuItem(null, 'Follow remote cursor', this.followRemoteCursor, 'followRemoteCursor') +
-            (this.displays.length > 1 ? this.menuItem(null, 'Follow remote window focus', this.followRemoteWindow, 'followRemoteWindow') : '') +
-            this.menuItem(null, 'Enlarge remote cursor', this.cursorScale > 1, 'cursorScale')
+          ? '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('remote_cursor') + '</div>' +
+            this.menuItem(null, tl('show_remote_cursor'), this.showRemoteCursor, 'showRemoteCursor') +
+            this.menuItem(null, tl('follow_remote_cursor'), this.followRemoteCursor, 'followRemoteCursor') +
+            (this.displays.length > 1 ? this.menuItem(null, tl('follow_remote_window_focus'), this.followRemoteWindow, 'followRemoteWindow') : '') +
+            this.menuItem(null, tl('enlarge_remote_cursor'), this.cursorScale > 1, 'cursorScale')
           : '') +
+        keyboardHtml +
         securityHtml +
         tools +
         mediaHtml +
         '<div class="rd-pop-sep"></div>' +
-        this.menuItem(null, 'Reset settings to defaults', false, 'resetPrefs') +
-        '<div class="rd-pop-note">Display and media settings are remembered in this browser for every device.</div>';
+        this.menuItem(null, tl('reset_settings_defaults'), false, 'resetPrefs') +
+        '<div class="rd-pop-note">' + htl('display_and_media_settings_are') + '</div>';
       pop.querySelector<HTMLButtonElement>('[data-action="refresh"]')?.addEventListener('click', () => {
         this.post({ c: 'refresh' });
         this.closePop();
       });
       pop.querySelector<HTMLButtonElement>('[data-action="resetPrefs"]')?.addEventListener('click', () => {
         this.resetSessionPrefs();
-        this.toast('Settings reset to defaults');
+        this.toast(tl('settings_reset_defaults'));
         this.closePop();
       });
       const qualityValues: Record<string, number> = { best: QUALITY.best, balanced: QUALITY.balanced, speed: QUALITY.speed };
@@ -1299,7 +1321,7 @@ export class RdApp {
         this.lastDroppedFrames = this.stats?.framesDropped ?? 0;
         this.post({ c: 'customFps', fps: this.adaptiveFpsTarget });
         this.rememberPrefs({ adaptiveFps: this.adaptiveFps });
-        this.toast(this.adaptiveFps ? 'Adaptive FPS enabled; bitrate remains host-managed' : 'Fixed FPS enabled');
+        this.toast(this.adaptiveFps ? tl('adaptive_fps_enabled_bitrate_remains') : tl('fixed_fps_enabled'));
         this.closePop();
       });
       const customFps = pop.querySelector<HTMLInputElement>('[data-action="customFps"]');
@@ -1344,6 +1366,13 @@ export class RdApp {
       for (const action of ['showRemoteCursor', 'followRemoteCursor', 'followRemoteWindow'] as const) {
         pop.querySelector<HTMLButtonElement>(`[data-action="${action}"]`)?.addEventListener('click', () => toggleDisplayOption(action));
       }
+      for (const mode of ['map', 'legacy'] as const) {
+        pop.querySelector<HTMLButtonElement>(`[data-action="keyboard:${mode}"]`)?.addEventListener('click', () => {
+          this.keyboardMode = mode;
+          this.rememberPrefs({ keyboardMode: mode });
+          this.closePop();
+        });
+      }
       pop.querySelector<HTMLButtonElement>('[data-action="cursorScale"]')?.addEventListener('click', () => {
         this.cursorScale = this.cursorScale > 1 ? 1 : 2;
         this.updateRemoteCursorTransform();
@@ -1371,14 +1400,14 @@ export class RdApp {
         this.rememberPrefs({ remoteAudio: this.remoteAudioEnabled });
         if (this.remoteAudioEnabled) void this.resumeAudioFromUserGesture();
         else this.audioPlayback?.reset();
-        this.toast(this.remoteAudioEnabled ? 'Remote audio enabled' : 'Remote audio disabled');
+        this.toast(this.remoteAudioEnabled ? tl('remote_audio_enabled') : tl('remote_audio_disabled'));
         this.closePop();
       });
       pop.querySelector<HTMLButtonElement>('[data-action="audioMute"]')?.addEventListener('click', () => {
         this.audioMuted = !this.audioMuted;
         this.audioPlayback?.setMuted(this.audioMuted);
         this.rememberPrefs({ audioMuted: this.audioMuted });
-        this.toast(this.audioMuted ? 'Remote audio muted' : 'Remote audio unmuted');
+        this.toast(this.audioMuted ? tl('remote_audio_muted') : tl('remote_audio_unmuted'));
         this.closePop();
       });
       const volume = pop.querySelector<HTMLInputElement>('[data-action="audioVolume"]');
@@ -1394,7 +1423,7 @@ export class RdApp {
         this.post({ c: 'clipboardEnabled', enabled: this.clipboardEnabled });
         this.rememberPrefs({ clipboard: this.clipboardEnabled });
         if (!this.clipboardEnabled) this.removeClipboardSyncOffer();
-        this.toast(this.clipboardEnabled ? 'Text clipboard enabled' : 'Text clipboard disabled');
+        this.toast(this.clipboardEnabled ? tl('text_clipboard_enabled') : tl('text_clipboard_disabled'));
         this.closePop();
       });
       pop.querySelector<HTMLButtonElement>('[data-action="clipboardSync"]')?.addEventListener('click', () => {
@@ -1416,9 +1445,9 @@ export class RdApp {
       return;
     }
     if (id === 'elevation') {
-      if (!window.confirm('Ask the remote Windows user to approve elevation?')) return;
+      if (!window.confirm(tl('ask_remote_windows_user_approve'))) return;
       this.post({ c: 'requestElevation' });
-      this.toast('Elevation requested — waiting for approval on the remote device', true);
+      this.toast(tl('elevation_requested_waiting_for_approval'), true);
       this.closePop();
       return;
     }
@@ -1426,27 +1455,27 @@ export class RdApp {
       if (this.privacyModePending) return;
       const implKey = id.slice('privacy:'.length);
       const on = !(this.privacyModeOn && this.activePrivacyImplKey === implKey);
-      if (on && !window.confirm('Enable privacy mode and hide the remote screen from the local user?')) return;
+      if (on && !window.confirm(tl('enable_privacy_mode_and_hide'))) return;
       this.privacyModePending = true;
       this.activePrivacyImplKey = implKey;
       this.post({ c: 'privacyMode', implKey, on });
-      this.toast(`${on ? 'Enabling' : 'Disabling'} privacy mode…`, true);
+      this.toast(tl(on ? 'privacy_enabling' : 'privacy_disabling'), true);
       this.closePop();
       return;
     }
     if (id === 'blockInput') {
       if (this.blockInputPending) return;
       const on = !this.blockInputOn;
-      if (on && !window.confirm('Block the remote computer’s local keyboard and mouse?')) return;
+      if (on && !window.confirm(tl('block_remote_computers_local_keyboard'))) return;
       this.blockInputPending = true;
       this.post({ c: 'blockInput', on });
-      this.toast(`${on ? 'Blocking' : 'Restoring'} remote keyboard and mouse…`, true);
+      this.toast(tl(on ? 'input_blocking' : 'input_restoring'), true);
       this.closePop();
       return;
     }
     if (id === 'lockScreen') {
       const sent = this.post(buildLockScreenKeyCommand());
-      this.toast(sent ? 'Lock command sent' : 'Lock command not sent');
+      this.toast(sent ? tl('lock_command_sent') : tl('lock_command_not_sent'));
       this.closePop();
       return;
     }
@@ -1455,8 +1484,8 @@ export class RdApp {
       this.post({ c: 'lockAfterSessionEnd', on: this.lockAfterSessionEnd });
       this.toast(
         this.lockAfterSessionEnd
-          ? 'Lock-after-disconnect request sent (best effort; the remote device does not acknowledge this setting)'
-          : 'Lock-after-disconnect disable request sent (best effort; the remote device does not acknowledge this setting)',
+          ? tl('lock_after_disconnect_request_sent')
+          : tl('lock_after_disconnect_disable_request'),
       );
       this.closePop();
     }
@@ -1465,8 +1494,8 @@ export class RdApp {
   private openFitPop(): void {
     this.openPop(this.el.btnFit, (pop) => {
       pop.innerHTML =
-        this.menuItem(null, 'Fit to screen', this.fitMode === 'fit') +
-        this.menuItem(null, 'Actual size', this.fitMode === 'actual');
+        this.menuItem(null, tl('fit_screen'), this.fitMode === 'fit') +
+        this.menuItem(null, tl('actual_size'), this.fitMode === 'actual');
       const items = pop.querySelectorAll<HTMLButtonElement>('.rd-mi');
       const set = (mode: FitMode): void => {
         this.setFitMode(mode);
@@ -1481,7 +1510,7 @@ export class RdApp {
   private setFitMode(mode: FitMode): void {
     this.fitMode = mode;
     this.el.viewport.dataset.fit = mode;
-    q(this.el.toolbar, '#rd-fit-label').textContent = mode === 'fit' ? 'Fit to screen' : 'Actual size';
+    q(this.el.toolbar, '#rd-fit-label').textContent = mode === 'fit' ? tl('fit_screen') : tl('actual_size');
   }
 
   // --- remembered settings (issue #92) --------------------------------------
@@ -1514,6 +1543,7 @@ export class RdApp {
     this.remoteAudioEnabled = p.remoteAudio;
     this.audioMuted = p.audioMuted;
     this.audioVolume = p.audioVolume;
+    this.keyboardMode = p.keyboardMode;
     this.audioPlayback?.setVolume(this.audioVolume);
     this.audioPlayback?.setMuted(this.audioMuted);
   }
@@ -1546,14 +1576,20 @@ export class RdApp {
       remoteAudio: this.remoteAudioEnabled,
       audioMuted: this.audioMuted,
       audioVolume: this.audioVolume,
+      keyboardMode: this.keyboardMode,
     };
+  }
+
+  /** Keycodes for Map mode, or null for legacy character input. */
+  private keyboardTarget(): KeyTarget | null {
+    return this.keyboardMode === 'map' ? mapKeyboardTarget(this.peerPlatform, this.peerVersion) : null;
   }
 
   private syncFullscreenButton(): void {
     const btn = this.el.btnFullscreen;
     if (!btn) return;
     const fs = !!document.fullscreenElement;
-    const label = fs ? 'Exit fullscreen' : 'Fullscreen';
+    const label = fs ? tl('exit_fullscreen') : tl('fullscreen');
     btn.innerHTML = iconHtml(fs ? 'fullscreenExit' : 'fullscreen');
     btn.title = label;
     btn.setAttribute('aria-label', label);
@@ -1565,18 +1601,18 @@ export class RdApp {
       anchor,
       (pop) => {
         pop.innerHTML =
-          '<div class="rd-pop-title">Send to remote</div>' +
+          '<div class="rd-pop-title">' + htl('send_remote') + '</div>' +
           this.menuItem('keyboard', 'Ctrl+Alt+Del') +
-          this.menuItem('keyboard', 'Windows key') +
+          this.menuItem('keyboard', tl('windows_key')) +
           this.menuItem('keyboard', 'PrintScreen') +
           this.menuItem('keyboard', 'Escape') +
           this.menuItem('keyboard', 'Tab');
         const acts: [string, () => void][] = [
-          ['Ctrl+Alt+Del sent', () => this.post({ c: 'ctrlAltDel' })],
-          ['Windows key sent', () => this.pressControl(ControlKey.Meta)],
-          ['PrintScreen sent', () => this.pressControl(ControlKey.Snapshot)],
-          ['Escape sent', () => this.pressControl(ControlKey.Escape)],
-          ['Tab sent', () => this.pressControl(ControlKey.Tab)],
+          [tl('key_sent', { key: 'Ctrl+Alt+Del' }), () => this.post({ c: 'ctrlAltDel' })],
+          [tl('key_sent', { key: tl('windows_key') }), () => this.pressControl(ControlKey.Meta)],
+          [tl('key_sent', { key: 'PrintScreen' }), () => this.pressControl(ControlKey.Snapshot)],
+          [tl('key_sent', { key: 'Escape' }), () => this.pressControl(ControlKey.Escape)],
+          [tl('key_sent', { key: 'Tab' }), () => this.pressControl(ControlKey.Tab)],
         ];
         pop.querySelectorAll<HTMLButtonElement>('.rd-mi').forEach((b, i) => {
           b.addEventListener('click', () => {
@@ -1596,10 +1632,10 @@ export class RdApp {
       (pop) => {
         pop.classList.add('rd-pop-type');
         pop.innerHTML = `
-          <div class="rd-pop-title">Type on the remote device</div>
-          <textarea id="rd-type-text" rows="4" placeholder="Sent as keystrokes — works where the remote clipboard does not."></textarea>
+          <div class="rd-pop-title">${htl('type_on_remote_device')}</div>
+          <textarea id="rd-type-text" rows="4" placeholder="${htl('sent_as_keystrokes_works_where')}"></textarea>
           <div class="rd-pop-actions">
-            <button type="button" class="rd-chip rd-chip-solid" id="rd-type-send">${iconHtml('send')}<span>Send keystrokes</span></button>
+            <button type="button" class="rd-chip rd-chip-solid" id="rd-type-send">${iconHtml('send')}<span>${htl('send_keystrokes')}</span></button>
           </div>`;
         const ta = q<HTMLTextAreaElement>(pop, '#rd-type-text');
         setTimeout(() => ta.focus(), 0);
@@ -1607,7 +1643,7 @@ export class RdApp {
           const text = ta.value;
           if (!text) return;
           for (const cmd of buildTypeCommands(text)) this.post(cmd);
-          this.toast(`Typed ${text.length} character${text.length === 1 ? '' : 's'}`);
+          this.toast(tn('typed_chars', text.length));
           this.closePop();
         });
       },
@@ -1630,30 +1666,30 @@ export class RdApp {
           <img class="rd-logo" src="/rdclient/logo.png" alt="CortenDesk" width="60" height="60">
           <span class="rd-wordmark">Corten<span>Desk</span></span>
         </div>
-        <div class="rd-tagline">Web-Based Client ${overlayVersion(this.cfg)}</div>
+        <div class="rd-tagline">${htl('overlay_title')} ${overlayVersion(this.cfg)}</div>
         <div class="rd-divider" aria-hidden="true"></div>
-        <p class="rd-help">Enter the client's temporary or permanent password assigned in the RustDesk client.</p>
+        <p class="rd-help">${htl('enter_clients_temporary_or_permanent')}</p>
         <div class="rd-target" id="rd-target" hidden>
           <span class="rd-target-ic">${device}</span>
-          <span class="rd-target-cap">Client ID</span>
+          <span class="rd-target-cap">${htl('client_id')}</span>
           <span class="rd-target-id" id="rd-overlay-peer"></span>
         </div>
         <label class="rd-field" id="rd-field-id" hidden>
           <span class="rd-input">
             <span class="rd-input-ic">${device}</span>
-            <input id="rd-peer-id" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="Device ID">
+            <input id="rd-peer-id" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${htl('device_id')}">
           </span>
         </label>
         <div class="rd-connect-row">
           <span class="rd-input">
             <span class="rd-input-ic">${lock}</span>
-            <input id="rd-password" type="password" autocomplete="new-password" placeholder="Enter password">
+            <input id="rd-password" type="password" autocomplete="new-password" placeholder="${htl('enter_password')}">
           </span>
-          <button type="button" class="rd-go" id="rd-connect" aria-label="Connect">${arrow}</button>
+          <button type="button" class="rd-go" id="rd-connect" aria-label="${htl('connect')}">${arrow}</button>
         </div>
         <label class="rd-save">
           <input type="checkbox" id="rd-save-pw">
-          <span>Save password on this device</span>
+          <span>${htl('save_password_on_this_device')}</span>
         </label>
         <div class="rd-msg" id="rd-msg">
           <div class="rd-overlay-status" id="rd-overlay-status" hidden>
@@ -1661,7 +1697,7 @@ export class RdApp {
           </div>
           <div class="rd-overlay-error" id="rd-overlay-error" role="alert" hidden></div>
         </div>
-        <button type="button" class="rd-chip" id="rd-restart-cancel" hidden>Cancel reconnect</button>
+        <button type="button" class="rd-chip" id="rd-restart-cancel" hidden>${htl('cancel_reconnect')}</button>
       </div>`;
     const o = this.el.overlay;
     this.el.overlayPeer = q(o, '#rd-overlay-peer');
@@ -1693,7 +1729,7 @@ export class RdApp {
     const has = !!peerId && loadSavedHash(peerId) !== null;
     this.el.saveCheckbox.checked = has;
     this.el.passwordInput.value = '';
-    this.el.passwordInput.placeholder = has ? 'Saved password — click to change' : 'Enter password';
+    this.el.passwordInput.placeholder = has ? tl('saved_password_click_change') : tl('enter_password');
   }
 
   /**
@@ -1715,12 +1751,9 @@ export class RdApp {
     if (mseH264Available()) return null; // degraded path — see fallbackNotice()
 
     if (typeof isSecureContext !== 'undefined' && !isSecureContext) {
-      return 'This page is served over plain HTTP and this browser cannot fall '
-        + 'back to Media Source playback. Serve the console over HTTPS, or open '
-        + 'it as http://localhost, which browsers treat as secure.';
+      return tl('secure_context_error');
     }
-    return 'This browser has no WebCodecs video decoder and no Media Source '
-      + 'support for H.264. Chrome or Edge is required for the remote screen.';
+    return tl('no_decoder_error');
   }
 
   private consumePasswordInput(): string {
@@ -1733,7 +1766,7 @@ export class RdApp {
     if (this.worker && this.state !== 'error' && this.state !== 'closed') return;
     const peerId = normalizePeerId(this.el.peerIdInput.value || this.fixedPeerId);
     if (!peerId) {
-      this.setOverlayError('Enter a device ID');
+      this.setOverlayError(tl('enter_device_id'));
       return;
     }
     if (!this.cfg) {
@@ -1764,15 +1797,15 @@ export class RdApp {
     } else {
       config = buildSessionConfig(this.cfg, peerId, typed);
     }
-    this.startSession(config);
+    this.startSession({ ...config, sessionId: newSessionId() });
   }
 
   private beginRemoteRestart(): void {
     if (this.state !== 'streaming' || !this.reconnectConfig) {
-      this.toast('Restart is unavailable until the session is connected');
+      this.toast(tl('restart_is_unavailable_until_session'));
       return;
     }
-    if (!window.confirm('Restart the remote device and reconnect automatically?')) return;
+    if (!window.confirm(tl('restart_remote_device_and_reconnect'))) return;
 
     const config: SessionConfig = {
       ...this.reconnectConfig,
@@ -1785,7 +1818,7 @@ export class RdApp {
     const flow: RestartFlow = { startedAt: Date.now(), attempt: 0, config, reconnecting: false };
     flow.deadlineTimer = setTimeout(() => this.expireRestartFlow(flow), RESTART_RECONNECT_TIMEOUT_MS);
     this.restartFlow = flow;
-    this.toast('Restart command sent — waiting for the remote device', true);
+    this.toast(tl('restart_command_sent_waiting_for'), true);
   }
 
   private scheduleRestartReconnect(detail?: string): void {
@@ -1804,7 +1837,7 @@ export class RdApp {
     const delay = nextRestartReconnectDelay(flow.attempt, elapsed);
     if (delay === null) {
       this.clearRestartFlow();
-      this.setState('error', `The remote device did not return after restarting${detail ? ` — ${detail}` : ''}`);
+      this.setState('error', tl('restart_no_return') + (detail ? ` — ${detail}` : ''));
       return;
     }
 
@@ -1814,7 +1847,7 @@ export class RdApp {
     this.showOverlay();
     this.setOverlayBusy(true);
     this.el.reconnectCancel.hidden = false;
-    this.setOverlayStatusText(`Waiting for restarted device — retry ${flow.attempt} in ${Math.ceil(delay / 1000)}s`);
+    this.setOverlayStatusText(tl('waiting_restart_retry', { attempt: flow.attempt, seconds: Math.ceil(delay / 1000) }));
     flow.timer = setTimeout(() => {
       if (this.restartFlow !== flow) return;
       flow.timer = undefined;
@@ -1832,7 +1865,7 @@ export class RdApp {
     if (!this.restartFlow) return;
     this.clearRestartFlow();
     if (wasWaiting) this.setState('closed');
-    this.toast('Automatic reconnect cancelled');
+    this.toast(tl('automatic_reconnect_cancelled'));
   }
 
   private expireRestartFlow(flow: RestartFlow): void {
@@ -1843,11 +1876,11 @@ export class RdApp {
     if (reconnecting) {
       this.teardown(true);
       this.clearSecurityState();
-      this.setState('error', 'The remote device did not return within 120 seconds after the restart request');
+      this.setState('error', tl('remote_device_did_not_return'));
     } else if (sessionStillStreaming) {
-      this.toast('No remote restart was detected within 120 seconds');
+      this.toast(tl('no_remote_restart_was_detected'));
     } else {
-      this.setState('error', 'The remote device did not return within 120 seconds after the restart request');
+      this.setState('error', tl('remote_device_did_not_return'));
     }
   }
 
@@ -1882,6 +1915,7 @@ export class RdApp {
     this.clearSecurityState();
     this.peerWho = '';
     this.peerPlatform = '';
+    this.peerVersion = '';
     this.terminalSupported = false;
     this.cameraSupported = false;
     this.platformAdditions = '';
@@ -1909,10 +1943,11 @@ export class RdApp {
     this.worker = worker;
     worker.onmessage = (e: MessageEvent<UiWorkerEvent>) => this.onEvent(e.data);
     worker.onerror = (e: ErrorEvent) => this.setState('error', e.message || 'session worker failed');
-    const cmd: UiCommand = { c: 'connect', config, canvas: offscreen };
+    const cmd: UiCommand = { c: 'connect', config: { ...config, messages: (window as unknown as { __RD__?: { messages?: Record<string, string> } }).__RD__?.messages }, canvas: offscreen };
     worker.postMessage(cmd, [offscreen]);
     this.detach = attachInput(canvas, (c) => this.post(c), () => this.currentRect(), {
       isTouchMode: () => this.inputMode === 'touch',
+      keyboardTarget: () => this.keyboardTarget(),
     });
     this.el.peerLabel.textContent = this.peerId;
     this.el.statDevice.textContent = this.peerId;
@@ -2055,6 +2090,7 @@ export class RdApp {
         if (ev.current !== undefined) this.current = ev.current;
         this.peerWho = ev.username ? `${ev.username}@${ev.hostname}` : ev.hostname;
         this.peerPlatform = ev.platform || '';
+        this.peerVersion = ev.version || '';
         this.privacyModeSupported = ev.privacyModeSupported;
         this.privacyModeImpls = ev.privacyModeImpls;
         this.terminalSupported = ev.terminalSupported;
@@ -2130,7 +2166,7 @@ export class RdApp {
           ?.writeText(ev.text)
           .catch(() => {
             if (sessionEpoch === this.sessionEpoch) {
-              this.toast('Remote clipboard received (press Ctrl+V on this page to sync)');
+              this.toast(tl('remote_clipboard_received_press_ctrl'));
             }
           });
         break;
@@ -2154,9 +2190,9 @@ export class RdApp {
         this.applyBlockInputState(ev.state, ev.details);
         break;
       case 'elevation':
-        if (ev.state === 'succeeded') this.toast('Elevation approved');
-        else if (ev.state === 'failed') this.toast(`Elevation failed${ev.detail ? `: ${ev.detail}` : ''}`);
-        else this.toast('Elevation approved — waiting for the elevated service', true);
+        if (ev.state === 'succeeded') this.toast(tl('elevation_approved'));
+        else if (ev.state === 'failed') this.toast(tl('elevation_failed') + (ev.detail ? `: ${ev.detail}` : ''));
+        else this.toast(tl('elevation_approved_waiting_for_elevated'), true);
         break;
       case 'credentials':
         this.pendingHashHex = ev.hashHex; // persisted only once the session streams
@@ -2165,10 +2201,10 @@ export class RdApp {
         break;
       case 'uac':
         if (ev.on) {
-          this.toast('UAC prompt is open on the remote screen — approve or cancel it there', true);
+          this.toast(tl('uac_prompt_is_open_on'), true);
         } else {
           this.hideToast();
-          this.toast('Remote UAC dialog closed');
+          this.toast(tl('remote_uac_dialog_closed'));
         }
         break;
       case 'msgbox': {
@@ -2186,12 +2222,12 @@ export class RdApp {
           // The stored credential no longer works (password changed) — drop it.
           clearSavedHash(this.peerId);
           this.el.saveCheckbox.checked = false;
-          this.el.passwordInput.placeholder = 'Enter password';
+          this.el.passwordInput.placeholder = tl('enter_password');
           this.connectedWithSavedHash = false;
         }
         this.showOverlay();
         this.setOverlayBusy(false);
-        this.setOverlayError(ev.message || 'Login failed');
+        this.setOverlayError(ev.message || tl('login_failed'));
         this.el.passwordInput.focus();
         this.el.passwordInput.select();
         break;
@@ -2210,7 +2246,7 @@ export class RdApp {
   /** The line under the peer name: state while in flight, identity once live. */
   private refreshPeerSub(): void {
     if (this.state === 'streaming') {
-      const bits = ['Online'];
+      const bits = [tl('online')];
       if (this.peerPlatform) bits.push(this.peerPlatform);
       this.el.peerSub.textContent = bits.join(' · ');
     } else {
@@ -2233,11 +2269,11 @@ export class RdApp {
           const flow = this.restartFlow;
           this.el.reconnectCancel.hidden = true;
           clearTimeout(flow.stableTimer);
-          this.toast('Connection restored — checking stability after the restart request', true);
+          this.toast(tl('connection_restored_checking_stability_a'), true);
           flow.stableTimer = setTimeout(() => {
             if (this.restartFlow !== flow || this.state !== 'streaming') return;
             this.clearRestartFlow();
-            this.toast('Connection restored after the restart request');
+            this.toast(tl('connection_restored_after_restart_reques'));
           }, 15_000);
         }
         this.showClipboardSyncOffer();
@@ -2252,7 +2288,7 @@ export class RdApp {
         this.closePop();
         this.showOverlay();
         this.setOverlayBusy(false);
-        this.setOverlayError(detail || 'Connection failed');
+        this.setOverlayError(detail || tl('connection_failed'));
         break;
       case 'closed':
         this.teardown();
@@ -2264,7 +2300,7 @@ export class RdApp {
         this.closePop();
         this.showOverlay();
         this.setOverlayBusy(false);
-        this.setOverlayStatusText('Disconnected');
+        this.setOverlayStatusText(tl('disconnected'));
         break;
       default:
         this.showOverlay();
@@ -2363,7 +2399,7 @@ export class RdApp {
       default:
         failed = true;
     }
-    if (failed) this.toast(`Privacy mode failed${details ? `: ${details}` : ''}`);
+    if (failed) this.toast(tl('privacy_failed') + (details ? `: ${details}` : ''));
     else this.refreshSecurityToast();
   }
 
@@ -2388,13 +2424,13 @@ export class RdApp {
       default:
         failed = true;
     }
-    if (failed) this.toast(`Remote input control failed${details ? `: ${details}` : ''}`);
+    if (failed) this.toast(tl('input_control_failed') + (details ? `: ${details}` : ''));
     else this.refreshSecurityToast();
   }
 
   private refreshSecurityToast(): void {
-    if (this.blockInputOn) this.toast('Remote keyboard and mouse are blocked', true);
-    else if (this.privacyModeOn) this.toast('Privacy mode is active', true);
+    if (this.blockInputOn) this.toast(tl('remote_keyboard_and_mouse_are'), true);
+    else if (this.privacyModeOn) this.toast(tl('privacy_mode_is_active'), true);
     else this.hideToast();
   }
 
@@ -2455,8 +2491,8 @@ export class RdApp {
     if (kind === 'Restart' && !enabled && this.restartFlow) {
       const sessionStillStreaming = this.state === 'streaming';
       this.clearRestartFlow();
-      if (sessionStillStreaming) this.toast('Restart permission was denied by the peer');
-      else this.setState('error', 'Automatic reconnect stopped because restart permission was denied');
+      if (sessionStillStreaming) this.toast(tl('restart_permission_was_denied_by'));
+      else this.setState('error', tl('automatic_reconnect_stopped_because_rest'));
     }
 
     if (kind === 'Audio') {
@@ -2472,7 +2508,7 @@ export class RdApp {
     const target = PERMISSION_CONTROLS[kind];
     if (!target) {
       if (kind === 'Audio' || kind === 'Recording') {
-        this.toast(`Peer ${enabled ? 'enabled' : 'disabled'} ${kind.toLowerCase()}`);
+        this.toast(tl('peer_toggled', { state: tl(enabled ? 'enabled' : 'disabled'), what: lowerLabel(tl(kind.toLowerCase())) }));
       }
       return; // nothing in the chrome maps to it
     }
@@ -2483,7 +2519,7 @@ export class RdApp {
       if (!el) continue;
       el.disabled = !enabled;
       if (id === target.id) {
-        el.title = enabled ? target.title : `${target.title} — not permitted by this device`;
+        el.title = enabled ? target.title : tl('not_permitted', { what: target.title });
         el.setAttribute('aria-label', el.title);
       }
     }
@@ -2500,7 +2536,7 @@ export class RdApp {
       }
     }
 
-    this.toast(`Peer ${enabled ? 'enabled' : 'disabled'} ${target.title.toLowerCase()}`);
+    this.toast(tl('peer_toggled', { state: tl(enabled ? 'enabled' : 'disabled'), what: lowerLabel(target.title) }));
   }
 
   /** Forget peer permissions — they belong to one session, not to the client. */
@@ -2544,6 +2580,7 @@ export class RdApp {
       this.detach?.();
       this.detach = attachInput(this.videoEl, (c) => this.post(c), () => this.currentRect(), {
         isTouchMode: () => this.inputMode === 'touch',
+        keyboardTarget: () => this.keyboardTarget(),
       });
       this.el.viewport.dataset.mse = '1';
     }
@@ -2580,14 +2617,14 @@ export class RdApp {
   private async resumeAudioFromUserGesture(): Promise<void> {
     const sessionEpoch = this.sessionEpoch;
     if (!this.audioPlayback || this.permissions.Audio === false) {
-      this.toast('Remote audio is unavailable');
+      this.toast(tl('remote_audio_is_unavailable'));
       return;
     }
     const resumed = await this.audioPlayback.resumeFromUserGesture();
     const currentPermissions = this.permissions as Record<string, boolean | undefined>;
     if (sessionEpoch !== this.sessionEpoch || currentPermissions.Audio === false) return;
     this.audioStarted = resumed;
-    this.toast(resumed ? 'Remote audio ready' : 'Browser blocked remote audio playback');
+    this.toast(resumed ? tl('remote_audio_ready') : tl('browser_blocked_remote_audio_playback'));
   }
 
   private showClipboardSyncOffer(): void {
@@ -2596,13 +2633,13 @@ export class RdApp {
     const prompt = document.createElement('div');
     prompt.className = 'rd-clipboard-sync-offer';
     const text = document.createElement('span');
-    text.textContent = 'Sync your current clipboard to the remote device?';
+    text.textContent = tl('sync_your_current_clipboard_remote');
     const sync = document.createElement('button');
     sync.type = 'button';
-    sync.textContent = 'Sync now';
+    sync.textContent = tl('sync_now');
     const dismiss = document.createElement('button');
     dismiss.type = 'button';
-    dismiss.textContent = 'Not now';
+    dismiss.textContent = tl('not_now');
     dismiss.className = 'rd-quiet';
     sync.addEventListener('click', () => {
       this.removeClipboardSyncOffer();
@@ -2635,7 +2672,7 @@ export class RdApp {
       return;
     }
     if (!this.canRecordSession()) {
-      this.toast('Session recording is not permitted by this device');
+      this.toast(tl('session_recording_is_not_permitted'));
       return;
     }
     const sessionEpoch = this.sessionEpoch;
@@ -2643,14 +2680,14 @@ export class RdApp {
       const resumed = await this.audioPlayback.resumeFromUserGesture();
       if (sessionEpoch !== this.sessionEpoch) return;
       if (!this.canRecordSession()) {
-        this.toast('Session recording is not permitted by this device');
+        this.toast(tl('session_recording_is_not_permitted'));
         return;
       }
       this.audioStarted = resumed;
     }
     if (sessionEpoch !== this.sessionEpoch) return;
     if (!this.canRecordSession()) {
-      this.toast('Session recording is not permitted by this device');
+      this.toast(tl('session_recording_is_not_permitted'));
       return;
     }
     const surface = (!this.videoEl.hidden ? this.videoEl : this.canvas) as unknown as RecordingSurface;
@@ -2683,30 +2720,30 @@ export class RdApp {
     }
     if (!active) {
       this.recorder = undefined;
-      if (wasRecording) this.toast('Recording saved locally');
+      if (wasRecording) this.toast(tl('recording_saved_locally'));
     } else {
-      this.toast('Recording locally — nothing is uploaded', true);
+      this.toast(tl('recording_locally_nothing_is_uploaded'), true);
     }
   }
 
   private async sendClipboard(): Promise<void> {
     if (!this.canSendClipboard()) {
-      this.toast('Text clipboard is disabled for this session');
+      this.toast(tl('text_clipboard_is_disabled_for'));
       return;
     }
     const sessionEpoch = this.sessionEpoch;
     const text = await readLocalClipboardText();
     if (sessionEpoch !== this.sessionEpoch) return;
     if (!this.canSendClipboard()) {
-      this.toast('Text clipboard is disabled for this session');
+      this.toast(tl('text_clipboard_is_disabled_for'));
       return;
     }
     if (text === null) {
-      this.toast('Clipboard unavailable (permission denied?)');
+      this.toast(tl('clipboard_unavailable_permission_denied'));
       return;
     }
     this.post({ c: 'clipboardText', text });
-    this.toast('Clipboard sent');
+    this.toast(tl('clipboard_sent'));
   }
 
   private async toggleFullscreen(): Promise<void> {
@@ -2714,7 +2751,7 @@ export class RdApp {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await this.el.root.requestFullscreen();
     } catch {
-      this.toast('Fullscreen unavailable');
+      this.toast(tl('fullscreen_unavailable'));
     }
   }
 

@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\Label;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\ConsoleAudit;
 use App\Support\Csv;
@@ -92,6 +93,7 @@ class ConsoleAuditList extends Component
         'user.update' => 'User updated',
         'user.enable' => 'User enabled',
         'user.disable' => 'User disabled',
+        'user.approve' => 'SSO user approved',
         'user.force-logout' => 'User force-logout',
         'user.assign-devices' => 'Devices assigned to user',
         'user.invite' => 'Invitation sent',
@@ -239,7 +241,11 @@ class ConsoleAuditList extends Component
     {
         return view('livewire.console-audit-list', [
             'audits' => $this->query()->paginate($this->perPage),
-            'actionGroups' => self::groupedActions(),
+            'actionGroups' => collect(self::groupedActions())
+                ->mapWithKeys(fn ($actions, $area) => [
+                    Label::get('audit_area', $area, $area) => collect($actions)
+                        ->map(fn ($label, $code) => Label::get('audit_action', $code, $label))->all(),
+                ])->all(),
         ]);
     }
 }

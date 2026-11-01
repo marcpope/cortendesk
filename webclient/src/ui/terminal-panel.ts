@@ -1,5 +1,6 @@
 import type { SessionConfig, SessionEvent, UiCommand } from '../core/contracts';
 import { disconnectIndependentWorker } from './advanced-worker-lifecycle';
+import { htl, tl, tn } from '../i18n';
 
 const MAX_TERMINAL_TEXT = 1_000_000;
 const utf8 = new TextEncoder();
@@ -130,22 +131,22 @@ export class TerminalPanel {
     shell.className = 'rd-terminal-modal';
     shell.setAttribute('role', 'dialog');
     shell.setAttribute('aria-modal', 'true');
-    shell.setAttribute('aria-label', 'Remote terminal');
+    shell.setAttribute('aria-label', tl('remote_terminal'));
     shell.innerHTML = `
       <div class="rd-terminal-card">
         <header class="rd-terminal-head">
-          <div><strong>Remote terminal</strong><span data-terminal-status>Not connected</span></div>
-          <button type="button" data-terminal-close aria-label="Close remote terminal">×</button>
+          <div><strong>${htl('remote_terminal')}</strong><span data-terminal-status>${htl('not_connected')}</span></div>
+          <button type="button" data-terminal-close aria-label="${htl('close_remote_terminal')}">×</button>
         </header>
         <div class="rd-terminal-consent">
-          <label><input type="checkbox" data-terminal-persistent> Keep the terminal available after disconnect</label>
-          <button type="button" data-terminal-connect>Connect terminal</button>
+          <label><input type="checkbox" data-terminal-persistent> ${htl('keep_terminal_available_after_disconnect')}</label>
+          <button type="button" data-terminal-connect>${htl('connect_terminal')}</button>
         </div>
-        <pre class="rd-terminal-output" tabindex="0" aria-live="polite" aria-label="Remote terminal output"></pre>
+        <pre class="rd-terminal-output" tabindex="0" aria-live="polite" aria-label="${htl('remote_terminal_output')}"></pre>
         <form class="rd-terminal-input-row">
-          <label for="rd-terminal-input">Command input</label>
+          <label for="rd-terminal-input">${htl('command_input')}</label>
           <input id="rd-terminal-input" type="text" autocomplete="off" spellcheck="false" disabled>
-          <button type="submit" disabled>Send</button>
+          <button type="submit" disabled>${htl('send')}</button>
         </form>
       </div>`;
     this.deps.root.appendChild(shell);
@@ -173,7 +174,7 @@ export class TerminalPanel {
     if (this.worker) return;
     const config = this.deps.getConfig();
     if (!config) {
-      this.deps.toast('Connect to the device before opening a terminal');
+      this.deps.toast(tl('connect_device_before_opening_terminal'));
       return;
     }
     this.serviceStorageKey = `rd:terminal-service:${config.peerId}`;
@@ -188,13 +189,13 @@ export class TerminalPanel {
       terminalPersistent: persistent,
       terminalServiceId: serviceId,
     };
-    this.setStatus('Connecting…');
+    this.setStatus(tl('connecting_2'));
     this.decoder = new TextDecoder();
     this.byteNormalizer.reset();
     this.controlStripper.reset();
     this.worker = new Worker(this.deps.workerUrl, { type: 'module' });
     this.worker.onmessage = (event: MessageEvent<SessionEvent>) => this.onEvent(event.data);
-    this.worker.onerror = () => this.fail('Terminal worker failed');
+    this.worker.onerror = () => this.fail(tl('terminal_worker_failed'));
     this.worker.postMessage({ c: 'connectTerminal', config: terminalConfig } satisfies UiCommand);
   }
 
@@ -202,12 +203,12 @@ export class TerminalPanel {
     switch (event.t) {
       case 'state':
         if (event.state === 'streaming') {
-          this.setStatus('Opening terminal…');
+          this.setStatus(tl('opening_terminal'));
           this.worker?.postMessage({
             c: 'terminalOpen', terminalId: 0, rows: this.lastRows, cols: this.lastCols,
           } satisfies UiCommand);
         } else if (event.state === 'error' || event.state === 'closed') {
-          this.fail(event.detail || (event.state === 'closed' ? 'Terminal disconnected' : 'Terminal connection failed'));
+          this.fail(event.detail || (event.state === 'closed' ? tl('terminal_disconnected') : tl('terminal_connection_failed')));
         } else {
           this.setStatus(event.detail || event.state);
         }
@@ -217,18 +218,18 @@ export class TerminalPanel {
         break;
       case 'terminalOpened':
         if (!event.success) {
-          this.fail(event.message || 'The remote terminal could not be opened');
+          this.fail(event.message || tl('remote_terminal_could_not_be'));
           break;
         }
         this.terminalId = event.terminalId;
         this.opened = true;
         this.setInputEnabled(true);
-        this.setStatus(event.replayTerminalOutput ? 'Connected · replaying buffered output' : 'Connected');
+        this.setStatus(event.replayTerminalOutput ? tl('connected_replaying_buffered_output') : tl('connected'));
         if (event.serviceId && this.persistent?.checked) {
           try { localStorage.setItem(this.serviceStorageKey, event.serviceId); } catch { /* non-fatal */ }
         }
         if (event.persistentSessions.length) {
-          this.appendText(`\n[${event.persistentSessions.length} additional persistent session${event.persistentSessions.length === 1 ? '' : 's'} available]\n`);
+          this.appendText(`\n${tn('terminal_extra_sessions', event.persistentSessions.length)}\n`);
         }
         this.input?.focus();
         break;
@@ -240,7 +241,7 @@ export class TerminalPanel {
       case 'terminalClosed':
         this.opened = false;
         this.setInputEnabled(false);
-        this.setStatus(`Terminal exited with code ${event.exitCode}`);
+        this.setStatus(tl('terminal_exited', { code: event.exitCode }));
         break;
       case 'terminalError':
         this.fail(event.message);
