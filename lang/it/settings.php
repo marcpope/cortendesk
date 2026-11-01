@@ -12,6 +12,7 @@ return [
     'alerts_muted_until_until_when' => 'Avvisi silenziati fino a :until (:when)',
     'all_approved_devices' => 'Tutti i dispositivi approvati',
     'allowed_email_domains' => 'Domini email consentiti',
+    'also_register_client_callback' => 'Registra anche questo, per l’accesso dal client RustDesk:',
     'and_hidden_from_console_and' => 'e nascosto dalla console e dall\'API finché un operatore non lo approva nella scheda Dispositivi → In attesa. I dispositivi distribuiti (tramite un token API) sono pre-approvati.',
     'api_server' => 'Server API',
     'applies_when_providers_identity_matches' => 'Vale quando l\'identità del provider non corrisponde a nessun account esistente. Un indirizzo email viene associato a un account esistente solo se il provider lo indica come verificato.',

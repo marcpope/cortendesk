@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'Das ID-Token enthielt keinen Subject-Claim.',
     'oidc_no_url' => 'Es ist keine Identitätsanbieter-URL konfiguriert.',
     'oidc_nonce_mismatch' => 'Die Nonce des ID-Tokens stimmte nicht überein. Bitte melden Sie sich erneut an.',
+    'oidc_placeholder_issuer' => 'Dies ist ein mandantenübergreifender Endpunkt: Der Aussteller (:issuer) ist ein Platzhalter, zu dem keine Anmeldung passt. Verwenden Sie die URL Ihres eigenen Mandanten, mit der Mandanten-ID statt common oder organizations.',
     'oidc_request_expired' => 'Diese Anmeldeanfrage ist abgelaufen. Beginnen Sie erneut im RustDesk-Client.',
     'oidc_state_invalid' => 'Die Anmeldeanfrage ist abgelaufen oder wurde manipuliert. Bitte versuchen Sie es erneut.',
     'oidc_token_exchange_failed' => 'Token-Austausch fehlgeschlagen (:status). Prüfen Sie Client-ID und Secret.',

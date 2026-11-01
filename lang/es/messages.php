@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'El token de ID no contenía ningún claim de sujeto (sub).',
     'oidc_no_url' => 'No hay ninguna URL de proveedor de identidad configurada.',
     'oidc_nonce_mismatch' => 'El nonce del token de ID no coincide. Vuelve a intentar iniciar sesión.',
+    'oidc_placeholder_issuer' => 'Es un endpoint multiinquilino: su emisor (:issuer) es un marcador de posición con el que ningún inicio de sesión puede coincidir. Usa la URL de tu propio inquilino, con su ID en lugar de common u organizations.',
     'oidc_request_expired' => 'Esta solicitud de inicio de sesión ha caducado. Empieza de nuevo desde el cliente de RustDesk.',
     'oidc_state_invalid' => 'La solicitud de inicio de sesión caducó o fue manipulada. Inténtalo de nuevo.',
     'oidc_token_exchange_failed' => 'Falló el intercambio de tokens (:status). Comprueba el ID y el secreto del cliente.',

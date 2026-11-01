@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'L\'ID token non contiene il claim subject.',
     'oidc_no_url' => 'Nessun URL del provider di identità configurato.',
     'oidc_nonce_mismatch' => 'Il nonce dell\'ID token non corrisponde. Prova di nuovo ad accedere.',
+    'oidc_placeholder_issuer' => 'È un endpoint multi-tenant: il suo issuer (:issuer) è un segnaposto a cui nessun accesso può corrispondere. Usa l’URL del tuo tenant, con il suo ID al posto di common o organizations.',
     'oidc_request_expired' => 'Questa richiesta di accesso è scaduta. Ricomincia dal client RustDesk.',
     'oidc_state_invalid' => 'La richiesta di accesso è scaduta o è stata manomessa. Riprova.',
     'oidc_token_exchange_failed' => 'Scambio del token non riuscito (:status). Controlla client ID e secret.',

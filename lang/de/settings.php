@@ -12,6 +12,7 @@ return [
     'alerts_muted_until_until_when' => 'Alarme stummgeschaltet bis :until (:when)',
     'all_approved_devices' => 'Alle genehmigten Geräte',
     'allowed_email_domains' => 'Erlaubte E-Mail-Domains',
+    'also_register_client_callback' => 'Registrieren Sie auch diese URL, für die Anmeldung aus dem RustDesk-Client:',
     'and_hidden_from_console_and' => 'zurückgehalten und in Konsole und API ausgeblendet, bis ein Operator es im Tab Geräte → Ausstehend genehmigt. Bereitgestellte Geräte (per API-Token) sind vorab genehmigt.',
     'api_server' => 'API-Server',
     'applies_when_providers_identity_matches' => 'Gilt, wenn die Identität des Anbieters zu keinem bestehenden Konto passt. Eine E-Mail-Adresse wird nur dann einem bestehenden Konto zugeordnet, wenn der Anbieter sie als verifiziert kennzeichnet.',

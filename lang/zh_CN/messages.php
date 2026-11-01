@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'ID 令牌中没有 subject 声明。',
     'oidc_no_url' => '未配置身份提供商 URL。',
     'oidc_nonce_mismatch' => 'ID 令牌的 nonce 不匹配。请重新登录。',
+    'oidc_placeholder_issuer' => '这是多租户终结点：其颁发者（:issuer）只是占位符，任何登录都无法与之匹配。请改用你自己租户的 URL，用租户 ID 替换 common 或 organizations。',
     'oidc_request_expired' => '此登录请求已过期。请从 RustDesk 客户端重新开始。',
     'oidc_state_invalid' => '登录请求已过期或被篡改。请重试。',
     'oidc_token_exchange_failed' => '令牌交换失败（:status）。请检查客户端 ID 和密钥。',

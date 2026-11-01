@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'The ID token carried no subject claim.',
     'oidc_no_url' => 'No identity provider URL is configured.',
     'oidc_nonce_mismatch' => 'The ID token nonce did not match. Please try signing in again.',
+    'oidc_placeholder_issuer' => 'This is a multi-tenant endpoint: its issuer (:issuer) is a placeholder that no sign-in can match. Use your own tenant’s URL, with the tenant ID in place of common or organizations.',
     'oidc_request_expired' => 'This sign-in request has expired. Start again from the RustDesk client.',
     'oidc_state_invalid' => 'The sign-in request expired or was tampered with. Please try again.',
     'oidc_token_exchange_failed' => 'Token exchange failed (:status). Check the client ID and secret.',

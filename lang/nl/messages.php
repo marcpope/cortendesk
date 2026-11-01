@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'Het ID-token bevatte geen subject-claim.',
     'oidc_no_url' => 'Er is geen URL voor de identiteitsprovider geconfigureerd.',
     'oidc_nonce_mismatch' => 'De nonce van het ID-token kwam niet overeen. Probeer opnieuw in te loggen.',
+    'oidc_placeholder_issuer' => 'Dit is een multitenant-endpoint: de issuer (:issuer) is een tijdelijke aanduiding waarmee geen enkele aanmelding overeenkomt. Gebruik de URL van uw eigen tenant, met de tenant-ID in plaats van common of organizations.',
     'oidc_request_expired' => 'Dit inlogverzoek is verlopen. Begin opnieuw vanuit de RustDesk-client.',
     'oidc_state_invalid' => 'Het inlogverzoek is verlopen of gemanipuleerd. Probeer het opnieuw.',
     'oidc_token_exchange_failed' => 'Tokenuitwisseling mislukt (:status). Controleer de client-ID en het clientgeheim.',

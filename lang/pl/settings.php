@@ -12,6 +12,7 @@ return [
     'alerts_muted_until_until_when' => 'Alerty wyciszone do :until (:when)',
     'all_approved_devices' => 'Wszystkie zatwierdzone urządzenia',
     'allowed_email_domains' => 'Dozwolone domeny e-mail',
+    'also_register_client_callback' => 'Zarejestruj też ten adres, do logowania z klienta RustDesk:',
     'and_hidden_from_console_and' => 'i ukryte w konsoli i API, dopóki operator nie zatwierdzi go w karcie Urządzenia → Oczekuje na zatwierdzenie. Urządzenia wdrożone (przez token API) są zatwierdzane z góry.',
     'api_server' => 'Serwer API',
     'applies_when_providers_identity_matches' => 'Dotyczy sytuacji, gdy tożsamość od dostawcy nie pasuje do żadnego istniejącego konta. Adres e-mail jest dopasowywany do istniejącego konta tylko wtedy, gdy dostawca oznaczy go jako zweryfikowany.',

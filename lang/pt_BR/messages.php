@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'O token de ID não trazia a claim subject.',
     'oidc_no_url' => 'Nenhuma URL de provedor de identidade está configurada.',
     'oidc_nonce_mismatch' => 'O nonce do token de ID não corresponde. Tente fazer login novamente.',
+    'oidc_placeholder_issuer' => 'Este é um endpoint multilocatário: o emissor (:issuer) é um marcador de posição com o qual nenhum login pode corresponder. Use a URL do seu próprio locatário, com o ID dele no lugar de common ou organizations.',
     'oidc_request_expired' => 'Esta solicitação de login expirou. Comece novamente pelo cliente RustDesk.',
     'oidc_state_invalid' => 'A solicitação de login expirou ou foi adulterada. Tente novamente.',
     'oidc_token_exchange_failed' => 'Falha na troca de token (:status). Verifique o client ID e o secret.',

@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'В ID-токене нет утверждения subject.',
     'oidc_no_url' => 'URL поставщика удостоверений не настроен.',
     'oidc_nonce_mismatch' => 'Nonce ID-токена не совпал. Попробуйте войти ещё раз.',
+    'oidc_placeholder_issuer' => 'Это мультитенантная конечная точка: её издатель (:issuer) — заполнитель, с которым не совпадёт ни один вход. Укажите URL вашего собственного тенанта, с его ID вместо common или organizations.',
     'oidc_request_expired' => 'Срок действия этого запроса на вход истёк. Начните заново из клиента RustDesk.',
     'oidc_state_invalid' => 'Запрос на вход истёк или был изменён. Попробуйте ещё раз.',
     'oidc_token_exchange_failed' => 'Не удалось обменять токен (:status). Проверьте client ID и secret.',

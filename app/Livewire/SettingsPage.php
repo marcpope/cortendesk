@@ -698,6 +698,9 @@ class SettingsPage extends Component
             'serverLink' => ServerLink::status(),
             'userGroups' => UserGroup::query()->orderBy('name')->get(['id', 'name']),
             'oidcCallbackUrl' => route('login.oidc.callback'),
+            // Sign-in from the RustDesk client returns here; the provider must
+            // allow it as a redirect URI too (#124).
+            'oidcClientCallbackUrl' => route('login.oidc.client-callback'),
             'mailEnabled' => app(MailSettings::class)->isEnabled(),
             'usersWithoutEmail' => LoginEmailVerification::usersWithoutEmail(),
             'appriseEventLabels' => collect(AppriseNotifications::EVENTS)->map(fn ($label, $event) => AppriseNotifications::eventLabel($event))->all(),

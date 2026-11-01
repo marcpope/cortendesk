@@ -366,6 +366,9 @@
                             <div class="mb-3">
                                 <input type="text" class="form-control form-control-sm rd-mono"
                                        value="{{ $oidcCallbackUrl }}" readonly onfocus="this.select()">
+                                <div class="form-text mt-2">{{ __('settings.also_register_client_callback') }}</div>
+                                <input type="text" class="form-control form-control-sm rd-mono"
+                                       value="{{ $oidcClientCallbackUrl }}" readonly onfocus="this.select()">
                             </div>
 
                             <form wire:submit="save">

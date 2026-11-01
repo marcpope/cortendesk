@@ -290,6 +290,10 @@ class OidcService
 
         $issuer = (string) ($discovery['issuer'] ?? '');
 
+        if (self::isPlaceholderIssuer($issuer)) {
+            throw new OidcException(__('messages.oidc_placeholder_issuer', ['issuer' => $issuer]));
+        }
+
         if ($issuer === '' || ! hash_equals($issuer, (string) ($claims['iss'] ?? ''))) {
             throw new OidcException(__('messages.oidc_wrong_issuer'));
         }
@@ -446,6 +450,17 @@ class OidcService
     }
 
     /**
+     * A multi-tenant endpoint (Entra ID's /common and /organizations) declares
+     * an issuer with a placeholder, "https://login.microsoftonline.com/{tenantid}/v2.0".
+     * Real tokens carry the user's own tenant, so the exact issuer check
+     * refuses every sign-in while discovery and keys still load (#124).
+     */
+    public static function isPlaceholderIssuer(string $issuer): bool
+    {
+        return preg_match('/\{[A-Za-z_]+\}/', $issuer) === 1;
+    }
+
+    /**
      * Probe the provider for the settings screen's "Test connection" button.
      *
      * @return array{ok: bool, message: string}
@@ -458,6 +473,10 @@ class OidcService
             $jwks = $this->jwks();
         } catch (OidcException $e) {
             return ['ok' => false, 'message' => $e->getMessage()];
+        }
+
+        if (self::isPlaceholderIssuer((string) $discovery['issuer'])) {
+            return ['ok' => false, 'message' => __('messages.oidc_placeholder_issuer', ['issuer' => $discovery['issuer']])];
         }
 
         $keys = count($jwks['keys'] ?? []);

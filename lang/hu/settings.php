@@ -12,6 +12,7 @@ return [
     'alerts_muted_until_until_when' => 'Értesítések némítva eddig: :until (:when)',
     'all_approved_devices' => 'Minden jóváhagyott eszköz',
     'allowed_email_domains' => 'Engedélyezett e-mail-tartományok',
+    'also_register_client_callback' => 'Ezt is regisztrálja, a RustDesk kliensből történő bejelentkezéshez:',
     'and_hidden_from_console_and' => 'állapotban marad, és rejtve van a konzolban és az API-ban, amíg egy kezelő jóvá nem hagyja az Eszközök → Függőben lapon. Az API-tokennel telepített eszközök előre jóváhagyottak.',
     'api_server' => 'API-kiszolgáló',
     'applies_when_providers_identity_matches' => 'Akkor érvényes, ha a szolgáltató identitása egyetlen meglévő fiókkal sem egyezik. Az e-mail-cím csak akkor egyeztethető meglévő fiókkal, ha a szolgáltató ellenőrzöttként jelöli.',

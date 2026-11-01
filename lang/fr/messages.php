@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'Le jeton d’identité ne contenait aucune revendication « subject ».',
     'oidc_no_url' => 'Aucune URL de fournisseur d’identité n’est configurée.',
     'oidc_nonce_mismatch' => 'Le nonce du jeton d’identité ne correspondait pas. Veuillez vous reconnecter.',
+    'oidc_placeholder_issuer' => 'Il s’agit d’un point de terminaison multilocataire : son émetteur (:issuer) est un espace réservé auquel aucune connexion ne peut correspondre. Utilisez l’URL de votre propre locataire, avec son ID à la place de common ou organizations.',
     'oidc_request_expired' => 'Cette demande de connexion a expiré. Recommencez depuis le client RustDesk.',
     'oidc_state_invalid' => 'La demande de connexion a expiré ou a été altérée. Veuillez réessayer.',
     'oidc_token_exchange_failed' => 'Échec de l’échange de jeton (:status). Vérifiez l’ID client et le secret client.',

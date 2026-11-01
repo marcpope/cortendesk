@@ -12,6 +12,7 @@ return [
     'alerts_muted_until_until_when' => 'Meldingen gedempt tot :until (:when)',
     'all_approved_devices' => 'Alle goedgekeurde apparaten',
     'allowed_email_domains' => 'Toegestane e-maildomeinen',
+    'also_register_client_callback' => 'Registreer ook deze, voor inloggen vanuit de RustDesk-client:',
     'and_hidden_from_console_and' => 'en verborgen voor de console en API totdat een operator het goedkeurt op het tabblad Apparaten → In afwachting. Uitgerolde apparaten (via een API-token) zijn vooraf goedgekeurd.',
     'api_server' => 'API-server',
     'applies_when_providers_identity_matches' => 'Geldt wanneer de identiteit van de provider bij geen enkel bestaand account past. Een e-mailadres wordt alleen aan een bestaand account gekoppeld als de provider het als geverifieerd markeert.',

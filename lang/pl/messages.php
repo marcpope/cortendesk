@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'Token ID nie zawierał oświadczenia subject (sub).',
     'oidc_no_url' => 'Nie skonfigurowano adresu URL dostawcy tożsamości.',
     'oidc_nonce_mismatch' => 'Nonce tokenu ID nie był zgodny. Spróbuj zalogować się ponownie.',
+    'oidc_placeholder_issuer' => 'To punkt końcowy dla wielu dzierżawców: jego wystawca (:issuer) to symbol zastępczy, do którego nie pasuje żadne logowanie. Użyj adresu własnej dzierżawy, z jej identyfikatorem zamiast common lub organizations.',
     'oidc_request_expired' => 'To żądanie logowania wygasło. Zacznij ponownie z klienta RustDesk.',
     'oidc_state_invalid' => 'Żądanie logowania wygasło lub zostało zmodyfikowane. Spróbuj ponownie.',
     'oidc_token_exchange_failed' => 'Wymiana tokenu nie powiodła się (:status). Sprawdź identyfikator klienta i sekret.',

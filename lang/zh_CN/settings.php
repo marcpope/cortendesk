@@ -12,6 +12,7 @@ return [
     'alerts_muted_until_until_when' => '提醒已静默至 :until（:when）',
     'all_approved_devices' => '所有已批准的设备',
     'allowed_email_domains' => '允许的邮箱域名',
+    'also_register_client_callback' => '同时注册此 URL，用于从 RustDesk 客户端登录：',
     'and_hidden_from_console_and' => '状态，并对控制台和 API 隐藏，直到操作员在“设备 → 待审批”标签页中批准它。通过 API 令牌部署的设备会被预先批准。',
     'api_server' => 'API 服务器',
     'applies_when_providers_identity_matches' => '当提供商的身份与任何现有账户都不匹配时适用。只有当提供商将邮箱标记为已验证时，才会将其与现有账户匹配。',

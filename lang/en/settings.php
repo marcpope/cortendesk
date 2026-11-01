@@ -12,6 +12,7 @@ return [
     'alerts_muted_until_until_when' => 'Alerts muted until :until (:when)',
     'all_approved_devices' => 'All approved devices',
     'allowed_email_domains' => 'Allowed email domains',
+    'also_register_client_callback' => 'Also register this one, for sign-in from the RustDesk client:',
     'and_hidden_from_console_and' => 'and hidden from the console and API until an operator approves it on the Devices → Pending tab. Deployed devices (via an API token) are pre-approved.',
     'api_server' => 'API Server',
     'applies_when_providers_identity_matches' => 'Applies when the provider\'s identity matches no existing account. An email address is only ever matched to an existing account when the provider marks it verified.',

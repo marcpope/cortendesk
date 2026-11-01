@@ -62,6 +62,7 @@ return [
     'oidc_no_subject' => 'Az azonosító token nem tartalmazott subject állítást.',
     'oidc_no_url' => 'Nincs identitásszolgáltató URL beállítva.',
     'oidc_nonce_mismatch' => 'Az azonosító token nonce értéke nem egyezett. Próbáljon újra bejelentkezni.',
+    'oidc_placeholder_issuer' => 'Ez több bérlős végpont: a kibocsátója (:issuer) csak helyőrző, amellyel egyetlen bejelentkezés sem egyezhet. Használja a saját bérlője URL-jét, a common vagy organizations helyett a bérlőazonosítóval.',
     'oidc_request_expired' => 'Ez a bejelentkezési kérés lejárt. Kezdje újra a RustDesk-kliensből.',
     'oidc_state_invalid' => 'A bejelentkezési kérés lejárt, vagy módosították. Próbálja újra.',
     'oidc_token_exchange_failed' => 'A tokencsere sikertelen (:status). Ellenőrizze a kliensazonosítót és a titkot.',

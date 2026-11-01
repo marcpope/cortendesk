@@ -61,7 +61,7 @@ docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
   -p 8080:8080 -p 21115-21117:21115-21117 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.16.0
+  ghcr.io/marcpope/cortendesk:1.16.1
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and
