@@ -176,6 +176,15 @@
                     </li>
                 @endif
             @endif
+
+            {{-- For everyone, admin or not: the project's GitHub Sponsors page. --}}
+            <li class="rd-nav-item rd-nav-sponsor">
+                <a href="https://github.com/sponsors/marcpope" target="_blank" rel="noopener" class="rd-nav-link"
+                   title="{{ __('nav.sponsor_cortendesk_title') }}">
+                    <i class="ri-heart-3-line"></i>
+                    <span> {{ __('nav.sponsor_cortendesk') }} </span>
+                </a>
+            </li>
         </ul>
 
     </div>

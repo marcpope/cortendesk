@@ -75,6 +75,8 @@ class Strategy extends Model
      *       int    → digits, range-checked
      *       string → free text
      *       ice    → an ICE server list (App\Support\IceServers), stored canonical
+     *       groups → device group ids, comma-separated. Console-only: never
+     *                sent as is (see configOptions()).
      *
      * "" is legal for every key and means "reset to the client's built-in
      * default" (§2.3).
@@ -114,6 +116,7 @@ class Strategy extends Model
         'allow-numeric-one-time-password' => ['group' => 'security', 'type' => 'bool'],
         'whitelist' => ['group' => 'security', 'type' => 'string'],
         'id-whitelist' => ['group' => 'security', 'type' => 'string'],
+        'id-whitelist-groups' => ['group' => 'security', 'type' => 'groups'],
         'allow-only-conn-window-open' => ['group' => 'security', 'type' => 'bool'],
         'enable-trusted-devices' => ['group' => 'security', 'type' => 'bool'],
         'allow-remote-config-modification' => ['group' => 'security', 'type' => 'bool'],
@@ -241,6 +244,15 @@ class Strategy extends Model
 
             $value = trim($value);
 
+            if ($spec['type'] === 'groups') {
+                $value = self::normalizeGroupIds($value);
+                if ($value !== '') {
+                    $clean[$key] = $value;
+                }
+
+                continue;
+            }
+
             if ($spec['type'] === 'ice') {
                 $value = IceServers::normalize($value);
                 if ($value !== null) {
@@ -282,7 +294,66 @@ class Strategy extends Model
             return [];
         }
 
-        return $this->optionMap();
+        return self::expandIdWhitelistGroups($this->optionMap());
+    }
+
+    /**
+     * What the client reads from `id-whitelist-groups`: nothing. The console
+     * turns it into the RustDesk IDs of the devices in those groups, joined
+     * with any IDs typed into `id-whitelist` (#126). Membership is read on
+     * every delivery, so a device joining or leaving a group reaches the
+     * fleet at its next heartbeat.
+     *
+     * Groups that hold no devices fail closed: the device gets an entry no
+     * RustDesk ID can match, because an empty list would allow everyone.
+     *
+     * @param  array<string,string>  $map
+     * @return array<string,string>
+     */
+    public static function expandIdWhitelistGroups(array $map): array
+    {
+        if (! isset($map['id-whitelist-groups'])) {
+            return $map;
+        }
+
+        $groupIds = array_map('intval', explode(',', $map['id-whitelist-groups']));
+        unset($map['id-whitelist-groups']);
+
+        $ids = array_values(array_filter(array_map('trim', explode(',', $map['id-whitelist'] ?? ''))));
+        $ids = array_values(array_unique([...$ids, ...self::groupRustdeskIds($groupIds)]));
+
+        $map['id-whitelist'] = $ids === [] ? self::ID_WHITELIST_NOBODY : implode(',', $ids);
+        ksort($map);
+
+        return $map;
+    }
+
+    /** No RustDesk ID has parentheses in it, so this entry matches nobody. */
+    public const ID_WHITELIST_NOBODY = '(no-devices-in-group)';
+
+    /**
+     * @param  array<int,int>  $groupIds
+     * @return array<int,string>
+     */
+    private static function groupRustdeskIds(array $groupIds): array
+    {
+        return Device::query()
+            ->whereIn('device_group_id', $groupIds)
+            ->whereNotNull('rustdesk_id')
+            ->where('rustdesk_id', '!=', '')
+            ->orderBy('rustdesk_id')
+            ->pluck('rustdesk_id')
+            ->all();
+    }
+
+    /** "7, 3,x,3" → "3,7": positive ids, sorted, no repeats. */
+    private static function normalizeGroupIds(string $value): string
+    {
+        $ids = array_filter(array_map('intval', preg_split('/[\s,]+/', $value) ?: []), fn (int $id) => $id > 0);
+        $ids = array_values(array_unique($ids));
+        sort($ids);
+
+        return implode(',', $ids);
     }
 
     /**

@@ -1,9 +1,11 @@
-import type { SessionConfig, SessionEvent, UiCommand } from '../core/contracts';
+import type { SessionConfig, SessionEvent, SessionState, UiCommand } from '../core/contracts';
 import { disconnectIndependentWorker } from './advanced-worker-lifecycle';
 import { htl, tl, tn } from '../i18n';
 import { isRtcEvent, webRtcFor, type WebRtcHost } from './webrtc-host';
 
 const MAX_TERMINAL_TEXT = 1_000_000;
+/** A device that logs in but never answers the terminal open is treated as unable to. */
+export const TERMINAL_OPEN_TIMEOUT_MS = 20_000;
 const utf8 = new TextEncoder();
 
 type TerminalParserState = 'text'|'escape'|'csi'|'osc'|'oscEscape'|'controlString'|'controlEscape';
@@ -88,6 +90,10 @@ class TerminalC1ByteNormalizer {
   }
 }
 
+function pageMessages(): Record<string, string> | undefined {
+  return (globalThis as { __RD__?: { messages?: Record<string, string> } }).__RD__?.messages;
+}
+
 export function stripTerminalControl(text: string): string {
   return new TerminalControlStripper().push(text);
 }
@@ -97,11 +103,30 @@ export function appendBoundedTerminalText(current: string, incoming: string, max
   return combined.length <= max ? combined : combined.slice(combined.length - max);
 }
 
+/**
+ * Page mode: the terminal is the whole page and logs in on its own (password,
+ * 2FA). The page owns the connect card; these hooks keep it in step.
+ */
+export type TerminalPageHooks = {
+  /** Keep the terminal running after disconnect (read at connect time). */
+  persistent(): boolean;
+  onProgress(state: SessionState, detail?: string): void;
+  /** Logged in; the terminal is opening. */
+  onLive(): void;
+  onTwoFactor(wrong: boolean): void;
+  onCredentials(hashHex: string): void;
+  /** The device refused the login. The connection is closed. */
+  onLoginError(message: string): void;
+  /** The connection ended, with the reason; byUser for the Disconnect button. */
+  onEnded(message: string, byUser: boolean): void;
+};
+
 type TerminalPanelDeps = {
   root: HTMLElement;
   workerUrl: string;
   getConfig(): SessionConfig | null;
   toast(message: string): void;
+  page?: TerminalPageHooks;
 };
 
 export class TerminalPanel {
@@ -121,6 +146,9 @@ export class TerminalPanel {
   private lastRows = 24;
   private lastCols = 80;
   private serviceStorageKey = '';
+  private persistentWanted = false;
+  private peerUnsupported = false;
+  private openTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly deps: TerminalPanelDeps) {}
 
@@ -129,21 +157,29 @@ export class TerminalPanel {
       this.input?.focus();
       return;
     }
+    const page = !!this.deps.page;
     const shell = document.createElement('section');
-    shell.className = 'rd-terminal-modal';
-    shell.setAttribute('role', 'dialog');
-    shell.setAttribute('aria-modal', 'true');
+    shell.className = page ? 'rd-terminal-page' : 'rd-terminal-modal';
+    if (!page) {
+      shell.setAttribute('role', 'dialog');
+      shell.setAttribute('aria-modal', 'true');
+    }
     shell.setAttribute('aria-label', tl('remote_terminal'));
-    shell.innerHTML = `
-      <div class="rd-terminal-card">
-        <header class="rd-terminal-head">
-          <div><strong>${htl('remote_terminal')}</strong><span data-terminal-status>${htl('not_connected')}</span></div>
-          <button type="button" data-terminal-close aria-label="${htl('close_remote_terminal')}">×</button>
-        </header>
+    const close = page
+      ? `<button type="button" class="rd-terminal-disconnect" data-terminal-close>${htl('disconnect')}</button>`
+      : `<button type="button" data-terminal-close aria-label="${htl('close_remote_terminal')}">×</button>`;
+    // Page mode asks for persistence on the connect card, before login.
+    const consent = page ? '' : `
         <div class="rd-terminal-consent">
           <label><input type="checkbox" data-terminal-persistent> ${htl('keep_terminal_available_after_disconnect')}</label>
           <button type="button" data-terminal-connect>${htl('connect_terminal')}</button>
-        </div>
+        </div>`;
+    shell.innerHTML = `
+      <div class="rd-terminal-card">
+        <header class="rd-terminal-head">
+          <div><strong data-terminal-title>${htl('remote_terminal')}</strong><span data-terminal-status>${htl('not_connected')}</span></div>
+          ${close}
+        </header>${consent}
         <pre class="rd-terminal-output" tabindex="0" aria-live="polite" aria-label="${htl('remote_terminal_output')}"></pre>
         <form class="rd-terminal-input-row">
           <label for="rd-terminal-input">${htl('command_input')}</label>
@@ -156,10 +192,13 @@ export class TerminalPanel {
     this.output = shell.querySelector<HTMLPreElement>('.rd-terminal-output')!;
     this.input = shell.querySelector<HTMLInputElement>('#rd-terminal-input')!;
     this.status = shell.querySelector<HTMLElement>('[data-terminal-status]')!;
-    this.persistent = shell.querySelector<HTMLInputElement>('[data-terminal-persistent]')!;
+    this.persistent = shell.querySelector<HTMLInputElement>('[data-terminal-persistent]') ?? undefined;
 
-    shell.querySelector<HTMLButtonElement>('[data-terminal-close]')!.addEventListener('click', () => this.destroy());
-    shell.querySelector<HTMLButtonElement>('[data-terminal-connect]')!.addEventListener('click', () => this.connect());
+    shell.querySelector<HTMLButtonElement>('[data-terminal-close]')!.addEventListener('click', () => {
+      if (page) this.disconnect();
+      else this.destroy();
+    });
+    shell.querySelector<HTMLButtonElement>('[data-terminal-connect]')?.addEventListener('click', () => this.connect());
     shell.querySelector<HTMLFormElement>('.rd-terminal-input-row')!.addEventListener('submit', (event) => {
       event.preventDefault();
       this.sendLine();
@@ -172,7 +211,17 @@ export class TerminalPanel {
     }
   }
 
-  private connect(): void {
+  /** Header title; the page shows the device id here. */
+  setTitle(text: string): void {
+    const title = this.shell?.querySelector<HTMLElement>('[data-terminal-title]');
+    if (title) title.textContent = text;
+  }
+
+  get connected(): boolean {
+    return !!this.worker;
+  }
+
+  connect(): void {
     if (this.worker) return;
     const config = this.deps.getConfig();
     if (!config) {
@@ -180,7 +229,9 @@ export class TerminalPanel {
       return;
     }
     this.serviceStorageKey = `rd:terminal-service:${config.peerId}`;
-    const persistent = this.persistent?.checked ?? false;
+    const persistent = this.deps.page ? this.deps.page.persistent() : (this.persistent?.checked ?? false);
+    this.persistentWanted = persistent;
+    this.peerUnsupported = false;
     let serviceId = '';
     if (persistent) {
       try { serviceId = localStorage.getItem(this.serviceStorageKey) ?? ''; } catch { /* non-fatal */ }
@@ -190,6 +241,7 @@ export class TerminalPanel {
       connType: 'terminal',
       terminalPersistent: persistent,
       terminalServiceId: serviceId,
+      messages: config.messages ?? pageMessages(),
     };
     this.setStatus(tl('connecting_2'));
     this.decoder = new TextDecoder();
@@ -205,33 +257,82 @@ export class TerminalPanel {
     this.worker.postMessage({ c: 'connectTerminal', config: terminalConfig } satisfies UiCommand);
   }
 
+  /** Answer the device's 2FA prompt (page mode). */
+  submitTwoFactor(code: string): void {
+    this.worker?.postMessage({ c: 'auth2fa', code } satisfies UiCommand);
+  }
+
+  /** Close the terminal and the connection, keeping the page (page mode). */
+  disconnect(): void {
+    if (!this.worker) return;
+    this.stopWorker(true);
+    this.opened = false;
+    this.setInputEnabled(false);
+    this.setStatus(tl('terminal_disconnected'));
+    this.deps.page?.onEnded(tl('terminal_disconnected'), true);
+  }
+
   private onEvent(event: SessionEvent): void {
+    const page = this.deps.page;
     switch (event.t) {
       case 'state':
         if (event.state === 'streaming') {
+          // RustDesk before 1.4.1 has no terminal: it takes the connection as
+          // a desktop session and reports no terminal feature.
+          if (this.peerUnsupported) {
+            this.fail(tl('terminal_not_supported'));
+            break;
+          }
           this.setStatus(tl('opening_terminal'));
+          page?.onLive();
           this.worker?.postMessage({
             c: 'terminalOpen', terminalId: 0, rows: this.lastRows, cols: this.lastCols,
           } satisfies UiCommand);
+          clearTimeout(this.openTimer);
+          this.openTimer = setTimeout(() => {
+            if (this.worker && !this.opened) this.fail(tl('remote_terminal_could_not_be'));
+          }, TERMINAL_OPEN_TIMEOUT_MS);
         } else if (event.state === 'error' || event.state === 'closed') {
           this.fail(event.detail || (event.state === 'closed' ? tl('terminal_disconnected') : tl('terminal_connection_failed')));
         } else {
           this.setStatus(event.detail || event.state);
+          page?.onProgress(event.state, event.detail);
         }
         break;
+      case 'peerInfo':
+        this.peerUnsupported = !event.terminalSupported;
+        break;
+      case 'credentials':
+        page?.onCredentials(event.hashHex);
+        break;
+      case 'twoFactor':
+        if (page) page.onTwoFactor(event.wrong);
+        else this.fail(tl('terminal_connection_failed'));
+        break;
+      case 'msgbox': {
+        const text = event.title && event.text ? `${event.title}: ${event.text}` : event.text || event.title;
+        if (page && text) this.deps.toast(text);
+        break;
+      }
       case 'loginError':
-        this.fail(event.message);
+        if (page) {
+          this.stop(event.message);
+          page.onLoginError(event.message);
+        } else {
+          this.fail(event.message);
+        }
         break;
       case 'terminalOpened':
         if (!event.success) {
           this.fail(event.message || tl('remote_terminal_could_not_be'));
           break;
         }
+        clearTimeout(this.openTimer);
         this.terminalId = event.terminalId;
         this.opened = true;
         this.setInputEnabled(true);
         this.setStatus(event.replayTerminalOutput ? tl('connected_replaying_buffered_output') : tl('connected'));
-        if (event.serviceId && this.persistent?.checked) {
+        if (event.serviceId && this.persistentWanted) {
           try { localStorage.setItem(this.serviceStorageKey, event.serviceId); } catch { /* non-fatal */ }
         }
         if (event.persistentSessions.length) {
@@ -318,9 +419,14 @@ export class TerminalPanel {
   }
 
   private stopWorker(closeTerminal: boolean): void {
+    clearTimeout(this.openTimer);
+    this.openTimer = undefined;
     const worker = this.worker;
     this.worker = undefined;
     if (!worker) return;
+    // Nothing from a worker being shut down may overwrite the reason it was.
+    worker.onmessage = null;
+    worker.onerror = null;
     if (closeTerminal && this.opened) {
       worker.postMessage({ c: 'terminalClose', terminalId: this.terminalId } satisfies UiCommand);
     }
@@ -329,12 +435,18 @@ export class TerminalPanel {
     this.rtc = undefined;
   }
 
-  private fail(message: string): void {
+  private stop(message: string): void {
     this.opened = false;
     this.setInputEnabled(false);
     this.setStatus(message);
-    this.appendText(`\n[${message}]\n`);
     this.stopWorker(false);
+  }
+
+  private fail(message: string): void {
+    const live = !!this.worker;
+    this.stop(message);
+    this.appendText(`\n[${message}]\n`);
+    if (live) this.deps.page?.onEnded(message, false);
   }
 
   destroy(): void {

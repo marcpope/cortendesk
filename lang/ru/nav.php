@@ -12,6 +12,8 @@ return [
     'monitor' => 'Мониторинг',
     'release_check_unavailable' => 'Проверка релизов недоступна',
     'running_latest_release' => 'Установлен последний релиз',
+    'sponsor_cortendesk' => 'Поддержать CortenDesk',
+    'sponsor_cortendesk_title' => 'Поддержать CortenDesk на GitHub Sponsors (откроется в новой вкладке)',
     'theme_mode' => 'Тема',
     'toggle_menu' => 'Показать/скрыть меню',
     'update_available' => 'Доступно обновление',

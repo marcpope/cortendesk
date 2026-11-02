@@ -12,6 +12,8 @@ return [
     'monitor' => '监控',
     'release_check_unavailable' => '无法检查新版本',
     'running_latest_release' => '已是最新版本',
+    'sponsor_cortendesk' => '赞助 CortenDesk',
+    'sponsor_cortendesk_title' => '在 GitHub Sponsors 上支持 CortenDesk（在新标签页中打开）',
     'theme_mode' => '主题模式',
     'toggle_menu' => '切换菜单',
     'update_available' => '有可用更新',

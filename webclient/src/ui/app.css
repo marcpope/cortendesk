@@ -1526,6 +1526,33 @@
   .rd-terminal-input-row label { display: none; }
 }
 
+/* Terminal page (?mode=terminal): the terminal is the whole page. */
+.rd-terminal-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.rd-terminal-page .rd-terminal-card {
+  width: 100%;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.rd-terminal-head .rd-terminal-disconnect {
+  border: 1px solid var(--rd-border);
+  border-radius: 9px;
+  padding: 7px 12px;
+  color: var(--rd-fg);
+  background: var(--rd-surface-2);
+  font: inherit;
+}
+#rd-root[data-mode='terminal'] .rd-save + .rd-save { margin-top: 10px; }
+@media (max-width: 640px) {
+  .rd-terminal-page .rd-terminal-output { padding: 12px; font-size: 13px; }
+}
+
 .rd-camera-modal {
   position: absolute;
   inset: 0;

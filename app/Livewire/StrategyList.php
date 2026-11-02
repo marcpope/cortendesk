@@ -57,6 +57,9 @@ class StrategyList extends Component
     /** @var array<string,string> option key => form value ('' = not managed) */
     public array $formOptions = [];
 
+    /** Device group ids ticked for `id-whitelist-groups`; joined into formOptions on save. */
+    public array $formIdWhitelistGroups = [];
+
     public string $revisionNote = '';
 
     public ?int $historyStrategyId = null;
@@ -198,6 +201,11 @@ class StrategyList extends Component
             'label' => 'ID whitelist',
             'help' => 'Comma-separated RustDesk IDs that may connect; * matches any run of characters. Empty means allow all. Needs RustDesk 1.5.0 or later on the device; older clients ignore it. A typo here can lock everyone out of the device.',
         ],
+        'id-whitelist-groups' => [
+            'label' => 'ID whitelist: device groups',
+            'help' => 'The RustDesk IDs of every device in these groups are added to the ID whitelist, together with any IDs typed above. Membership changes reach devices at their next heartbeat. If the groups hold no devices, nobody can connect. The web client connects as web- followed by the user\'s number, so add that ID above to allow it.',
+            'wide' => true,
+        ],
         'allow-only-conn-window-open' => ['label' => 'Only accept while the client window is open', 'help' => 'Desktop only.'],
         'enable-trusted-devices' => ['label' => 'Offer "trust this device" on 2FA'],
         // Client wording is "Enable remote configuration modification". Ours
@@ -272,6 +280,31 @@ class StrategyList extends Component
                 $this->formOptions[$key] = $value;
             }
         }
+        $this->formIdWhitelistGroups = $this->groupIdsFrom($this->formOptions['id-whitelist-groups'] ?? '');
+    }
+
+    /**
+     * An option value as the diff tables show it: device group ids become
+     * their names (a deleted group shows as #id).
+     */
+    public function optionValueLabel(string $key, mixed $value): string
+    {
+        if ($value === null) {
+            return __('strategies.not_managed');
+        }
+        if (! in_array($key, ['id-whitelist-groups', 'options.id-whitelist-groups'], true)) {
+            return (string) $value;
+        }
+        $ids = array_map('intval', $this->groupIdsFrom((string) $value));
+        $names = DeviceGroup::query()->whereIn('id', $ids)->pluck('name', 'id');
+
+        return implode(', ', array_map(fn (int $id) => $names[$id] ?? '#'.$id, $ids));
+    }
+
+    /** @return array<int,string> */
+    private function groupIdsFrom(string $value): array
+    {
+        return array_values(array_filter(explode(',', $value), fn (string $id) => ctype_digit($id)));
     }
 
     /** Save always goes through the impact preview; confirmSave() writes. */
@@ -502,6 +535,7 @@ class StrategyList extends Component
                 $this->formOptions[$key] = (string) $value;
             }
         }
+        $this->formIdWhitelistGroups = $this->groupIdsFrom($this->formOptions['id-whitelist-groups'] ?? '');
         $this->previewSave();
     }
 
@@ -655,7 +689,7 @@ class StrategyList extends Component
 
     private function resetForm(): void
     {
-        $this->reset('formName', 'formNote', 'formEnabled', 'formIsDefault', 'formEnforce', 'formConfirmationTimeout', 'revisionNote', 'previewing', 'impactPreview', 'previewSnapshot', 'previewFingerprint', 'previewTargetId', 'pendingDeleteId', 'restoreRevisionId');
+        $this->reset('formName', 'formNote', 'formEnabled', 'formIsDefault', 'formEnforce', 'formConfirmationTimeout', 'revisionNote', 'previewing', 'impactPreview', 'previewSnapshot', 'previewFingerprint', 'previewTargetId', 'pendingDeleteId', 'restoreRevisionId', 'formIdWhitelistGroups');
         $this->resetValidation();
         $this->formOptions = array_fill_keys(array_keys(Strategy::OPTION_KEYS), '');
     }
@@ -663,6 +697,13 @@ class StrategyList extends Component
     /** @return array<string,string> */
     private function validatedOptions(): array
     {
+        // Ticked groups that still exist; a group deleted while the editor
+        // was open just drops out.
+        $groupIds = DeviceGroup::query()
+            ->whereIn('id', array_map('intval', $this->formIdWhitelistGroups))
+            ->pluck('id')->all();
+        $this->formOptions['id-whitelist-groups'] = implode(',', $groupIds);
+
         $options = [];
         foreach ($this->formOptions as $key => $value) {
             $spec = Strategy::OPTION_KEYS[$key] ?? null;
@@ -771,6 +812,9 @@ class StrategyList extends Component
 
         return view('livewire.strategy-list', [
             'strategies' => $strategies,
+            'whitelistGroups' => $this->editingId !== null
+                ? DeviceGroup::query()->withCount('devices')->orderBy('name')->get(['id', 'name'])
+                : collect(),
             'catalog' => self::catalog(),
             'assigning' => $this->assigningId ? $strategies->firstWhere('id', $this->assigningId) : null,
             'isAdmin' => $isAdmin,

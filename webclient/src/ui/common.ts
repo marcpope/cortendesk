@@ -97,6 +97,19 @@ export function loggedOutFromSearch(search: string): boolean {
   return new URLSearchParams(search).get('lo') === '1';
 }
 
+/** Set or clear ?lo=1 in place, so a reload after a logout stays put. */
+export function setLoggedOutParam(on: boolean): void {
+  try {
+    const url = new URL(location.href);
+    if (on) url.searchParams.set('lo', '1');
+    else if (url.searchParams.has('lo')) url.searchParams.delete('lo');
+    else return;
+    history.replaceState(null, '', url);
+  } catch {
+    /* history unavailable (odd embed): auto-login is still gated per page load */
+  }
+}
+
 export function resolveWorkerUrl(
   cfgUrl: string | undefined,
   attrUrl: string | null | undefined,

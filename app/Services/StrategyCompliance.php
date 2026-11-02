@@ -135,7 +135,7 @@ class StrategyCompliance
             $current = $strategy->configOptions();
             $at = null;
             foreach ($revisions->get($id, collect()) as $revision) {
-                $options = Strategy::sanitizeOptions(is_array($revision->snapshot['options'] ?? null) ? $revision->snapshot['options'] : []);
+                $options = Strategy::expandIdWhitelistGroups(Strategy::sanitizeOptions(is_array($revision->snapshot['options'] ?? null) ? $revision->snapshot['options'] : []));
                 if ($options !== $current) {
                     break;
                 }

@@ -101,6 +101,7 @@ export interface SessionLike {
   setClientRecording(recording: boolean): void;
   sendClipboardText(text: string): void;
   sendChat(text: string): void;
+  sendAuth2fa?(code: string): void;
   startVoiceCall(): void;
   closeVoiceCall(): void;
   sendVoiceAudioFormat(sampleRate: number, channels: number): void;
@@ -218,7 +219,11 @@ export class WorkerHost {
         return;
       case 'connectFile':
       case 'connectTerminal':
+        setCatalog(cmd.config.messages);
         void this.connect(cmd.config, undefined);
+        return;
+      case 'auth2fa':
+        this.session?.sendAuth2fa?.(cmd.code);
         return;
       case 'terminalOpen':
         this.session?.openTerminal(cmd.terminalId, cmd.rows, cmd.cols);
@@ -531,7 +536,8 @@ export class WorkerHost {
           // Clear the connect watchdog once we reach a settled state or enter
           // explicit manual-accept waiting; that wait is controlled by the
           // remote user and must not be cut off by the transport watchdog.
-          if (ev.t === 'state' && (ev.state === 'needAccept' || ev.state === 'streaming' || ev.state === 'error' || ev.state === 'closed')) {
+          // A 2FA prompt waits on a person too.
+          if (ev.t === 'twoFactor' || (ev.t === 'state' && (ev.state === 'needAccept' || ev.state === 'streaming' || ev.state === 'error' || ev.state === 'closed'))) {
             this.clearConnectTimer();
           }
           // Anything that restarts the host's capture pipeline leaves our

@@ -196,7 +196,7 @@
                         <div class="mb-3">
                             <div class="input-group" style="max-width: 320px;">
                                 <span class="input-group-text"><i class="ri-search-line"></i></span>
-                                <input type="search" class="form-control"
+                                <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control"
                                        placeholder="{{ __('address_books.search_device_id_or_alias') }}"
                                        wire:model.live.debounce.300ms="entrySearch">
                             </div>

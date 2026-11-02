@@ -12,6 +12,8 @@ return [
     'monitor' => 'Monitoraggio',
     'release_check_unavailable' => 'Controllo release non disponibile',
     'running_latest_release' => 'Ultima release in uso',
+    'sponsor_cortendesk' => 'Sostieni CortenDesk',
+    'sponsor_cortendesk_title' => 'Sostieni CortenDesk su GitHub Sponsors (si apre in una nuova scheda)',
     'theme_mode' => 'Tema',
     'toggle_menu' => 'Mostra/nascondi menu',
     'update_available' => 'Aggiornamento disponibile',

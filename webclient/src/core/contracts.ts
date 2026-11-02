@@ -46,6 +46,8 @@ export type SessionEvent =                       // worker -> main
   | { t:'h264'; data:Uint8Array; key:boolean }
   | { t:'credentials'; hashHex:string }   // h1 = SHA256(pw||salt); UI may persist for "save password"
   | { t:'loginError'; message:string }
+  // The device wants its 2FA code; wrong=true after a code it refused. The connection stays open for the answer.
+  | { t:'twoFactor'; wrong:boolean }
   | { t:'uac'; on:boolean }               // remote UAC prompt opened/closed (capture restarts around it)
   | { t:'msgbox'; msgtype:string; title:string; text:string; link:string }
   // terminal connections only. Data stays bytes; the UI must append text nodes,
@@ -69,6 +71,7 @@ export type UiCommand =                           // main -> worker
   | { c:'switchDisplay'; index:number } | { c:'ctrlAltDel' } | { c:'refresh' }
   | { c:'quality'; imageQuality:number } | { c:'clipboardText'; text:string } | { c:'disconnect' }
   | { c:'restartRemoteDevice' } | { c:'requestElevation' }
+  | { c:'auth2fa'; code:string }          // answer to a twoFactor event
   | { c:'privacyMode'; implKey:string; on:boolean }
   | { c:'blockInput'; on:boolean } | { c:'lockAfterSessionEnd'; on:boolean }
   | { c:'displayResolution'; display:number; width:number; height:number }

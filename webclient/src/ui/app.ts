@@ -61,11 +61,14 @@ import {
   placePopover,
   resolveWorkerUrl,
   saveSavedHash,
+  setLoggedOutParam,
   type IconName,
   type RdGlobalConfig,
 } from './common';
 import { FilePanel } from './file-panel';
 import { TerminalPanel } from './terminal-panel';
+import { TerminalApp, terminalModeFromSearch } from './terminal-app';
+import { consumeTwoFactorCode, renderConnectCard, showTwoFactor, type ConnectCardEls } from './connect-card';
 import { CameraPanel } from './camera-panel';
 import { MseVideoPlayer } from '../media/mse-video';
 import { mseH264Available } from '../media/video';
@@ -120,7 +123,7 @@ type RestartFlow = {
   reconnecting: boolean;
 };
 
-type Els = {
+type Els = ConnectCardEls & {
   root: HTMLElement;
   toolbar: HTMLElement;
   viewport: HTMLElement;
@@ -152,17 +155,6 @@ type Els = {
   statDevice: HTMLElement;
   statUser: HTMLElement;
   statPlatform: HTMLElement;
-  overlayPeer: HTMLElement;
-  overlayTarget: HTMLElement;
-  fieldId: HTMLElement;
-  peerIdInput: HTMLInputElement;
-  passwordInput: HTMLInputElement;
-  saveCheckbox: HTMLInputElement;
-  connectBtn: HTMLButtonElement;
-  overlayStatus: HTMLElement;
-  overlayStatusText: HTMLElement;
-  overlayError: HTMLElement;
-  reconnectCancel: HTMLButtonElement;
 };
 
 function q<T extends Element>(scope: ParentNode, sel: string): T {
@@ -1659,64 +1651,9 @@ export class RdApp {
   // --- connect overlay ------------------------------------------------------------
 
   private renderOverlay(): void {
-    const svg = (paths: string, size = 20): string =>
-      `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" ` +
-      `stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-    const lock = svg('<rect x="4.5" y="10.5" width="15" height="10.5" rx="2.2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>');
-    const device = svg('<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/>');
-    const arrow = svg('<path d="M5 12h13M12 5.5 18.5 12 12 18.5"/>', 24);
-    this.el.overlay.innerHTML = `
-      <div class="rd-card">
-        <div class="rd-brand">
-          <img class="rd-logo" src="/rdclient/logo.png" alt="CortenDesk" width="60" height="60">
-          <span class="rd-wordmark">Corten<span>Desk</span></span>
-        </div>
-        <div class="rd-tagline">${htl('overlay_title')} ${overlayVersion(this.cfg)}</div>
-        <div class="rd-divider" aria-hidden="true"></div>
-        <p class="rd-help">${htl('enter_clients_temporary_or_permanent')}</p>
-        <div class="rd-target" id="rd-target" hidden>
-          <span class="rd-target-ic">${device}</span>
-          <span class="rd-target-cap">${htl('client_id')}</span>
-          <span class="rd-target-id" id="rd-overlay-peer"></span>
-        </div>
-        <label class="rd-field" id="rd-field-id" hidden>
-          <span class="rd-input">
-            <span class="rd-input-ic">${device}</span>
-            <input id="rd-peer-id" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${htl('device_id')}">
-          </span>
-        </label>
-        <div class="rd-connect-row">
-          <span class="rd-input">
-            <span class="rd-input-ic">${lock}</span>
-            <input id="rd-password" type="password" autocomplete="new-password" placeholder="${htl('enter_password')}">
-          </span>
-          <button type="button" class="rd-go" id="rd-connect" aria-label="${htl('connect')}">${arrow}</button>
-        </div>
-        <label class="rd-save">
-          <input type="checkbox" id="rd-save-pw">
-          <span>${htl('save_password_on_this_device')}</span>
-        </label>
-        <div class="rd-msg" id="rd-msg">
-          <div class="rd-overlay-status" id="rd-overlay-status" hidden>
-            <span class="rd-spinner" aria-hidden="true"></span><span id="rd-overlay-status-text"></span>
-          </div>
-          <div class="rd-overlay-error" id="rd-overlay-error" role="alert" hidden></div>
-        </div>
-        <button type="button" class="rd-chip" id="rd-restart-cancel" hidden>${htl('cancel_reconnect')}</button>
-      </div>`;
-    const o = this.el.overlay;
-    this.el.overlayPeer = q(o, '#rd-overlay-peer');
-    this.el.overlayTarget = q(o, '#rd-target');
-    this.el.fieldId = q(o, '#rd-field-id');
-    this.el.peerIdInput = q(o, '#rd-peer-id');
-    this.el.passwordInput = q(o, '#rd-password');
-    this.el.saveCheckbox = q(o, '#rd-save-pw');
-    this.el.connectBtn = q(o, '#rd-connect');
-    this.el.overlayStatus = q(o, '#rd-overlay-status');
-    this.el.overlayStatusText = q(o, '#rd-overlay-status-text');
-    this.el.overlayError = q(o, '#rd-overlay-error');
-    this.el.reconnectCancel = q(o, '#rd-restart-cancel');
-
+    Object.assign(this.el, renderConnectCard(this.el.overlay, {
+      tagline: `${htl('overlay_title')} ${overlayVersion(this.cfg)}`,
+    }));
     this.el.connectBtn.addEventListener('click', () => this.onConnectClick());
     this.el.reconnectCancel.addEventListener('click', () => this.cancelRestartReconnect());
     const enter = (e: KeyboardEvent): void => {
@@ -1724,6 +1661,35 @@ export class RdApp {
     };
     this.el.passwordInput.addEventListener('keydown', enter);
     this.el.peerIdInput.addEventListener('keydown', enter);
+    this.el.twoFactorBtn.addEventListener('click', () => this.submitTwoFactor());
+    this.el.twoFactorInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.submitTwoFactor();
+    });
+  }
+
+  /** The device asked for its 2FA code; the connection waits for it. */
+  private onTwoFactor(wrong: boolean): void {
+    this.showOverlay();
+    this.setOverlayBusy(false);
+    showTwoFactor(this.el, true, !!this.fixedPeerId);
+    this.el.overlayStatus.hidden = true;
+    this.setOverlayError(wrong ? tl('wrong_2fa_code') : null);
+    this.el.twoFactorInput.focus();
+  }
+
+  private submitTwoFactor(): void {
+    const code = consumeTwoFactorCode(this.el.twoFactorInput);
+    if (!code) {
+      this.setOverlayError(tl('enter_2fa_code'));
+      return;
+    }
+    if (!this.post({ c: 'auth2fa', code })) return;
+    this.setOverlayBusy(true);
+    this.setOverlayStatusText(`${STATE_LABEL.login}…`);
+  }
+
+  private hideTwoFactor(): void {
+    if (this.el) showTwoFactor(this.el, false, !!this.fixedPeerId);
   }
 
   // --- session lifecycle -----------------------------------------------------
@@ -2231,9 +2197,13 @@ export class RdApp {
         this.toast(ev.title && ev.text ? `${ev.title}: ${ev.text}` : text, /^wait/i.test(ev.msgtype));
         break;
       }
+      case 'twoFactor':
+        this.onTwoFactor(ev.wrong);
+        break;
       case 'loginError':
         this.clearRestartFlow();
         this.teardown();
+        this.hideTwoFactor();
         if (this.connectedWithSavedHash) {
           // The stored credential no longer works (password changed) — drop it.
           clearSavedHash(this.peerId);
@@ -2278,6 +2248,7 @@ export class RdApp {
     switch (state) {
       case 'streaming':
         if (!this.streamStartMs) this.streamStartMs = Date.now();
+        this.hideTwoFactor();
         this.persistCredentialIfWanted();
         this.hideOverlay();
         this.canvas.focus();
@@ -2296,6 +2267,7 @@ export class RdApp {
         break;
       case 'error':
         this.teardown();
+        this.hideTwoFactor();
         this.clearSecurityState();
         this.destroyAdvancedPanels();
         this.filePanel?.destroy();
@@ -2308,6 +2280,7 @@ export class RdApp {
         break;
       case 'closed':
         this.teardown();
+        this.hideTwoFactor();
         this.clearSecurityState();
         this.destroyAdvancedPanels();
         this.filePanel?.destroy();
@@ -2479,15 +2452,7 @@ export class RdApp {
 
   // Keep ?lo=1 in the URL in sync with "the user logged out on purpose".
   private setLoggedOutFlag(on: boolean): void {
-    try {
-      const url = new URL(location.href);
-      if (on) url.searchParams.set('lo', '1');
-      else if (url.searchParams.has('lo')) url.searchParams.delete('lo');
-      else return;
-      history.replaceState(null, '', url);
-    } catch {
-      /* history unavailable (odd embed) — auto-login still gated per page load */
-    }
+    setLoggedOutParam(on);
   }
 
   /**
@@ -2786,6 +2751,8 @@ export class RdApp {
     this.el.connectBtn.disabled = busy;
     this.el.peerIdInput.disabled = busy;
     this.el.passwordInput.disabled = busy;
+    if (this.el.twoFactorInput) this.el.twoFactorInput.disabled = busy;
+    if (this.el.twoFactorBtn) this.el.twoFactorBtn.disabled = busy;
     if (busy) this.setOverlayError(null);
     else if (!this.el.overlayStatusText.textContent) this.el.overlayStatus.hidden = true;
     this.el.overlayStatus.classList.toggle('rd-busy', busy);
@@ -2834,7 +2801,11 @@ export class RdApp {
 }
 
 if (typeof document !== 'undefined' && typeof Worker !== 'undefined') {
-  const start = (): void => new RdApp().mount();
+  // ?mode=terminal opens a terminal straight away, with no remote screen.
+  const start = (): void => {
+    if (terminalModeFromSearch(location.search)) new TerminalApp().mount();
+    else new RdApp().mount();
+  };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 }

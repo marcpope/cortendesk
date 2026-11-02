@@ -273,7 +273,7 @@ export class FilePanel {
         <header class="rd-ft-pane-head">
           <span class="rd-ft-pane-ic">${iconHtml(side === 'local' ? 'monitor' : 'folderTransfer')}</span>
           <div class="rd-ft-pane-title">
-            <strong>${title}</strong>
+            <strong>${escapeHtml(title)}</strong>
             <small id="rd-ft-${side}-sub"></small>
           </div>
           <div class="rd-ft-pane-actions">${headBtns}</div>

@@ -6,7 +6,7 @@
             <div class="rd-toolbar-search">
                 <div class="input-group">
                     <span class="input-group-text"><i class="ri-search-line"></i></span>
-                    <input type="search" class="form-control" placeholder="{{ __('logs.search_operator_or_details') }}"
+                    <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control" placeholder="{{ __('logs.search_operator_or_details') }}"
                            wire:model.live.debounce.300ms="search">
                 </div>
             </div>

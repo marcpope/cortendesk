@@ -12,6 +12,8 @@ return [
     'monitor' => 'Überwachung',
     'release_check_unavailable' => 'Versionsprüfung nicht verfügbar',
     'running_latest_release' => 'Neueste Version läuft',
+    'sponsor_cortendesk' => 'CortenDesk unterstützen',
+    'sponsor_cortendesk_title' => 'CortenDesk über GitHub Sponsors unterstützen (öffnet in einem neuen Tab)',
     'theme_mode' => 'Darstellungsmodus',
     'toggle_menu' => 'Menü umschalten',
     'update_available' => 'Update verfügbar',

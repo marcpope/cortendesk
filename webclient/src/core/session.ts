@@ -146,6 +146,11 @@ function baselineDecoding(): SupportedDecoding {
 // took the prompt with it.
 const NO_PASSWORD_ACCESS = 'No Password Access';
 
+// The device's 2FA replies (client.rs REQUIRE_2FA, LOGIN_MSG_2FA_WRONG). It
+// keeps the connection open after either and waits for an Auth2FA message.
+const REQUIRE_2FA = '2FA Required';
+const WRONG_2FA = 'Wrong 2FA Code';
+
 function isManualAccept(error: string): boolean {
   if (error === NO_PASSWORD_ACCESS) return true;
   const e = error.toLowerCase();
@@ -686,7 +691,9 @@ export class Session {
         const lr = u.login_response.union;
         if (lr?.$case === 'error') {
           if (isManualAccept(lr.error)) this.setState('needAccept', lr.error);
-          else this.sinks.emit({ t: 'loginError', message: lr.error });
+          else if (lr.error === REQUIRE_2FA || lr.error === WRONG_2FA) {
+            this.sinks.emit({ t: 'twoFactor', wrong: lr.error === WRONG_2FA });
+          } else this.sinks.emit({ t: 'loginError', message: lr.error });
           return;
         }
         if (lr?.$case === 'peer_info') {
@@ -1261,6 +1268,12 @@ export class Session {
 
   sendFileResponse(union: NonNullable<FileResponse['union']>): void {
     this.sendMessage({ $case: 'file_response', file_response: { union } });
+  }
+
+  /** The code the device asked for with a twoFactor event. */
+  sendAuth2fa(code: string): void {
+    if (!this.loginSent || this.state === 'streaming' || this.state === 'error' || this.state === 'closed') return;
+    this.sendMessage({ $case: 'auth_2fa', auth_2fa: { code: code.trim(), hwid: new Uint8Array(0) } });
   }
 
   disconnect(): void {

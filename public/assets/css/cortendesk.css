@@ -1809,6 +1809,26 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     padding-left: 8px;
 }
 
+/* A search field is one box: the magnifier and the input share an outline,
+   in toolbars and anywhere else (Address Book). On focus the whole outline
+   takes the accent, including the magnifier's edge; otherwise the field's
+   left side stays grey because that border belongs to the icon (#125). */
+.input-group-text:has(> .ri-search-line) {
+    background-color: var(--rd-surface-2);
+    color: var(--rd-ink-dim);
+    padding-right: 0;
+    border-right: 0;
+}
+
+.input-group-text:has(> .ri-search-line) + .form-control {
+    border-left: 0;
+    padding-left: 8px;
+}
+
+.input-group:focus-within > .input-group-text:has(> .ri-search-line) {
+    border-color: rgba(var(--rd-accent-rgb), 0.55);
+}
+
 /* Search absorbs the slack (grow 1); the filters hold a fixed, legible width
    and only shrink when the row is genuinely tight. A date input rendered
    220px wide to hold "mm/dd/yyyy" is the row shouting at you. */
@@ -3019,3 +3039,11 @@ a.rd-mini-sub:hover {
         font-size: 16px;
     }
 }
+
+/* Strategy editor: device groups for the ID whitelist, two columns from md up. */
+.rd-check-grid { display: grid; grid-template-columns: 1fr; gap: 6px 20px; max-height: 220px; overflow-y: auto; padding: 10px 12px; border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius); }
+@media (min-width: 768px) { .rd-check-grid { grid-template-columns: 1fr 1fr; } }
+
+/* Sidebar: the sponsor link sits apart from the System section, heart in red. */
+.rd-nav-sponsor { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rd-shell-border); }
+.rd-nav-sponsor .rd-nav-link > i { color: #e5484d; }

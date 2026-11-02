@@ -242,7 +242,20 @@
                                     @foreach ($group['options'] as $key => $opt)
                                         <div class="col-12 {{ $opt['wide'] ? '' : 'col-md-6' }} mb-3" wire:key="opt-{{ $key }}">
                                             <label class="form-label mb-1" for="sl-opt-{{ $key }}">{{ $opt['label'] }}</label>
-                                            @if ($opt['choices'] !== null)
+                                            @if ($opt['type'] === 'groups')
+                                                @if ($whitelistGroups->isEmpty())
+                                                    <div class="text-muted fs-13">{{ __('strategies.no_device_groups_yet') }}</div>
+                                                @else
+                                                    <div class="rd-check-grid" id="sl-opt-{{ $key }}">
+                                                        @foreach ($whitelistGroups as $wg)
+                                                            <label class="form-check mb-0" wire:key="wg-{{ $wg->id }}">
+                                                                <input type="checkbox" class="form-check-input" value="{{ $wg->id }}" wire:model="formIdWhitelistGroups">
+                                                                <span class="form-check-label">{{ $wg->name }} <span class="text-muted">({{ $wg->devices_count }})</span></span>
+                                                            </label>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            @elseif ($opt['choices'] !== null)
                                                 <select id="sl-opt-{{ $key }}" class="form-select"
                                                         wire:model="formOptions.{{ $key }}">
                                                     <option value="">{{ __('strategies.not_managed') }}</option>
@@ -317,7 +330,7 @@
                         <div class="table-responsive mb-3"><table class="table table-sm mb-0">
                             <thead><tr><th>{{ __('strategies.setting') }}</th><th>{{ __('strategies.before') }}</th><th>{{ __('strategies.after') }}</th></tr></thead><tbody>
                             @forelse (($impactPreview['option_changes'] ?? []) as $key => $change)
-                                <tr><td><code>{{ $key }}</code></td><td class="text-break">{{ $change['before'] ?? __('strategies.not_managed') }}</td><td class="text-break">{{ $change['after'] ?? __('strategies.not_managed') }}</td></tr>
+                                <tr><td><code>{{ $key }}</code></td><td class="text-break">{{ $this->optionValueLabel($key, $change['before']) }}</td><td class="text-break">{{ $this->optionValueLabel($key, $change['after']) }}</td></tr>
                             @empty
                                 <tr><td colspan="3" class="text-muted">{{ __('strategies.no_option_changes') }}</td></tr>
                             @endforelse
@@ -386,7 +399,7 @@
                         </ul>
 
                         @if ($assignTab === 'devices')
-                            <input type="search" class="form-control mb-2" placeholder="{{ __('common.search_id_alias_hostname') }}"
+                            <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control mb-2" placeholder="{{ __('common.search_id_alias_hostname') }}"
                                    wire:model.live.debounce.300ms="assignSearch">
                             <div class="rd-scrollbox" style="max-height: 340px; overflow-y: auto;">
                                 <table class="table table-sm table-hover mb-0">
@@ -541,7 +554,7 @@
                                 <div class="table-responsive mb-4">
                                     <table class="table table-sm"><thead><tr><th>{{ __('strategies.field') }}</th><th>{{ __('strategies.compare_from') }}</th><th>{{ __('strategies.compare_to') }}</th></tr></thead><tbody>
                                     @forelse ($revisionComparison as $change)
-                                        <tr><td><code>{{ $change['key'] }}</code></td><td class="text-break">{{ is_bool($change['before']) ? ($change['before'] ? __('strategies.yes') : 'No') : ($change['before'] ?? __('strategies.not_managed')) }}</td><td class="text-break">{{ is_bool($change['after']) ? ($change['after'] ? __('strategies.yes') : 'No') : ($change['after'] ?? __('strategies.not_managed')) }}</td></tr>
+                                        <tr><td><code>{{ $change['key'] }}</code></td><td class="text-break">{{ is_bool($change['before']) ? ($change['before'] ? __('strategies.yes') : 'No') : $this->optionValueLabel($change['key'], $change['before']) }}</td><td class="text-break">{{ is_bool($change['after']) ? ($change['after'] ? __('strategies.yes') : 'No') : $this->optionValueLabel($change['key'], $change['after']) }}</td></tr>
                                     @empty
                                         <tr><td colspan="3" class="text-muted">{{ __('strategies.these_revisions_are_identical') }}</td></tr>
                                     @endforelse

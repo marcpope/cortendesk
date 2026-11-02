@@ -13,7 +13,7 @@
                 <div class="rd-toolbar-search">
                     <div class="input-group">
                         <span class="input-group-text"><i class="ri-search-line"></i></span>
-                        <input type="search" class="form-control" placeholder="{{ __('users.search_username_name_email') }}"
+                        <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control" placeholder="{{ __('users.search_username_name_email') }}"
                                wire:model.live.debounce.300ms="search">
                     </div>
                 </div>
@@ -390,7 +390,7 @@
                         <p class="text-muted fs-13">
                             {!! __('users.select_devices_owned_by_user', ['user' => '<strong>'.e(optional(\App\Models\User::find($assignUserId))->username).'</strong>']) !!}
                         </p>
-                        <input type="search" class="form-control mb-2" placeholder="{{ __('common.search_id_alias_hostname') }}"
+                        <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control mb-2" placeholder="{{ __('common.search_id_alias_hostname') }}"
                                wire:model.live.debounce.300ms="assignSearch">
                         <div class="rd-scrollbox" style="max-height: 340px; overflow-y: auto;">
                             <table class="table table-sm table-hover mb-0">

@@ -21,7 +21,7 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - **Address books** — full support for the modern multi-address-book API *and* the legacy API: shared books, share rules (everyone / user / group), tags with colors.
 - **Audit logs** — connections (with the note RustDesk clients can leave at the end of a session), file transfers, console logins, and security alarms (brute-force/blocked-access events); filterable, exportable to CSV, with configurable retention and automatic nightly pruning.
 - **Single sign-on (OIDC)** — sign in with Keycloak, Authentik, Entra ID, Okta, Google Workspace or any OpenID Connect provider. Authorization-code flow with PKCE, verified ID tokens, just-in-time account creation with optional approval, an email-domain allowlist, and optional provider sign-out. Password sign-in can be switched off, on the console and in the RustDesk client — and returns by itself if SSO is disabled or left incompletely configured. For a provider that is unreachable while still configured, `CORTENDESK_OIDC_DISABLED=true` forces it off and brings the password form back.
-- **Device policies (strategies)** — push client settings to devices from the console: permissions, security and password rules, capture options, and the STUN/TURN servers RustDesk 1.5 uses for WebRTC. Assign to a device, a user or a device group, with the most specific assignment winning. Optionally enforced, so a local change is reverted on the next heartbeat.
+- **Device policies (strategies)** — push client settings to devices from the console: permissions, security and password rules, capture options, and the STUN/TURN servers RustDesk 1.5 uses for WebRTC. Assign to a device, a user or a device group, with the most specific assignment winning. Optionally enforced, so a local change is reverted on the next heartbeat. The ID whitelist can take whole device groups, and follows their membership as devices come and go.
 - **Two-factor authentication** — TOTP with single-use recovery codes, optionally required for everyone or for administrators only, with an administrator reset and a break-glass command. The RustDesk client asks for the same code when it signs in with a password.
 - **Delegated administration** — roles with a permission matrix over each console area, so you can grant someone the users screen without handing them the whole console.
 - **Automation API** — scoped bearer tokens and a REST API for users, devices, groups, address books and audit logs, plus support for the RustDesk client's `--assign` flag for unattended deployment.
@@ -40,6 +40,8 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - **WebRTC** — to devices running RustDesk 1.5 or later, the web client also offers a WebRTC connection and goes straight to the device when it can, with the relay as fallback. A TURN server of your own (coturn works) gets it through mobile and carrier NAT.
 - Hardware-accelerated video via WebCodecs (VP8/VP9/H.264/H.265/AV1 as supported), remote audio, two-way voice calls, text chat, clipboard both ways, multi-monitor switching, Ctrl+Alt+Del, session stats. The keyboard sends physical keys to Windows and Linux hosts like the desktop client, so AltGr, dead keys and punctuation work on non-US layouts.
 - **File transfer** — an in-session dual-pane manager: browse the remote filesystem, send/receive files and folders with progress, resume-aware digests, conflict prompts, and drag-and-drop. Uses the File System Access API on Chromium; falls back to picker/Downloads elsewhere.
+- **Remote terminal** — a shell on Windows, macOS and Linux devices (RustDesk 1.4.1+), from inside a desktop session or straight from the device list with its own sign-in.
+- Devices that ask for a 2FA code get one prompted for, in desktop and terminal sessions alike.
 - Saved passwords (hashed, never plaintext) with auto-login per device.
 - Best experienced in Chrome/Edge; the desktop stream requires WebCodecs. Voice calls need Chrome or Edge on HTTPS (or `http://localhost`) plus microphone permission.
 - **HTTPS recommended, not required.** This is about video quality, not whether it works: over HTTPS the client uses WebCodecs for hardware-accelerated VP8/VP9/H.264/H.265/AV1, and over plain `http://` it falls back to H.264 through Media Source Extensions, which is not restricted to secure contexts. The fallback is automatic and needs no configuration; it is limited to H.264 and reports no per-frame statistics. `http://localhost` counts as secure. Signalling follows `APP_URL` either way — set it to the address browsers actually use, or override `CORTENDESK_WS_ID_URL` / `CORTENDESK_WS_RELAY_URL` when your WebSocket endpoints live somewhere else.
@@ -62,7 +64,7 @@ docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
   -p 8080:8080 -p 21115-21117:21115-21117 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.17.1
+  ghcr.io/marcpope/cortendesk:1.18.0
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and

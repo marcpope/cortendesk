@@ -12,6 +12,8 @@ return [
     'monitor' => 'Felügyelet',
     'release_check_unavailable' => 'A kiadás-ellenőrzés nem érhető el',
     'running_latest_release' => 'A legfrissebb kiadás fut',
+    'sponsor_cortendesk' => 'CortenDesk támogatása',
+    'sponsor_cortendesk_title' => 'A CortenDesk támogatása a GitHub Sponsorson (új lapon nyílik meg)',
     'theme_mode' => 'Megjelenítési mód',
     'toggle_menu' => 'Menü ki-/bekapcsolása',
     'update_available' => 'Frissítés érhető el',

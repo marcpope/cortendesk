@@ -12,6 +12,8 @@ return [
     'monitor' => 'Monitor',
     'release_check_unavailable' => 'Release check unavailable',
     'running_latest_release' => 'Running the latest release',
+    'sponsor_cortendesk' => 'Sponsor CortenDesk',
+    'sponsor_cortendesk_title' => 'Support CortenDesk on GitHub Sponsors (opens in a new tab)',
     'theme_mode' => 'Theme Mode',
     'toggle_menu' => 'Toggle menu',
     'update_available' => 'Update available',

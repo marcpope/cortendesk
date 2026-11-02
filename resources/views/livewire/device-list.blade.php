@@ -47,7 +47,7 @@
             <div class="rd-toolbar-search">
                 <div class="input-group">
                     <span class="input-group-text"><i class="ri-search-line"></i></span>
-                    <input type="search" class="form-control" placeholder="{{ __('devices.search_id_alias_hostname_user') }}"
+                    <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control" placeholder="{{ __('devices.search_id_alias_hostname_user') }}"
                            wire:model.live.debounce.300ms="search">
                 </div>
             </div>
@@ -348,6 +348,12 @@
                                     <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}"
                                        target="cortendesk-webclient" rel="noopener" class="rd-act me-2"
                                        title="{{ __('devices.connect_in_browser_native_client') }}"><i class="ri-remote-control-line me-1"></i>{{ __('devices.connect') }}</a>
+                                    {{-- The terminal is desktop only (RustDesk 1.4.1+). --}}
+                                    @unless (in_array($device->platform(), ['android', 'ios'], true))
+                                        <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}&amp;mode=terminal"
+                                           target="cortendesk-terminal" rel="noopener" class="rd-act me-2"
+                                           title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line me-1"></i>{{ __('devices.terminal') }}</a>
+                                    @endunless
                                 @endif
                                 @if (config('cortendesk.webclient_url'))
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"
@@ -447,6 +453,11 @@
                                     <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}"
                                        target="cortendesk-webclient" rel="noopener" class="rd-iconbtn"
                                        title="{{ __('devices.connect_in_browser_native_client') }}"><i class="ri-remote-control-line"></i></a>
+                                    @unless (in_array($device->platform(), ['android', 'ios'], true))
+                                        <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}&amp;mode=terminal"
+                                           target="cortendesk-terminal" rel="noopener" class="rd-iconbtn"
+                                           title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line"></i></a>
+                                    @endunless
                                 @endif
                                 @if (config('cortendesk.webclient_url'))
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"
