@@ -55,6 +55,7 @@ import {
   SupportedDecoding_PreferCodec,
 } from '../gen/message';
 import { RESTART_RECONNECT_TIMEOUT_MS, nextRestartReconnectDelay } from '../core/session-controls';
+import { DROP_RECONNECT_TIMEOUT_MS, nextReconnectDelay, shouldAutoReconnect } from '../core/reconnect';
 import { buildLockScreenKeyCommand, buildSecurityControlMenu } from './session-controls-menu';
 import {
   overlayVersion,
@@ -135,6 +136,8 @@ type ChatEntry = { who: 'me' | 'peer'; text: string; at: number };
 type UiWorkerEvent = SessionEvent | { t: 'audioPcm'; pcm: Float32Array; sampleRate: number; channels: number };
 
 type RestartFlow = {
+  /** restart: the user restarted the device; drop: the connection died by itself (core/reconnect.ts). */
+  kind: 'restart' | 'drop';
   startedAt: number;
   attempt: number;
   config: SessionConfig;
@@ -343,6 +346,12 @@ export class RdApp {
   /** While the keyboard is open the remote screen keeps its full size and pans instead. */
   private frozenSize: { w: number; h: number } | undefined;
   private viewBeforeKeyboard: View | undefined;
+  /** Zoom to put back after an automatic reconnect. */
+  private viewBeforeReconnect: View | undefined;
+  /** The on-screen keyboard was open when the connection dropped. */
+  private keyboardBeforeReconnect = false;
+  /** The user pressed Disconnect: whatever ends the session now is not a drop. */
+  private userClosing = false;
   /** Last touched point on the remote screen (element-local), kept in view when the keyboard opens. */
   private focusPoint: Pt | undefined;
 
@@ -413,6 +422,7 @@ export class RdApp {
     }, 1000);
 
     window.addEventListener('beforeunload', () => {
+      this.userClosing = true;
       this.endVoiceCall(true);
       this.releaseRemoteSecurityState();
       this.post({ c: 'disconnect' });
@@ -683,6 +693,7 @@ export class RdApp {
   }
 
   private disconnectByUser(): void {
+    this.userClosing = true;
     this.setLoggedOutFlag(true); // an explicit logout must not auto-login on reload
     this.clearRestartFlow();
     this.endVoiceCall(true);
@@ -2281,7 +2292,7 @@ export class RdApp {
     this.clearRestartFlow();
     this.el.reconnectCancel.hidden = false;
     this.post({ c: 'restartRemoteDevice' });
-    const flow: RestartFlow = { startedAt: Date.now(), attempt: 0, config, reconnecting: false };
+    const flow: RestartFlow = { kind: 'restart', startedAt: Date.now(), attempt: 0, config, reconnecting: false };
     flow.deadlineTimer = setTimeout(() => this.expireRestartFlow(flow), RESTART_RECONNECT_TIMEOUT_MS);
     this.restartFlow = flow;
     this.toast(tl('restart_command_sent_waiting_for'), true);
@@ -2300,10 +2311,13 @@ export class RdApp {
     this.closePop();
 
     const elapsed = Date.now() - flow.startedAt;
-    const delay = nextRestartReconnectDelay(flow.attempt, elapsed);
+    const delay = flow.kind === 'drop'
+      ? nextReconnectDelay(flow.attempt, elapsed)
+      : nextRestartReconnectDelay(flow.attempt, elapsed);
     if (delay === null) {
       this.clearRestartFlow();
-      this.setState('error', tl('restart_no_return') + (detail ? ` — ${detail}` : ''));
+      const why = flow.kind === 'drop' ? tl('could_not_reconnect') : tl('restart_no_return');
+      this.setState('error', why + (detail ? ` — ${detail}` : ''));
       return;
     }
 
@@ -2313,17 +2327,41 @@ export class RdApp {
     this.showOverlay();
     this.setOverlayBusy(true);
     this.el.reconnectCancel.hidden = false;
-    this.setOverlayStatusText(tl('waiting_restart_retry', { attempt: flow.attempt, seconds: Math.ceil(delay / 1000) }));
+    const wait = { attempt: flow.attempt, seconds: Math.ceil(delay / 1000) };
+    this.setOverlayStatusText(flow.kind === 'drop' ? tl('connection_lost_reconnecting', wait) : tl('waiting_restart_retry', wait));
     flow.timer = setTimeout(() => {
       if (this.restartFlow !== flow) return;
       flow.timer = undefined;
-      if (Date.now() - flow.startedAt >= RESTART_RECONNECT_TIMEOUT_MS) {
+      if (Date.now() - flow.startedAt >= (flow.kind === 'drop' ? DROP_RECONNECT_TIMEOUT_MS : RESTART_RECONNECT_TIMEOUT_MS)) {
         this.expireRestartFlow(flow);
         return;
       }
       flow.reconnecting = true;
       this.startSession({ ...flow.config, password: '' });
     }, delay);
+  }
+
+  /**
+   * The connection died by itself (core/reconnect.ts): reconnect with the
+   * same credentials (the session's h1, or the address book again), keeping
+   * the zoom, input mode and keyboard, until it works or five minutes pass.
+   */
+  private beginDropReconnect(detail?: string): void {
+    const base = this.reconnectConfig!;
+    const flow: RestartFlow = {
+      kind: 'drop',
+      startedAt: Date.now(),
+      attempt: 0,
+      config: { ...base, password: '', savedHashHex: this.sessionHashHex ?? base.savedHashHex },
+      reconnecting: false,
+    };
+    this.clearRestartFlow();
+    this.viewBeforeReconnect = { ...this.view.view };
+    this.keyboardBeforeReconnect = this.softKeyboardFocused();
+    flow.deadlineTimer = setTimeout(() => this.expireRestartFlow(flow), DROP_RECONNECT_TIMEOUT_MS);
+    this.restartFlow = flow;
+    this.dbg('reconnect', { detail });
+    this.scheduleRestartReconnect(detail);
   }
 
   private cancelRestartReconnect(): void {
@@ -2342,7 +2380,7 @@ export class RdApp {
     if (reconnecting) {
       this.teardown(true);
       this.clearSecurityState();
-      this.setState('error', tl('remote_device_did_not_return'));
+      this.setState('error', flow.kind === 'drop' ? tl('could_not_reconnect') : tl('remote_device_did_not_return'));
     } else if (sessionStillStreaming) {
       this.toast(tl('no_remote_restart_was_detected'));
     } else {
@@ -2357,10 +2395,12 @@ export class RdApp {
       clearTimeout(this.restartFlow.deadlineTimer);
     }
     this.restartFlow = undefined;
+    this.viewBeforeReconnect = undefined;
     if (this.el?.reconnectCancel) this.el.reconnectCancel.hidden = true;
   }
 
   private startSession(config: SessionConfig): void {
+    this.userClosing = false;
     this.teardown();
     // Retain only the challenge-independent password hash for reconnects. The
     // typed plaintext is transferred to the worker and never kept in UI state.
@@ -2567,8 +2607,14 @@ export class RdApp {
 
   /** New session or display: back to Fit (or 1:1 if that is the remembered choice). */
   private resetView(): void {
+    const keep = this.restartFlow?.kind === 'drop' ? this.viewBeforeReconnect : undefined;
     this.view.reset();
     this.updateView();
+    if (keep) {
+      this.view.restore(keep);
+      this.applyView();
+      return;
+    }
     this.applyFitZoom();
   }
 
@@ -2675,6 +2721,11 @@ export class RdApp {
           this.setState(ev.state, ev.detail);
         } else if (this.restartFlow && (ev.state === 'error' || ev.state === 'closed')) {
           this.scheduleRestartReconnect(ev.detail);
+        } else if (
+          this.reconnectConfig &&
+          shouldAutoReconnect(ev, { wasStreaming: this.state === 'streaming', userClosed: this.userClosing })
+        ) {
+          this.beginDropReconnect(ev.detail);
         } else {
           this.setState(ev.state, ev.detail);
         }
@@ -2877,7 +2928,18 @@ export class RdApp {
         this.persistCredentialIfWanted();
         this.hideOverlay();
         this.canvas.focus();
-        if (this.restartFlow) {
+        if (this.restartFlow?.kind === 'drop') {
+          // Back. Keep the flow a little longer: a second drop right after
+          // continues the same back-off instead of starting over.
+          const flow = this.restartFlow;
+          this.el.reconnectCancel.hidden = true;
+          clearTimeout(flow.stableTimer);
+          this.toast(tl('reconnected'));
+          if (this.keyboardBeforeReconnect) this.kbdSink.focus({ preventScroll: true });
+          flow.stableTimer = setTimeout(() => {
+            if (this.restartFlow === flow && this.state === 'streaming') this.clearRestartFlow();
+          }, 15_000);
+        } else if (this.restartFlow) {
           const flow = this.restartFlow;
           this.el.reconnectCancel.hidden = true;
           clearTimeout(flow.stableTimer);
