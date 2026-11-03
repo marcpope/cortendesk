@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Support\AuditLogStream;
 use App\Support\Label;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -141,12 +143,11 @@ class AuditConnection extends Model
      */
     public static function reconcileFor(string $rustdeskId, array $liveConnIds): int
     {
-        return static::query()
+        return self::closeInBulk(static::query()
             ->where('rustdesk_id', $rustdeskId)
             ->whereNull('closed_at')
             ->where('created_at', '<', now()->subSeconds(self::RECONCILE_GRACE_SECONDS))
-            ->when($liveConnIds !== [], fn ($q) => $q->whereNotIn('conn_id', $liveConnIds))
-            ->update(['action' => 'close', 'closed_at' => now()]);
+            ->when($liveConnIds !== [], fn ($q) => $q->whereNotIn('conn_id', $liveConnIds)), 'reconciled');
     }
 
     /**
@@ -177,11 +178,27 @@ class AuditConnection extends Model
             ->where('last_online_at', '>=', $cutoff)
             ->pluck('rustdesk_id');
 
-        return static::query()
+        return self::closeInBulk(static::query()
             ->whereNull('closed_at')
             ->where('created_at', '<', $cutoff)
-            ->whereNotIn('rustdesk_id', $heartbeating)
-            ->update(['action' => 'close', 'closed_at' => now()]);
+            ->whereNotIn('rustdesk_id', $heartbeating), 'stale');
+    }
+
+    /**
+     * Close every session $query selects in one UPDATE. A bulk update fires
+     * no model events, so the audit log stream gets the closes from here.
+     */
+    private static function closeInBulk(Builder $query, string $reason): int
+    {
+        $closing = AuditLogStream::enabled() ? (clone $query)->get() : collect();
+        $closed = $query->update(['action' => 'close', 'closed_at' => now()]);
+
+        foreach ($closing as $row) {
+            $row->action = 'close';
+            AuditLogStream::connection($row, $reason);
+        }
+
+        return $closed;
     }
 
     /** Is an operator waiting for this session to close? */

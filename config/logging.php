@@ -1,5 +1,6 @@
 <?php
 
+use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -103,6 +104,23 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        // The audit stream (App\Support\AuditLogStream): one JSON object per
+        // line, nothing around it. Only written to when
+        // CORTENDESK_AUDIT_LOG_STDOUT=true.
+        'cortendesk_audit' => [
+            'driver' => 'monolog',
+            'level' => 'info',
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => env('CORTENDESK_AUDIT_LOG_STREAM', 'php://stderr'),
+            ],
+            'formatter' => LineFormatter::class,
+            'formatter_with' => [
+                'format' => "%message%\n",
+                'allowInlineLineBreaks' => false,
+            ],
         ],
 
         'syslog' => [

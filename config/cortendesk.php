@@ -71,6 +71,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Audit log stream
+    |--------------------------------------------------------------------------
+    | Also write every audit record (console actions, sign-ins, sessions, file
+    | transfers, alarms, admin-API token use) as one JSON line to the log
+    | channel `cortendesk_audit` (stderr, or CORTENDESK_AUDIT_LOG_STREAM), for
+    | a log shipper. Lines start with {"cortendesk_audit":1 and hold no secrets.
+    */
+    'audit_log_stdout' => env('CORTENDESK_AUDIT_LOG_STDOUT', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Presence
     |--------------------------------------------------------------------------
     | Seconds without a heartbeat before a device counts as offline.
