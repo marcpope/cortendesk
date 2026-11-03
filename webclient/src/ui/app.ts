@@ -33,12 +33,14 @@ import {
   createKeyHandler,
   mapKeyboardTarget,
   type DisplayRect,
+  type InputOptions,
   type KeyHandler,
   type KeyTarget,
 } from '../input/mouse-keyboard';
 import { SoftKeyboardInput, type SoftKeyAction, type SoftKey } from '../input/soft-keyboard';
 import { trackVisualViewport, type ViewportState } from './viewport';
 import { ExtraKeysBar } from './extra-keys-bar';
+import { haptic, setHapticsEnabled } from './haptics';
 import { keyComboCommands, modControlKeys, stickyTextCommands } from '../input/extra-keys';
 import { readLocalClipboardText } from '../input/clipboard-cursor';
 import {
@@ -670,7 +672,7 @@ export class RdApp {
       <span class="rd-dock-sep" aria-hidden="true"></span>
       <div class="rd-dock-group" role="group" aria-label="${htl('input_mode')}">
         ${db('rd-mode-pointer', 'pointer', tl('pointer'), tl('pointer_mode_touch_acts_as'))}
-        ${db('rd-mode-touch', 'touch', tl('touch'), tl('touch_mode_drag_moves_cursor'))}
+        ${db('rd-mode-touch', 'touch', tl('touch'), tl('touch_mode_tap_drag_scroll'))}
       </div>
       <span class="rd-dock-sep" aria-hidden="true"></span>
       <div class="rd-dock-group" role="group" aria-label="${htl('send')}">
@@ -716,6 +718,7 @@ export class RdApp {
   private chooseInputMode(mode: InputMode): void {
     this.applyInputModePref(mode);
     this.rememberPrefs({ inputMode: mode });
+    haptic();
   }
 
   private applyInputModePref(pref: InputModePref): void {
@@ -1338,6 +1341,7 @@ export class RdApp {
             this.menuItem(null, tl('enlarge_remote_cursor'), this.cursorScale > 1, 'cursorScale')
           : '') +
         keyboardHtml +
+        this.touchMenuHtml() +
         securityHtml +
         tools +
         mediaHtml +
@@ -1346,6 +1350,19 @@ export class RdApp {
         '<div class="rd-pop-note">' + htl('display_and_media_settings_are') + '</div>';
       pop.querySelector<HTMLButtonElement>('[data-action="refresh"]')?.addEventListener('click', () => {
         this.post({ c: 'refresh' });
+        this.closePop();
+      });
+      for (const button of pop.querySelectorAll<HTMLButtonElement>('[data-action^="input:"]')) {
+        button.addEventListener('click', () => {
+          this.chooseInputMode(button.dataset.action === 'input:pointer' ? 'pointer' : 'touch');
+          this.closePop();
+        });
+      }
+      pop.querySelector<HTMLButtonElement>('[data-action="haptics"]')?.addEventListener('click', () => {
+        const on = !loadPrefs().haptics;
+        setHapticsEnabled(on);
+        this.rememberPrefs({ haptics: on });
+        haptic();
         this.closePop();
       });
       for (const button of pop.querySelectorAll<HTMLButtonElement>('[data-action^="fit:"]')) {
@@ -1614,6 +1631,7 @@ export class RdApp {
     this.audioVolume = p.audioVolume;
     this.keyboardMode = p.keyboardMode;
     this.applyInputModePref(p.inputMode);
+    setHapticsEnabled(p.haptics);
     this.audioPlayback?.setVolume(this.audioVolume);
     this.audioPlayback?.setMuted(this.audioMuted);
   }
@@ -1649,7 +1667,19 @@ export class RdApp {
       keyboardMode: this.keyboardMode,
       inputMode: this.inputModePref,
       extraKeys: this.xkeys.shown,
+      haptics: loadPrefs().haptics,
     };
+  }
+
+  /** More menu section for finger input; only where the primary pointer is a finger. */
+  private touchMenuHtml(): string {
+    if (!coarsePointer()) return '';
+    return (
+      '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('input_mode') + '</div>' +
+      this.menuItem(null, tl('touch'), this.inputMode === 'touch', 'input:touch') +
+      this.menuItem(null, tl('pointer'), this.inputMode === 'pointer', 'input:pointer') +
+      ('vibrate' in navigator ? this.menuItem(null, tl('vibrate_on_touch_actions'), loadPrefs().haptics, 'haptics') : '')
+    );
   }
 
   /** Keycodes for Map mode, or null for legacy character input. */
@@ -2132,11 +2162,7 @@ export class RdApp {
     worker.onerror = (e: ErrorEvent) => this.setState('error', e.message || 'session worker failed');
     const cmd: UiCommand = { c: 'connect', config: { ...config, messages: (window as unknown as { __RD__?: { messages?: Record<string, string> } }).__RD__?.messages }, canvas: offscreen };
     worker.postMessage(cmd, [offscreen]);
-    this.detach = attachInput(canvas, (c) => this.post(c), () => this.currentRect(), {
-      isTouchMode: () => this.inputMode === 'touch',
-      keyboardTarget: () => this.keyboardTarget(),
-      focusTarget: () => (this.softKeyboardFocused() ? this.kbdSink : null),
-    });
+    this.detach = attachInput(canvas, (c) => this.post(c), () => this.currentRect(), this.inputOptions());
     this.el.peerLabel.textContent = this.peerId;
     this.el.statDevice.textContent = this.peerId;
     this.el.statTransport.textContent = '—';
@@ -2254,6 +2280,19 @@ export class RdApp {
     // Ctrl+click, Shift+click: a one-shot modifier is spent when the button comes up.
     if (sticky.length && cmd.c === 'mouse' && (cmd.mask & 7) === 2) this.xkeys.consume();
     return true;
+  }
+
+  /** Input wiring shared by the canvas and the MSE <video> surface. */
+  private inputOptions(): InputOptions {
+    return {
+      isTouchMode: () => this.inputMode === 'touch',
+      keyboardTarget: () => this.keyboardTarget(),
+      focusTarget: () => (this.softKeyboardFocused() ? this.kbdSink : null),
+      touch: {
+        haptic: () => haptic(),
+        keyboard: () => this.toggleSoftKeyboard(),
+      },
+    };
   }
 
   private currentRect(): DisplayRect {
@@ -2780,11 +2819,7 @@ export class RdApp {
       this.videoEl.hidden = false;
       // Re-point input at the element the operator can actually see.
       this.detach?.();
-      this.detach = attachInput(this.videoEl, (c) => this.post(c), () => this.currentRect(), {
-        isTouchMode: () => this.inputMode === 'touch',
-        keyboardTarget: () => this.keyboardTarget(),
-        focusTarget: () => (this.softKeyboardFocused() ? this.kbdSink : null),
-      });
+      this.detach = attachInput(this.videoEl, (c) => this.post(c), () => this.currentRect(), this.inputOptions());
       this.el.viewport.dataset.mse = '1';
     }
     this.msePlayer.push(data, key);

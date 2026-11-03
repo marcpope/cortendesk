@@ -46,6 +46,8 @@ export type SessionPrefs = {
   inputMode: InputModePref;
   /** The extra-keys bar is open (phones, tablets). */
   extraKeys: boolean;
+  /** Short vibration on long-press, modifier lock and mode change (Android). */
+  haptics: boolean;
 };
 
 export const INPUT_MODES = ['auto', 'pointer', 'touch'] as const;
@@ -77,6 +79,7 @@ export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   keyboardMode: 'map',
   inputMode: 'auto',
   extraKeys: false,
+  haptics: true,
 });
 
 export const PREFS_KEY = 'cortendesk.rdprefs.v1';
@@ -129,6 +132,7 @@ export function validatePrefs(raw: unknown): SessionPrefs {
       ? (r.inputMode as InputModePref)
       : d.inputMode,
     extraKeys: bool(r.extraKeys, d.extraKeys),
+    haptics: bool(r.haptics, d.haptics),
   };
 }
 
