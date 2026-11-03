@@ -63,6 +63,22 @@ export class ViewTransformer {
     return this.content.width > 0 ? Math.max(1, remoteWidth / this.content.width) : 1;
   }
 
+  /** Where the remote image sits in the untransformed element. */
+  get contentRect(): Readonly<Rect> {
+    return this.content;
+  }
+
+  /**
+   * Zoom in until the image is as wide as the visible area (never out): a
+   * landscape phone with its keyboard open leaves a wide, short strip, and
+   * the picture fitted into it would be tiny.
+   */
+  fillWidth(): void {
+    if (this.content.width <= 0 || this.vw <= 0) return;
+    const s = this.vw / this.content.width;
+    if (s > this.v.scale + 0.001) this.zoomTo(Math.min(s, this.maxZoom));
+  }
+
   /** Allow at least `scale` (so 1:1 works on a 4K remote), capped sanely. */
   allowZoom(scale: number): void {
     this.maxZoom = Math.min(Math.max(MAX_ZOOM, scale), 16);

@@ -42,6 +42,7 @@ import { trackVisualViewport, type ViewportState } from './viewport';
 import { ExtraKeysBar } from './extra-keys-bar';
 import { haptic, setHapticsEnabled } from './haptics';
 import { ViewTransformer, containRect, type Rect, type View } from '../input/view-transform';
+import { CompactKeyboard } from './compact-keyboard';
 import { MobileBar, barSide, currentOrientation, swappedPrefs, type Orientation } from './mobile-bar';
 import { TrackpadMapper } from '../input/touch-trackpad';
 import type { TouchOutput } from '../input/touch-direct';
@@ -352,8 +353,10 @@ export class RdApp {
   private keyboardBeforeReconnect = false;
   /** The user pressed Disconnect: whatever ends the session now is not a drop. */
   private userClosing = false;
-  /** Last touched point on the remote screen (element-local), kept in view when the keyboard opens. */
-  private focusPoint: Pt | undefined;
+  /** Last touched point on the remote screen (fraction of the image), kept in view when a keyboard opens. */
+  private focusFrac: Pt | undefined;
+  /** The compact in-page keyboard (landscape option). */
+  private ckbd: CompactKeyboard | undefined;
 
   mount(): void {
     (window as unknown as { __rdApp?: RdApp }).__rdApp = this; // console/debug handle
@@ -1744,6 +1747,7 @@ export class RdApp {
       haptics: loadPrefs().haptics,
       barPortrait: loadPrefs().barPortrait,
       barLandscape: loadPrefs().barLandscape,
+      compactKeyboard: loadPrefs().compactKeyboard,
     };
   }
 
@@ -1871,6 +1875,15 @@ export class RdApp {
    * keyboard for a focus() made inside a user gesture.
    */
   private toggleSoftKeyboard(): void {
+    if (this.ckbd?.shown) {
+      this.showCompactKeyboard(false);
+      return;
+    }
+    if (this.orientation === 'landscape' && this.ckbd && loadPrefs().compactKeyboard) {
+      if (this.softKeyboardFocused()) this.kbdSink.blur();
+      this.showCompactKeyboard(true);
+      return;
+    }
     if (this.softKeyboardFocused()) {
       this.kbdSink.blur();
       // Android's back button hides the keyboard but leaves the field
@@ -1881,6 +1894,23 @@ export class RdApp {
     this.focusSoftKeyboard();
   }
 
+  /** The compact in-page keyboard (landscape option): its space is handled like the phone keyboard's. */
+  private showCompactKeyboard(on: boolean): void {
+    const k = this.ckbd;
+    if (!k || k.shown === on) return;
+    k.show(on);
+    if (on) this.el.root.dataset.ckbd = '1';
+    else delete this.el.root.dataset.ckbd;
+    this.syncSoftKeyboardButton();
+    requestAnimationFrame(() => (on ? this.keyboardSpaceOpened(false) : this.keyboardSpaceClosed()));
+  }
+
+  /** Hide whichever keyboard is open (extra-keys bar button). */
+  private hideKeyboards(): void {
+    if (this.ckbd?.shown) this.showCompactKeyboard(false);
+    if (this.softKeyboardFocused()) this.kbdSink.blur();
+  }
+
   private focusSoftKeyboard(): void {
     this.softKeys.reset();
     this.kbdSink.focus({ preventScroll: true });
@@ -1888,7 +1918,7 @@ export class RdApp {
   }
 
   private syncSoftKeyboardButton(): void {
-    const on = this.softKeyboardFocused();
+    const on = this.softKeyboardFocused() || !!this.ckbd?.shown;
     for (const b of this.el.root.querySelectorAll<HTMLButtonElement>('[data-kbd-toggle], #rd-btn-kbd')) {
       b.classList.toggle('rd-on', on);
       b.setAttribute('aria-pressed', String(on));
@@ -1941,6 +1971,7 @@ export class RdApp {
         for (const cmd of cmds) this.post(cmd);
       },
       target: () => this.keyboardTarget(),
+      onHideKeyboard: () => this.hideKeyboards(),
     });
     this.el.root.insertBefore(this.xkeys.el, this.el.dock);
     if (coarsePointer() && loadPrefs().extraKeys) this.xkeys.show(true);
@@ -1966,53 +1997,75 @@ export class RdApp {
   private onViewportChange(s: ViewportState): void {
     const wasOpen = this.viewportState?.keyboard ?? false;
     this.viewportState = s;
+    this.syncOrientation();
     if (s.keyboard && !wasOpen) {
-      // Keep the remote screen at its full size and slide it up so the
-      // point being worked on sits above the keyboard, instead of shrinking
-      // the whole picture into the strip that is left.
-      if (this.fullSize) {
-        this.frozenSize = this.fullSize;
-        this.viewBeforeKeyboard = { ...this.view.view };
-        for (const el of [this.canvas, this.videoEl]) {
-          el.style.width = `${this.frozenSize.w}px`;
-          el.style.height = `${this.frozenSize.h}px`;
-        }
-      }
-      this.updateView();
-      const p = this.keyboardFocusPoint();
-      if (p && this.view.ensureVisible(p.x, p.y, 1 / 3)) this.applyView();
+      this.keyboardSpaceOpened(true);
     } else if (!s.keyboard && wasOpen) {
-      this.frozenSize = undefined;
-      for (const el of [this.canvas, this.videoEl]) {
-        el.style.width = '';
-        el.style.height = '';
-      }
-      this.updateView();
-      if (this.viewBeforeKeyboard) {
-        this.view.restore(this.viewBeforeKeyboard);
-        this.viewBeforeKeyboard = undefined;
-        this.applyView();
-      }
+      this.keyboardSpaceClosed();
     } else {
       this.updateView();
     }
-    this.syncOrientation();
   }
 
-  /** What to keep visible when the keyboard opens: the trackpad cursor, else the last touch. */
+  /**
+   * A keyboard (the phone's or the compact one) took the bottom of the
+   * screen. Portrait: the remote screen keeps its full size and slides up,
+   * so the point being worked on sits above the keyboard. Landscape: what is
+   * left is a wide, short strip; the picture is fitted into it and zoomed to
+   * its width around that point, instead of a postage stamp.
+   */
+  private keyboardSpaceOpened(systemKeyboard: boolean): void {
+    if (!this.viewBeforeKeyboard) this.viewBeforeKeyboard = { ...this.view.view };
+    const landscape = this.orientation === 'landscape';
+    if (systemKeyboard && !landscape && this.fullSize) {
+      this.frozenSize = this.fullSize;
+      for (const el of [this.canvas, this.videoEl]) {
+        el.style.width = `${this.frozenSize.w}px`;
+        el.style.height = `${this.frozenSize.h}px`;
+      }
+    }
+    this.updateView();
+    if (landscape) this.view.fillWidth();
+    const p = this.keyboardFocusPoint();
+    if (p) this.view.ensureVisible(p.x, p.y, landscape ? 0.5 : 1 / 3);
+    this.applyView();
+  }
+
+  private keyboardSpaceClosed(): void {
+    this.frozenSize = undefined;
+    for (const el of [this.canvas, this.videoEl]) {
+      el.style.width = '';
+      el.style.height = '';
+    }
+    this.updateView();
+    if (this.viewBeforeKeyboard) {
+      this.view.restore(this.viewBeforeKeyboard);
+      this.viewBeforeKeyboard = undefined;
+      this.applyView();
+    }
+  }
+
+  /**
+   * What to keep visible when a keyboard opens, element-local: the trackpad
+   * cursor, else the last touch. Kept as a fraction of the remote image, as
+   * the element itself changes size when the keyboard fits it into a strip.
+   */
   private keyboardFocusPoint(): Pt | undefined {
+    let f = this.focusFrac;
     if (this.inputMode === 'trackpad' && this.trackpad) {
       const c = this.trackpad.position();
-      return this.clientToLocal(c.x, c.y);
+      f = this.clientToFrac(c.x, c.y);
     }
-    return this.focusPoint;
+    if (!f) return undefined;
+    const r = this.view.contentRect;
+    return { x: r.x + f.x * r.width, y: r.y + f.y * r.height };
   }
 
-  /** Client point -> element-local (untransformed) point of the remote screen. */
-  private clientToLocal(x: number, y: number): Pt {
-    const vp = this.el.viewport.getBoundingClientRect();
-    const v = this.view.view;
-    return { x: (x - vp.left - v.tx) / v.scale, y: (y - vp.top - v.ty) / v.scale };
+  /** Client point -> fraction of the remote image. */
+  private clientToFrac(x: number, y: number): Pt | undefined {
+    const c = this.contentClientRect();
+    if (c.width <= 0 || c.height <= 0) return undefined;
+    return { x: (x - c.x) / c.width, y: (y - c.y) / c.height };
   }
 
   /**
@@ -2053,6 +2106,12 @@ export class RdApp {
     ] satisfies import('./mobile-bar').BarItem[];
     this.bar = new MobileBar(items, tl('session_controls'));
     this.el.root.appendChild(this.bar.el);
+    this.ckbd = new CompactKeyboard(
+      (a) => (a.k === 'hide' ? this.showCompactKeyboard(false) : this.onSoftKey(a)),
+      tl('compact_keyboard'),
+      tl('hide_keyboard'),
+    );
+    this.el.root.insertBefore(this.ckbd.el, this.el.dock);
     const fs = this.bar.button('fullscreen');
     if (fs) fs.hidden = document.fullscreenEnabled !== true;
     this.syncOrientation();
@@ -2063,7 +2122,7 @@ export class RdApp {
     window.addEventListener('resize', onRotate);
     // Remember where the remote screen was last touched (keyboard avoidance).
     this.el.viewport.addEventListener('pointerdown', (e) => {
-      if (e.target === this.canvas || e.target === this.videoEl) this.focusPoint = this.clientToLocal(e.clientX, e.clientY);
+      if (e.target === this.canvas || e.target === this.videoEl) this.focusFrac = this.clientToFrac(e.clientX, e.clientY);
     }, true);
   }
 
@@ -2074,6 +2133,7 @@ export class RdApp {
     this.orientation = currentOrientation(screen.orientation?.type, legacy, window.innerWidth, window.innerHeight);
     const side = barSide(this.orientation, loadPrefs());
     this.el.root.dataset.orient = this.orientation;
+    if (this.orientation === 'portrait' && this.ckbd?.shown) this.showCompactKeyboard(false);
     if (this.el.root.dataset.bar !== side) {
       this.el.root.dataset.bar = side;
       this.closePop();
@@ -2118,6 +2178,8 @@ export class RdApp {
         ('vibrate' in navigator
           ? '<div class="rd-pop-sep"></div>' + this.menuItem(null, tl('vibrate_on_touch_actions'), loadPrefs().haptics, 'haptics')
           : '') +
+        '<div class="rd-pop-sep"></div>' +
+        this.menuItem(null, tl('compact_keyboard_landscape'), loadPrefs().compactKeyboard, 'compactKbd') +
         '<div class="rd-pop-note">' + escapeHtml(note) + '</div>';
       for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-action^="input:"]')) {
         b.addEventListener('click', () => {
@@ -2131,6 +2193,12 @@ export class RdApp {
         setHapticsEnabled(on);
         this.rememberPrefs({ haptics: on });
         haptic();
+        this.closePop();
+      });
+      pop.querySelector<HTMLButtonElement>('[data-action="compactKbd"]')?.addEventListener('click', () => {
+        const on = !loadPrefs().compactKeyboard;
+        this.rememberPrefs({ compactKeyboard: on });
+        if (!on) this.showCompactKeyboard(false);
         this.closePop();
       });
     });

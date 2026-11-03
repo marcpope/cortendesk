@@ -689,6 +689,97 @@
   color: var(--rd-danger);
 }
 
+/* Hide-keyboard key: only while a keyboard is open. */
+.rd-xk-hide {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#rd-root[data-keyboard='open'] .rd-xk-hide,
+#rd-root[data-ckbd] .rd-xk-hide {
+  display: inline-flex;
+}
+/* Landscape with a keyboard: every pixel of height counts. */
+#rd-root[data-orient='landscape'][data-keyboard='open'] #rd-xkeys,
+#rd-root[data-orient='landscape'][data-ckbd] #rd-xkeys {
+  padding: 2px 4px;
+}
+#rd-root[data-orient='landscape'][data-keyboard='open'] .rd-xk,
+#rd-root[data-orient='landscape'][data-ckbd] .rd-xk {
+  height: 30px;
+  min-width: 38px;
+  padding: 0 7px;
+  font-size: 12px;
+}
+
+/* Compact in-page keyboard (compact-keyboard.ts): ~40% of a landscape phone. */
+#rd-ckbd {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: min(40vh, 190px);
+  padding: 4px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--rd-bg) 88%, black 12%);
+  border-top: 1px solid var(--rd-border);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+#rd-ckbd[hidden] {
+  display: none;
+}
+.rd-ck-row {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  min-height: 0;
+}
+.rd-ck {
+  appearance: none;
+  flex: 1 1 0;
+  max-width: 64px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--rd-border);
+  border-radius: 7px;
+  background: var(--rd-surface);
+  color: var(--rd-fg);
+  font: inherit;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rd-ck:active {
+  background: var(--rd-surface-3);
+}
+.rd-ck-shift,
+.rd-ck-bksp,
+.rd-ck-sym,
+.rd-ck-sym2,
+.rd-ck-abc,
+.rd-ck-back,
+.rd-ck-enter,
+.rd-ck-hide {
+  flex-grow: 1.5;
+  max-width: 96px;
+  color: var(--rd-muted);
+  font-size: 14px;
+}
+.rd-ck-space {
+  flex-grow: 5;
+  max-width: none;
+}
+.rd-ck[data-on] {
+  color: var(--rd-accent);
+  border-color: var(--rd-accent);
+}
+
 /* --- bottom dock -------------------------------------------------------------- */
 
 #rd-dock {

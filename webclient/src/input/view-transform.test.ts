@@ -99,4 +99,15 @@ describe('ViewTransformer', () => {
     expect(s.y).toBeLessThanOrEqual(300 - 24);
     expect(v.ensureVisible(300, 400)).toBe(false); // already visible
   });
+
+  it('fillWidth: a landscape keyboard strip zooms the picture to the strip width, never out', () => {
+    const v = new ViewTransformer();
+    v.setGeometry(800, 120, 16 / 9); // a phone with its keyboard open: picture fitted into 213 x 120
+    v.fillWidth();
+    expect(v.view.scale).toBeCloseTo(800 / (120 * 16 / 9), 4);
+    const before = v.view.scale;
+    v.setGeometry(800, 450, 16 / 9);
+    v.fillWidth(); // already wider than needed: unchanged
+    expect(v.view.scale).toBe(before);
+  });
 });

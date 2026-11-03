@@ -51,6 +51,8 @@ export type SessionPrefs = {
   /** Docked session controls (phones, tablets): the edge per orientation. */
   barPortrait: 'top' | 'bottom';
   barLandscape: 'left' | 'right';
+  /** In landscape, the Keyboard button opens the compact in-page keyboard instead of the phone's. */
+  compactKeyboard: boolean;
 };
 
 export const INPUT_MODES = ['auto', 'pointer', 'touch', 'trackpad'] as const;
@@ -85,6 +87,7 @@ export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   haptics: true,
   barPortrait: 'bottom',
   barLandscape: 'right',
+  compactKeyboard: false,
 });
 
 export const PREFS_KEY = 'cortendesk.rdprefs.v1';
@@ -140,6 +143,7 @@ export function validatePrefs(raw: unknown): SessionPrefs {
     haptics: bool(r.haptics, d.haptics),
     barPortrait: r.barPortrait === 'top' || r.barPortrait === 'bottom' ? r.barPortrait : d.barPortrait,
     barLandscape: r.barLandscape === 'left' || r.barLandscape === 'right' ? r.barLandscape : d.barLandscape,
+    compactKeyboard: bool(r.compactKeyboard, d.compactKeyboard),
   };
 }
 

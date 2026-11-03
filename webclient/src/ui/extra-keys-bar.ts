@@ -7,7 +7,7 @@ import {
   type XKey,
 } from '../input/extra-keys';
 import type { KeyTarget } from '../input/mouse-keyboard';
-import { escapeHtml } from './common';
+import { escapeHtml, iconHtml } from './common';
 import { haptic } from './haptics';
 import { htl, tl } from '../i18n';
 
@@ -22,6 +22,8 @@ export type ExtraKeysDeps = {
   target(): KeyTarget | null;
   /** Sticky modifier state changed (the app re-reads latches.active()). */
   onLatchChange?(): void;
+  /** The hide-keyboard key (shown while a keyboard is open). */
+  onHideKeyboard?(): void;
 };
 
 /**
@@ -83,6 +85,7 @@ export class ExtraKeysBar {
     const pages = XKEY_PAGES;
     const next = pages[(this.page + 1) % pages.length]!;
     this.el.innerHTML =
+      `<button type="button" class="rd-xk rd-xk-hide" aria-label="${htl('hide_keyboard')}" title="${htl('hide_keyboard')}">${iconHtml('keyboardHide')}</button>` +
       `<button type="button" class="rd-xk rd-xk-page" aria-label="${htl('more_keys')}">${escapeHtml(next.label)}</button>` +
       `<div class="rd-xk-row">` +
       pages[this.page]!.keys
@@ -90,6 +93,7 @@ export class ExtraKeysBar {
         .join('') +
       `</div>`;
     this.row = this.el.querySelector('.rd-xk-row')!;
+    this.el.querySelector<HTMLButtonElement>('.rd-xk-hide')!.addEventListener('click', () => this.deps.onHideKeyboard?.());
     this.el.querySelector<HTMLButtonElement>('.rd-xk-page')!.addEventListener('click', () => {
       this.page = (this.page + 1) % pages.length;
       this.render();
