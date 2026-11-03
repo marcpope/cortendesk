@@ -7,6 +7,7 @@ return [
     'adaptive_fps_enabled_bitrate_remains' => 'Adaptív FPS bekapcsolva; a bitrátát továbbra is a távoli gép kezeli',
     'add_files' => 'Fájlok hozzáadása…',
     'add_files_stage' => 'Fájlok hozzáadása az előkészítéshez',
+    'add_to_home_screen_hint' => 'Tipp: Megosztás → Főképernyőhöz adás teljes képernyőn, böngészősávok nélkül nyitja meg a webes klienst',
     'add_virtual_display' => 'Virtuális kijelző hozzáadása',
     'apply_all_files_in_this' => 'Alkalmazás az átvitel összes fájljára',
     'are_you_sure' => 'Biztos benne?',

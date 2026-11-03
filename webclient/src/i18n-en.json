@@ -5,6 +5,7 @@
     "adaptive_fps_enabled_bitrate_remains": "Adaptive FPS enabled; bitrate remains host-managed",
     "add_files": "Add files…",
     "add_files_stage": "Add files to stage",
+    "add_to_home_screen_hint": "Tip: Share → Add to Home Screen opens the web client full screen, without the browser bars",
     "add_virtual_display": "Add virtual display",
     "apply_all_files_in_this": "Apply to all files in this transfer",
     "are_you_sure": "Are you sure?",

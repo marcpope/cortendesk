@@ -7,6 +7,7 @@ return [
     'adaptive_fps_enabled_bitrate_remains' => 'Włączono adaptacyjne FPS; bitrate pozostaje zarządzany przez hosta',
     'add_files' => 'Dodaj pliki…',
     'add_files_stage' => 'Dodaj pliki do przygotowania',
+    'add_to_home_screen_hint' => 'Wskazówka: Udostępnij → Do ekranu początkowego otwiera klienta webowego na pełnym ekranie, bez pasków przeglądarki',
     'add_virtual_display' => 'Dodaj wirtualny ekran',
     'apply_all_files_in_this' => 'Zastosuj do wszystkich plików w tym transferze',
     'are_you_sure' => 'Czy na pewno?',

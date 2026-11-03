@@ -7,6 +7,7 @@ return [
     'adaptive_fps_enabled_bitrate_remains' => 'Adaptieve FPS ingeschakeld; de bitrate blijft door de host beheerd',
     'add_files' => 'Bestanden toevoegen…',
     'add_files_stage' => 'Bestanden klaarzetten',
+    'add_to_home_screen_hint' => 'Tip: Deel → Zet op beginscherm opent de webclient schermvullend, zonder browserbalken',
     'add_virtual_display' => 'Virtueel scherm toevoegen',
     'apply_all_files_in_this' => 'Toepassen op alle bestanden in deze overdracht',
     'are_you_sure' => 'Weet u het zeker?',

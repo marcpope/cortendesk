@@ -7,6 +7,7 @@ return [
     'adaptive_fps_enabled_bitrate_remains' => 'FPS adaptatif activé ; le débit reste géré par l’hôte',
     'add_files' => 'Ajouter des fichiers…',
     'add_files_stage' => 'Ajouter des fichiers à préparer',
+    'add_to_home_screen_hint' => 'Astuce : Partager → Sur l\'écran d\'accueil ouvre le client web en plein écran, sans les barres du navigateur',
     'add_virtual_display' => 'Ajouter un affichage virtuel',
     'apply_all_files_in_this' => 'Appliquer à tous les fichiers de ce transfert',
     'are_you_sure' => 'Êtes-vous sûr ?',

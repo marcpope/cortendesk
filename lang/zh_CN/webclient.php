@@ -7,6 +7,7 @@ return [
     'adaptive_fps_enabled_bitrate_remains' => '已启用自适应帧率；码率仍由被控端管理',
     'add_files' => '添加文件…',
     'add_files_stage' => '添加文件到暂存区',
+    'add_to_home_screen_hint' => '提示：分享 → 添加到主屏幕，即可全屏打开网页客户端，不显示浏览器栏',
     'add_virtual_display' => '添加虚拟显示器',
     'apply_all_files_in_this' => '应用于此次传输中的所有文件',
     'are_you_sure' => '确定吗？',

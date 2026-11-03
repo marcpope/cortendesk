@@ -7,6 +7,7 @@ return [
     'adaptive_fps_enabled_bitrate_remains' => 'FPS adaptativos activados; la tasa de bits la sigue gestionando el host',
     'add_files' => 'Añadir archivos…',
     'add_files_stage' => 'Añadir archivos a la cola',
+    'add_to_home_screen_hint' => 'Consejo: Compartir → Añadir a pantalla de inicio abre el cliente web a pantalla completa, sin las barras del navegador',
     'add_virtual_display' => 'Añadir pantalla virtual',
     'apply_all_files_in_this' => 'Aplicar a todos los archivos de esta transferencia',
     'are_you_sure' => '¿Estás seguro?',

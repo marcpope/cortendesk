@@ -7,6 +7,7 @@ return [
     'adaptive_fps_enabled_bitrate_remains' => 'Adaptive FPS aktiviert; die Bitrate wird weiterhin vom Host verwaltet',
     'add_files' => 'Dateien hinzufügen…',
     'add_files_stage' => 'Dateien vormerken',
+    'add_to_home_screen_hint' => 'Tipp: Teilen → Zum Home-Bildschirm öffnet den Webclient im Vollbild, ohne Browserleisten',
     'add_virtual_display' => 'Virtuellen Bildschirm hinzufügen',
     'apply_all_files_in_this' => 'Auf alle Dateien in dieser Übertragung anwenden',
     'are_you_sure' => 'Sind Sie sicher?',

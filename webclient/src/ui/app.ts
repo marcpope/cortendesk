@@ -178,6 +178,20 @@ type Els = ConnectCardEls & {
   statPlatform: HTMLElement;
 };
 
+const HOME_SCREEN_HINT_KEY = 'cortendesk.rdhomescreenhint.v1';
+
+/**
+ * Offer Add to Home Screen: an iPhone/iPod browser tab (no fullscreen API),
+ * not already running as a Home Screen app.
+ */
+export function shouldOfferHomeScreen(
+  nav: { userAgent: string; standalone?: boolean },
+  fullscreenEnabled: boolean,
+): boolean {
+  if (nav.standalone === true || fullscreenEnabled) return false;
+  return /iPhone|iPod/.test(nav.userAgent);
+}
+
 /** A phone or tablet: the primary pointer is a finger. */
 function coarsePointer(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
@@ -1990,6 +2004,22 @@ export class RdApp {
     return { x: (x - vp.left - v.tx) / v.scale, y: (y - vp.top - v.ty) / v.scale };
   }
 
+  /**
+   * iPhone Safari has no fullscreen: once per browser, point at Add to Home
+   * Screen, which opens the client full screen with no browser bars.
+   */
+  private maybeShowHomeScreenHint(): void {
+    if (!shouldOfferHomeScreen(navigator as Navigator & { standalone?: boolean }, document.fullscreenEnabled === true)) return;
+    try {
+      if (localStorage.getItem(HOME_SCREEN_HINT_KEY)) return;
+      localStorage.setItem(HOME_SCREEN_HINT_KEY, '1');
+    } catch {
+      return; // storage blocked: better never than on every session
+    }
+    this.toast(tl('add_to_home_screen_hint'), true);
+    this.toastTimer = setTimeout(() => this.hideToast(), 9000); // longer than a normal toast
+  }
+
   // --- floating controls (phones, tablets) ---------------------------------------
 
   private setupMobileToolbar(): void {
@@ -2857,6 +2887,7 @@ export class RdApp {
     switch (state) {
       case 'streaming':
         if (!this.streamStartMs) this.streamStartMs = Date.now();
+        this.maybeShowHomeScreenHint();
         this.hideTwoFactor();
         this.persistCredentialIfWanted();
         this.hideOverlay();
