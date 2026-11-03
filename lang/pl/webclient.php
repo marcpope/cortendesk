@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Wysyłane jako naciśnięcia klawiszy — działa tam, gdzie zdalny schowek nie działa.',
     'sent_label' => 'Wysłano :label',
     'session' => 'Sesja',
+    'session_controls' => 'Sterowanie sesją',
+    'session_controls_handle' => 'Pokaż lub ukryj sterowanie sesją — przeciągnij, aby przenieść',
     'session_details' => 'Szczegóły sesji',
     'session_media' => 'Multimedia sesji',
     'session_recording_is_not_permitted' => 'To urządzenie nie zezwala na nagrywanie sesji',

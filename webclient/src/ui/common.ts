@@ -319,7 +319,11 @@ export type IconName =
   | 'fileUpload'
   | 'eye'
   | 'eyeOff'
-  | 'close';
+  | 'close'
+  | 'grip'
+  | 'trackpad'
+  | 'zoom'
+  | 'keyCombo';
 
 export const ICONS: Record<IconName, { ri: string; svg: string }> = {
   pointer: {
@@ -453,6 +457,22 @@ export const ICONS: Record<IconName, { ri: string; svg: string }> = {
   close: {
     ri: 'ri-close-line',
     svg: '<path d="M6 6l12 12M18 6 6 18"/>',
+  },
+  grip: {
+    ri: '',
+    svg: '<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/>',
+  },
+  trackpad: {
+    ri: '',
+    svg: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 15.5h17M12 15.5v4"/>',
+  },
+  zoom: {
+    ri: '',
+    svg: '<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5M8 10.5h5M10.5 8v5"/>',
+  },
+  keyCombo: {
+    ri: '',
+    svg: '<rect x="2.5" y="8" width="8" height="8" rx="1.5"/><rect x="13.5" y="8" width="8" height="8" rx="1.5"/><path d="M5 12h3M16 12h3M17.5 10.5v3"/>',
   },
 };
 

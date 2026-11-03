@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Envoyé sous forme de frappes : fonctionne là où le presse-papier distant ne fonctionne pas.',
     'sent_label' => ':label envoyé',
     'session' => 'Session',
+    'session_controls' => 'Commandes de session',
+    'session_controls_handle' => 'Afficher ou masquer les commandes de session — faites glisser pour les déplacer',
     'session_details' => 'Détails de la session',
     'session_media' => 'Média de la session',
     'session_recording_is_not_permitted' => 'L’enregistrement de session n’est pas autorisé par cet appareil',

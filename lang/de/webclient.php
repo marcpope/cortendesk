@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Als Tastenanschläge gesendet – funktioniert auch, wo die entfernte Zwischenablage nicht funktioniert.',
     'sent_label' => ':label gesendet',
     'session' => 'Sitzung',
+    'session_controls' => 'Sitzungssteuerung',
+    'session_controls_handle' => 'Sitzungssteuerung ein- oder ausblenden — zum Verschieben ziehen',
     'session_details' => 'Sitzungsdetails',
     'session_media' => 'Sitzungsmedien',
     'session_recording_is_not_permitted' => 'Dieses Gerät erlaubt keine Sitzungsaufzeichnung',

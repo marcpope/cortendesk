@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Billentyűleütésként küldve — ott is működik, ahol a távoli vágólap nem.',
     'sent_label' => 'Elküldve: :label',
     'session' => 'Munkamenet',
+    'session_controls' => 'Munkamenet-vezérlők',
+    'session_controls_handle' => 'Munkamenet-vezérlők megjelenítése vagy elrejtése — húzza az áthelyezéshez',
     'session_details' => 'Munkamenet részletei',
     'session_media' => 'Munkamenet-média',
     'session_recording_is_not_permitted' => 'Ez az eszköz nem engedélyezi a munkamenet-rögzítést',

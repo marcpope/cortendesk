@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Inviato come sequenza di tasti: funziona dove gli appunti remoti non funzionano.',
     'sent_label' => 'Inviato :label',
     'session' => 'Sessione',
+    'session_controls' => 'Controlli della sessione',
+    'session_controls_handle' => 'Mostra o nascondi i controlli della sessione: trascina per spostarli',
     'session_details' => 'Dettagli sessione',
     'session_media' => 'Media della sessione',
     'session_recording_is_not_permitted' => 'La registrazione della sessione non è consentita da questo dispositivo',

@@ -299,6 +299,8 @@
     "sent_as_keystrokes_works_where": "Sent as keystrokes — works where the remote clipboard does not.",
     "sent_label": "Sent :label",
     "session": "Session",
+    "session_controls": "Session controls",
+    "session_controls_handle": "Show or hide the session controls — drag to move them",
     "session_details": "Session details",
     "session_media": "Session media",
     "session_recording_is_not_permitted": "Session recording is not permitted by this device",

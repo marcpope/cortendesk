@@ -537,6 +537,108 @@
   font-weight: 500;
 }
 
+/* --- phones and tablets: floating controls (mobile-toolbar.ts) ----------------- */
+
+/* The top bar, the dock and the side-panel edge strip give way to the pill
+   (whose More menu opens Files / Chat / Details) while a session streams. */
+#rd-root.rd-mobile[data-state='streaming'] #rd-toolbar,
+#rd-root.rd-mobile[data-state='streaming'] #rd-dock,
+#rd-root.rd-mobile #rd-edge,
+#rd-root.rd-mobile .rd-arrow-btn {
+  display: none;
+}
+/* Notch and home indicator (viewport-fit=cover, landscape, Home Screen app). */
+#rd-root.rd-mobile {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+#rd-root.rd-mobile:not([data-keyboard='open']) {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+#rd-pill {
+  position: absolute;
+  top: 8px;
+  z-index: 21; /* under the side panel (22) and popovers */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  max-height: calc(100% - 16px);
+  border-radius: 26px;
+  border: 1px solid var(--rd-border);
+  background: color-mix(in srgb, var(--rd-surface) 88%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: top 0.15s ease;
+}
+#rd-pill[data-side='right'] {
+  right: 8px;
+}
+#rd-pill[data-side='left'] {
+  left: 8px;
+}
+#rd-pill[data-dragging] {
+  transition: none;
+  opacity: 0.85;
+}
+#rd-pill[data-open='0'] .rd-pill-items {
+  display: none;
+}
+.rd-pill-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  touch-action: pan-y;
+}
+.rd-pill-btn {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--rd-fg);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rd-pill-btn[hidden] {
+  display: none;
+}
+.rd-pill-btn:active {
+  background: var(--rd-surface-3);
+}
+.rd-pill-btn.rd-on {
+  background: color-mix(in srgb, var(--rd-accent) 18%, transparent);
+  color: var(--rd-accent);
+}
+.rd-pill-btn:focus-visible {
+  outline: 2px solid var(--rd-accent);
+  outline-offset: 1px;
+}
+.rd-pill-handle {
+  height: 32px;
+  color: var(--rd-muted);
+  cursor: grab;
+}
+.rd-pill-btn[data-pill='disconnect'] {
+  color: var(--rd-danger);
+}
+
 /* --- bottom dock -------------------------------------------------------------- */
 
 #rd-dock {

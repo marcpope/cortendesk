@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Se envía como pulsaciones de teclado: funciona donde el portapapeles remoto no.',
     'sent_label' => 'Enviado :label',
     'session' => 'Sesión',
+    'session_controls' => 'Controles de la sesión',
+    'session_controls_handle' => 'Mostrar u ocultar los controles de la sesión: arrastra para moverlos',
     'session_details' => 'Detalles de la sesión',
     'session_media' => 'Multimedia de la sesión',
     'session_recording_is_not_permitted' => 'Este dispositivo no permite grabar la sesión',

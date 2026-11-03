@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => '以按键方式发送——在远程剪贴板不可用时也能使用。',
     'sent_label' => '已发送 :label',
     'session' => '会话',
+    'session_controls' => '会话控制',
+    'session_controls_handle' => '显示或隐藏会话控制——拖动可移动位置',
     'session_details' => '会话详情',
     'session_media' => '会话媒体',
     'session_recording_is_not_permitted' => '此设备不允许录制会话',

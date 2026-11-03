@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Enviado como teclas digitadas — funciona onde a área de transferência remota não funciona.',
     'sent_label' => ':label enviado',
     'session' => 'Sessão',
+    'session_controls' => 'Controles da sessão',
+    'session_controls_handle' => 'Mostrar ou ocultar os controles da sessão — arraste para movê-los',
     'session_details' => 'Detalhes da sessão',
     'session_media' => 'Mídia da sessão',
     'session_recording_is_not_permitted' => 'A gravação da sessão não é permitida por este dispositivo',

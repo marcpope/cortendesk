@@ -48,6 +48,10 @@ export type SessionPrefs = {
   extraKeys: boolean;
   /** Short vibration on long-press, modifier lock and mode change (Android). */
   haptics: boolean;
+  /** Floating session controls (phones, tablets): screen edge, top as a fraction of the free height, unfolded. */
+  pillSide: 'left' | 'right';
+  pillY: number;
+  pillOpen: boolean;
 };
 
 export const INPUT_MODES = ['auto', 'pointer', 'touch', 'trackpad'] as const;
@@ -80,6 +84,9 @@ export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   inputMode: 'auto',
   extraKeys: false,
   haptics: true,
+  pillSide: 'right',
+  pillY: 0.25,
+  pillOpen: true,
 });
 
 export const PREFS_KEY = 'cortendesk.rdprefs.v1';
@@ -133,6 +140,9 @@ export function validatePrefs(raw: unknown): SessionPrefs {
       : d.inputMode,
     extraKeys: bool(r.extraKeys, d.extraKeys),
     haptics: bool(r.haptics, d.haptics),
+    pillSide: r.pillSide === 'left' || r.pillSide === 'right' ? r.pillSide : d.pillSide,
+    pillY: typeof r.pillY === 'number' && Number.isFinite(r.pillY) && r.pillY >= 0 && r.pillY <= 1 ? r.pillY : d.pillY,
+    pillOpen: bool(r.pillOpen, d.pillOpen),
   };
 }
 

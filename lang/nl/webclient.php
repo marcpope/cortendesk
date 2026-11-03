@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Verzonden als toetsaanslagen — werkt waar het externe klembord niet werkt.',
     'sent_label' => ':label verzonden',
     'session' => 'Sessie',
+    'session_controls' => 'Sessiebediening',
+    'session_controls_handle' => 'Sessiebediening tonen of verbergen — sleep om te verplaatsen',
     'session_details' => 'Sessiedetails',
     'session_media' => 'Sessiemedia',
     'session_recording_is_not_permitted' => 'Sessieopname is niet toegestaan door dit apparaat',

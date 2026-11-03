@@ -73,6 +73,12 @@ export class ViewTransformer {
     this.clamp();
   }
 
+  /** Go back to a saved view (re-clamped to the current geometry). */
+  restore(v: View): void {
+    this.v = { ...v };
+    this.clamp();
+  }
+
   /** Multiply the zoom by `factor` keeping the point (cx, cy) under the fingers. */
   zoomAt(factor: number, cx: number, cy: number): void {
     const s0 = this.v.scale;

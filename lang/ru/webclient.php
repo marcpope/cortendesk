@@ -301,6 +301,8 @@ return [
     'sent_as_keystrokes_works_where' => 'Отправляется нажатиями клавиш — работает там, где удалённый буфер обмена не работает.',
     'sent_label' => 'Отправлено: :label',
     'session' => 'Сеанс',
+    'session_controls' => 'Управление сеансом',
+    'session_controls_handle' => 'Показать или скрыть управление сеансом — перетащите, чтобы переместить',
     'session_details' => 'Сведения о сеансе',
     'session_media' => 'Мультимедиа сеанса',
     'session_recording_is_not_permitted' => 'Это устройство запрещает запись сеанса',

@@ -41,7 +41,8 @@ import { SoftKeyboardInput, type SoftKeyAction, type SoftKey } from '../input/so
 import { trackVisualViewport, type ViewportState } from './viewport';
 import { ExtraKeysBar } from './extra-keys-bar';
 import { haptic, setHapticsEnabled } from './haptics';
-import { ViewTransformer, containRect, type Rect } from '../input/view-transform';
+import { ViewTransformer, containRect, type Rect, type View } from '../input/view-transform';
+import { MobileToolbar } from './mobile-toolbar';
 import { TrackpadMapper } from '../input/touch-trackpad';
 import type { TouchOutput } from '../input/touch-direct';
 import type { Pt } from '../input/gesture';
@@ -320,6 +321,15 @@ export class RdApp {
   private trackpadOut: TouchOutput | undefined;
   /** Trackpad mode's local cursor. */
   private tpCursor!: HTMLElement;
+  /** Floating controls replacing the top bar and dock on phones and tablets. */
+  private pill: MobileToolbar | undefined;
+  /** Viewport size with no on-screen keyboard, kept while one is open. */
+  private fullSize: { w: number; h: number } | undefined;
+  /** While the keyboard is open the remote screen keeps its full size and pans instead. */
+  private frozenSize: { w: number; h: number } | undefined;
+  private viewBeforeKeyboard: View | undefined;
+  /** Last touched point on the remote screen (element-local), kept in view when the keyboard opens. */
+  private focusPoint: Pt | undefined;
 
   mount(): void {
     (window as unknown as { __rdApp?: RdApp }).__rdApp = this; // console/debug handle
@@ -332,6 +342,7 @@ export class RdApp {
     this.setupSoftKeyboard();
     this.setupExtraKeys();
     if (coarsePointer()) {
+      this.setupMobileToolbar();
       trackVisualViewport(this.el.root, (s) => this.onViewportChange(s));
     }
 
@@ -653,15 +664,17 @@ export class RdApp {
     );
     this.el.btnFit.addEventListener('click', () => this.openFitPop());
     this.el.btnViewOnly.addEventListener('click', () => this.toggleViewOnly());
-    q<HTMLButtonElement>(t, '#rd-btn-disconnect').addEventListener('click', () => {
-      this.setLoggedOutFlag(true); // an explicit logout must not auto-login on reload
-      this.clearRestartFlow();
-      this.endVoiceCall(true);
-      this.releaseRemoteSecurityState();
-      this.destroyAdvancedPanels();
-      this.post({ c: 'disconnect' });
-      this.setState('closed');
-    });
+    q<HTMLButtonElement>(t, '#rd-btn-disconnect').addEventListener('click', () => this.disconnectByUser());
+  }
+
+  private disconnectByUser(): void {
+    this.setLoggedOutFlag(true); // an explicit logout must not auto-login on reload
+    this.clearRestartFlow();
+    this.endVoiceCall(true);
+    this.releaseRemoteSecurityState();
+    this.destroyAdvancedPanels();
+    this.post({ c: 'disconnect' });
+    this.setState('closed');
   }
 
   private toggleViewOnly(): void {
@@ -755,6 +768,7 @@ export class RdApp {
     if (mode !== 'trackpad') this.trackpad?.reset();
     this.inputMode = mode;
     if (this.tpCursor) this.drawTrackpadCursor();
+    this.pill?.setIcon('mode', this.inputModeIcon());
     this.el.dock.querySelector('#rd-mode-pointer')?.classList.toggle('rd-on', mode === 'pointer');
     this.el.dock.querySelector('#rd-mode-touch')?.classList.toggle('rd-on', mode === 'touch');
   }
@@ -1205,8 +1219,8 @@ export class RdApp {
     );
   }
 
-  private openMonitorPop(): void {
-    this.openPop(this.el.btnMonitors, (pop) => {
+  private openMonitorPop(anchor: HTMLElement = this.el.btnMonitors): void {
+    this.openPop(anchor, (pop) => {
       const currentDisplay = this.displays[this.current];
       const virtual = parseVirtualDisplayCapability(this.peerPlatform, this.platformAdditions);
       const isVirtualDisplay = !!virtual && currentDisplay?.originalResolution?.width === 0 && currentDisplay.originalResolution.height === 0;
@@ -1702,6 +1716,9 @@ export class RdApp {
       inputMode: this.inputModePref,
       extraKeys: this.xkeys.shown,
       haptics: loadPrefs().haptics,
+      pillSide: loadPrefs().pillSide,
+      pillY: loadPrefs().pillY,
+      pillOpen: loadPrefs().pillOpen,
     };
   }
 
@@ -1922,7 +1939,193 @@ export class RdApp {
   }
 
   private onViewportChange(s: ViewportState): void {
+    const wasOpen = this.viewportState?.keyboard ?? false;
     this.viewportState = s;
+    if (s.keyboard && !wasOpen) {
+      // Keep the remote screen at its full size and slide it up so the
+      // point being worked on sits above the keyboard, instead of shrinking
+      // the whole picture into the strip that is left.
+      if (this.fullSize) {
+        this.frozenSize = this.fullSize;
+        this.viewBeforeKeyboard = { ...this.view.view };
+        for (const el of [this.canvas, this.videoEl]) {
+          el.style.width = `${this.frozenSize.w}px`;
+          el.style.height = `${this.frozenSize.h}px`;
+        }
+      }
+      this.updateView();
+      const p = this.keyboardFocusPoint();
+      if (p && this.view.ensureVisible(p.x, p.y, 1 / 3)) this.applyView();
+    } else if (!s.keyboard && wasOpen) {
+      this.frozenSize = undefined;
+      for (const el of [this.canvas, this.videoEl]) {
+        el.style.width = '';
+        el.style.height = '';
+      }
+      this.updateView();
+      if (this.viewBeforeKeyboard) {
+        this.view.restore(this.viewBeforeKeyboard);
+        this.viewBeforeKeyboard = undefined;
+        this.applyView();
+      }
+    } else {
+      this.updateView();
+    }
+    this.pill?.layout();
+  }
+
+  /** What to keep visible when the keyboard opens: the trackpad cursor, else the last touch. */
+  private keyboardFocusPoint(): Pt | undefined {
+    if (this.inputMode === 'trackpad' && this.trackpad) {
+      const c = this.trackpad.position();
+      return this.clientToLocal(c.x, c.y);
+    }
+    return this.focusPoint;
+  }
+
+  /** Client point -> element-local (untransformed) point of the remote screen. */
+  private clientToLocal(x: number, y: number): Pt {
+    const vp = this.el.viewport.getBoundingClientRect();
+    const v = this.view.view;
+    return { x: (x - vp.left - v.tx) / v.scale, y: (y - vp.top - v.ty) / v.scale };
+  }
+
+  // --- floating controls (phones, tablets) ---------------------------------------
+
+  private setupMobileToolbar(): void {
+    this.el.root.classList.add('rd-mobile');
+    const prefs = loadPrefs();
+    this.pill = new MobileToolbar(
+      [
+        { id: 'kbd', icon: 'keyboard', label: tl('show_hide_on_screen_keyboard'), attrs: 'data-kbd-toggle aria-pressed="false"', onClick: () => this.toggleSoftKeyboard() },
+        { id: 'xkeys', icon: 'keyCombo', label: tl('extra_keys'), attrs: 'data-xkeys-toggle aria-pressed="false"', onClick: () => this.toggleExtraKeys() },
+        { id: 'mode', icon: this.inputModeIcon(), label: tl('input_mode'), attrs: 'aria-haspopup="true"', onClick: (b) => this.openModePop(b) },
+        { id: 'zoom', icon: 'zoom', label: tl('scale_mode'), attrs: 'aria-haspopup="true"', onClick: (b) => this.openZoomPop(b) },
+        { id: 'monitors', icon: 'monitor', label: tl('select_monitor'), attrs: 'aria-haspopup="true"', onClick: (b) => this.openMonitorPop(b) },
+        { id: 'more', icon: 'more', label: tl('more_options'), attrs: 'aria-haspopup="true"', onClick: (b) => this.openMobileMorePop(b) },
+        { id: 'disconnect', icon: 'power', label: tl('disconnect'), onClick: () => this.disconnectByUser() },
+      ],
+      {
+        label: tl('session_controls'),
+        handleLabel: tl('session_controls_handle'),
+        pos: { side: prefs.pillSide, y: prefs.pillY },
+        open: prefs.pillOpen,
+        onChange: (pos, open) => this.rememberPrefs({ pillSide: pos.side, pillY: pos.y, pillOpen: open }),
+      },
+    );
+    this.el.viewport.appendChild(this.pill.el);
+    this.syncPill();
+    // Remember where the remote screen was last touched (keyboard avoidance).
+    this.el.viewport.addEventListener('pointerdown', (e) => {
+      if (e.target === this.canvas || e.target === this.videoEl) this.focusPoint = this.clientToLocal(e.clientX, e.clientY);
+    }, true);
+    requestAnimationFrame(() => this.pill?.layout());
+  }
+
+  /** Show only what applies now (monitors), and the current mode's icon. */
+  private syncPill(): void {
+    const pill = this.pill;
+    if (!pill) return;
+    const monitors = pill.button('monitors');
+    if (monitors) monitors.hidden = this.el.btnMonitors.hidden;
+    pill.setIcon('mode', this.inputModeIcon());
+    this.syncSoftKeyboardButton();
+    this.syncExtraKeysButton();
+    pill.layout();
+  }
+
+  private inputModeIcon(): IconName {
+    return this.inputMode === 'trackpad' ? 'trackpad' : this.inputMode === 'touch' ? 'touch' : 'pointer';
+  }
+
+  private openModePop(anchor: HTMLElement): void {
+    this.openPop(anchor, (pop) => {
+      const note = this.inputMode === 'trackpad'
+        ? tl('trackpad_mode_move_cursor')
+        : this.inputMode === 'touch' ? tl('touch_mode_tap_drag_scroll') : tl('pointer_mode_touch_acts_as');
+      pop.innerHTML =
+        '<div class="rd-pop-title">' + htl('input_mode') + '</div>' +
+        this.menuItem('touch', tl('touch'), this.inputMode === 'touch', 'input:touch') +
+        this.menuItem('trackpad', tl('trackpad'), this.inputMode === 'trackpad', 'input:trackpad') +
+        this.menuItem('pointer', tl('pointer'), this.inputMode === 'pointer', 'input:pointer') +
+        ('vibrate' in navigator
+          ? '<div class="rd-pop-sep"></div>' + this.menuItem(null, tl('vibrate_on_touch_actions'), loadPrefs().haptics, 'haptics')
+          : '') +
+        '<div class="rd-pop-note">' + escapeHtml(note) + '</div>';
+      for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-action^="input:"]')) {
+        b.addEventListener('click', () => {
+          const mode = b.dataset.action?.slice('input:'.length);
+          this.chooseInputMode(mode === 'pointer' || mode === 'trackpad' ? mode : 'touch');
+          this.closePop();
+        });
+      }
+      pop.querySelector<HTMLButtonElement>('[data-action="haptics"]')?.addEventListener('click', () => {
+        const on = !loadPrefs().haptics;
+        setHapticsEnabled(on);
+        this.rememberPrefs({ haptics: on });
+        haptic();
+        this.closePop();
+      });
+    });
+  }
+
+  private openZoomPop(anchor: HTMLElement): void {
+    this.openPop(anchor, (pop) => {
+      const zoomed = this.view.zoomed;
+      pop.innerHTML =
+        '<div class="rd-pop-title">' + htl('scale_mode') + '</div>' +
+        this.menuItem(null, tl('fit_screen'), !zoomed, 'fit:fit') +
+        this.menuItem(null, tl('actual_size'), zoomed && this.fitMode === 'actual', 'fit:actual');
+      for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-action^="fit:"]')) {
+        b.addEventListener('click', () => {
+          const mode: FitMode = b.dataset.action === 'fit:actual' ? 'actual' : 'fit';
+          this.setFitMode(mode);
+          this.rememberPrefs({ fitMode: mode });
+          this.closePop();
+        });
+      }
+    });
+  }
+
+  /** The dock and the top bar's other controls, as one menu. */
+  private openMobileMorePop(anchor: HTMLElement): void {
+    this.openPop(anchor, (pop) => {
+      const can = (perm: string): boolean => this.permissions[perm] !== false;
+      const input = remoteInputAllowed(this.viewOnly, 'keyboard');
+      const items: [string, IconName | null, string, boolean][] = [
+        ['files', 'folderTransfer', tl('file_transfer_2'), can('File')],
+        ['chat', 'chat', tl('chat'), true],
+        ['details', 'info', tl('session_details'), true],
+        ['clipboard', 'clipboard', tl('send_clipboard_remote'), can('Clipboard') && remoteInputAllowed(this.viewOnly, 'clipboard')],
+        ['type', 'typeText', tl('type_text_on_remote_device'), can('Keyboard') && input],
+        ['keys', 'keyboard', tl('keyboard_shortcuts'), can('Keyboard') && input],
+        ['viewonly', 'eye', tl('view_only'), true],
+        ['fullscreen', 'fullscreen', document.fullscreenElement ? tl('exit_fullscreen') : tl('fullscreen'), document.fullscreenEnabled === true],
+        ['settings', 'more', tl('more_options'), true],
+      ];
+      pop.innerHTML = items
+        .filter(([, , , show]) => show)
+        .map(([id, icon, label]) => this.menuItem(icon, label, id === 'viewonly' && this.viewOnly, `m:${id}`))
+        .join('');
+      const act: Record<string, () => void> = {
+        files: () => this.openSide('files'),
+        chat: () => this.openSide('chat'),
+        details: () => this.openSide('details'),
+        clipboard: () => void this.sendClipboard(),
+        type: () => this.openTypePop(anchor),
+        keys: () => this.openKeysPop(anchor),
+        viewonly: () => this.toggleViewOnly(),
+        fullscreen: () => void this.toggleFullscreen(),
+        settings: () => this.openMorePop(anchor),
+      };
+      for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-action^="m:"]')) {
+        b.addEventListener('click', () => {
+          const id = b.dataset.action!.slice(2);
+          this.closePop(); // the follow-up popovers anchor on the same button
+          act[id]?.();
+        });
+      }
+    });
   }
 
   // --- connect overlay ------------------------------------------------------------
@@ -2333,7 +2536,16 @@ export class RdApp {
     const vp = this.el.viewport;
     const d = this.currentRect();
     if (!vp.clientWidth || !vp.clientHeight || !d.width || !d.height) return;
-    this.view.setGeometry(vp.clientWidth, vp.clientHeight, d.width / d.height);
+    if (!this.viewportState?.keyboard) {
+      const last = this.fullSize;
+      // A shrinking height at the same width is a keyboard on its way in
+      // (Android resizes before the visual viewport reports it): keep the old one.
+      if (!last || last.w !== vp.clientWidth || vp.clientHeight >= last.h) {
+        this.fullSize = { w: vp.clientWidth, h: vp.clientHeight };
+      }
+    }
+    const full = this.frozenSize ?? { w: vp.clientWidth, h: vp.clientHeight };
+    this.view.setGeometry(full.w, full.h, d.width / d.height, vp.clientWidth, vp.clientHeight);
     this.view.allowZoom(this.view.oneToOneScale(d.width));
     this.applyView();
   }
@@ -2481,6 +2693,7 @@ export class RdApp {
         const hasDisplayControls = !!currentDisplay?.resolutions.length || !!currentDisplay?.originalResolution ||
           !!parseVirtualDisplayCapability(this.peerPlatform, this.platformAdditions);
         this.el.btnMonitors.hidden = this.displays.length < 2 && !hasDisplayControls;
+        this.syncPill();
         document.title = `${this.peerId} — CortenDesk`;
         break;
       }
