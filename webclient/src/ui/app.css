@@ -539,8 +539,8 @@
 
 /* --- phones and tablets: floating controls (mobile-toolbar.ts) ----------------- */
 
-/* The top bar, the dock and the side-panel edge strip give way to the pill
-   (whose More menu opens Files / Chat / Details) while a session streams. */
+/* The top bar, the dock and the side-panel edge strip give way to the docked
+   bar (which has Files / Chat / Details) while a session streams. */
 #rd-root.rd-mobile[data-state='streaming'] #rd-toolbar,
 #rd-root.rd-mobile[data-state='streaming'] #rd-dock,
 #rd-root.rd-mobile #rd-edge,
@@ -558,50 +558,98 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-#rd-pill {
-  position: absolute;
-  top: 8px;
-  z-index: 21; /* under the side panel (22) and popovers */
+/* Docked bar: a strip at the top or bottom in portrait, a column at the left or
+   right in landscape (root data-bar). The remote screen fits what is left. */
+#rd-mbar {
+  flex: 0 0 auto;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: 2px;
-  padding: 4px;
-  max-height: calc(100% - 16px);
-  border-radius: 26px;
-  border: 1px solid var(--rd-border);
-  background: color-mix(in srgb, var(--rd-surface) 88%, transparent);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  touch-action: none;
+  padding: 2px 4px;
+  background: color-mix(in srgb, var(--rd-bg) 88%, black 12%);
   -webkit-user-select: none;
   user-select: none;
-  transition: top 0.15s ease;
+  touch-action: manipulation;
+  scrollbar-width: none;
 }
-#rd-pill[data-side='right'] {
-  right: 8px;
-}
-#rd-pill[data-side='left'] {
-  left: 8px;
-}
-#rd-pill[data-dragging] {
-  transition: none;
-  opacity: 0.85;
-}
-#rd-pill[data-open='0'] .rd-pill-items {
+#rd-mbar::-webkit-scrollbar {
   display: none;
 }
-.rd-pill-items {
+#rd-root[data-bar='bottom'] #rd-mbar,
+#rd-root[data-bar='top'] #rd-mbar {
+  flex-direction: row;
+}
+.rd-mbar-main,
+.rd-mbar-end {
   display: flex;
-  flex-direction: column;
   gap: 2px;
+  flex-direction: inherit;
+}
+.rd-mbar-main {
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
-  overflow-y: auto;
+  justify-content: space-between;
   scrollbar-width: none;
+}
+.rd-mbar-main::-webkit-scrollbar {
+  display: none;
+}
+.rd-mbar-end {
+  flex: 0 0 auto;
+}
+#rd-root[data-bar='bottom'] .rd-mbar-main,
+#rd-root[data-bar='top'] .rd-mbar-main {
+  overflow-x: auto;
+  touch-action: pan-x;
+}
+#rd-root[data-bar='bottom'] .rd-mbar-end,
+#rd-root[data-bar='top'] .rd-mbar-end {
+  border-left: 1px solid var(--rd-border);
+  padding-left: 2px;
+}
+#rd-root[data-bar='left'] .rd-mbar-main,
+#rd-root[data-bar='right'] .rd-mbar-main {
+  overflow-y: auto;
   touch-action: pan-y;
 }
-.rd-pill-btn {
+#rd-root[data-bar='left'] .rd-mbar-end,
+#rd-root[data-bar='right'] .rd-mbar-end {
+  border-top: 1px solid var(--rd-border);
+  padding-top: 2px;
+}
+#rd-root[data-bar='bottom'] #rd-mbar {
+  order: 10;
+  border-top: 1px solid var(--rd-border);
+}
+#rd-root[data-bar='top'] #rd-mbar {
+  order: -1;
+  border-bottom: 1px solid var(--rd-border);
+}
+#rd-root[data-bar='left'] #rd-mbar,
+#rd-root[data-bar='right'] #rd-mbar {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  bottom: 0;
+  width: 48px;
+  box-sizing: border-box;
+  flex-direction: column;
+}
+#rd-root[data-bar='right'] #rd-mbar {
+  right: env(safe-area-inset-right);
+  border-left: 1px solid var(--rd-border);
+}
+#rd-root[data-bar='left'] #rd-mbar {
+  left: env(safe-area-inset-left);
+  border-right: 1px solid var(--rd-border);
+}
+/* Room for the side column: everything else in the root moves over. */
+#rd-root.rd-mobile[data-state='streaming'][data-bar='right'] {
+  padding-right: calc(env(safe-area-inset-right) + 48px);
+}
+#rd-root.rd-mobile[data-state='streaming'][data-bar='left'] {
+  padding-left: calc(env(safe-area-inset-left) + 48px);
+}
+.rd-mbar-btn {
   appearance: none;
   flex: 0 0 auto;
   width: 44px;
@@ -610,32 +658,34 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 50%;
+  border-radius: 10px;
   background: transparent;
   color: var(--rd-fg);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.rd-pill-btn[hidden] {
+#rd-root[data-bar='left'] .rd-mbar-btn,
+#rd-root[data-bar='right'] .rd-mbar-btn {
+  height: 38px;
+}
+.rd-mbar-btn[hidden] {
   display: none;
 }
-.rd-pill-btn:active {
+.rd-mbar-btn:active {
   background: var(--rd-surface-3);
 }
-.rd-pill-btn.rd-on {
+.rd-mbar-btn.rd-on {
   background: color-mix(in srgb, var(--rd-accent) 18%, transparent);
   color: var(--rd-accent);
 }
-.rd-pill-btn:focus-visible {
+.rd-mbar-btn:disabled {
+  opacity: 0.35;
+}
+.rd-mbar-btn:focus-visible {
   outline: 2px solid var(--rd-accent);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
-.rd-pill-handle {
-  height: 32px;
-  color: var(--rd-muted);
-  cursor: grab;
-}
-.rd-pill-btn[data-pill='disconnect'] {
+.rd-mbar-btn[data-mbar='disconnect'] {
   color: var(--rd-danger);
 }
 

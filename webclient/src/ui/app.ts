@@ -42,7 +42,7 @@ import { trackVisualViewport, type ViewportState } from './viewport';
 import { ExtraKeysBar } from './extra-keys-bar';
 import { haptic, setHapticsEnabled } from './haptics';
 import { ViewTransformer, containRect, type Rect, type View } from '../input/view-transform';
-import { MobileToolbar } from './mobile-toolbar';
+import { MobileBar, barSide, currentOrientation, swappedPrefs, type Orientation } from './mobile-bar';
 import { TrackpadMapper } from '../input/touch-trackpad';
 import type { TouchOutput } from '../input/touch-direct';
 import type { Pt } from '../input/gesture';
@@ -336,7 +336,8 @@ export class RdApp {
   /** Trackpad mode's local cursor. */
   private tpCursor!: HTMLElement;
   /** Floating controls replacing the top bar and dock on phones and tablets. */
-  private pill: MobileToolbar | undefined;
+  private bar: MobileBar | undefined;
+  private orientation: Orientation = 'portrait';
   /** Viewport size with no on-screen keyboard, kept while one is open. */
   private fullSize: { w: number; h: number } | undefined;
   /** While the keyboard is open the remote screen keeps its full size and pans instead. */
@@ -356,7 +357,7 @@ export class RdApp {
     this.setupSoftKeyboard();
     this.setupExtraKeys();
     if (coarsePointer()) {
-      this.setupMobileToolbar();
+      this.setupMobileBar();
       trackVisualViewport(this.el.root, (s) => this.onViewportChange(s));
     }
 
@@ -782,7 +783,7 @@ export class RdApp {
     if (mode !== 'trackpad') this.trackpad?.reset();
     this.inputMode = mode;
     if (this.tpCursor) this.drawTrackpadCursor();
-    this.pill?.setIcon('mode', this.inputModeIcon());
+    this.bar?.setIcon('mode', this.inputModeIcon());
     this.el.dock.querySelector('#rd-mode-pointer')?.classList.toggle('rd-on', mode === 'pointer');
     this.el.dock.querySelector('#rd-mode-touch')?.classList.toggle('rd-on', mode === 'touch');
   }
@@ -1730,9 +1731,8 @@ export class RdApp {
       inputMode: this.inputModePref,
       extraKeys: this.xkeys.shown,
       haptics: loadPrefs().haptics,
-      pillSide: loadPrefs().pillSide,
-      pillY: loadPrefs().pillY,
-      pillOpen: loadPrefs().pillOpen,
+      barPortrait: loadPrefs().barPortrait,
+      barLandscape: loadPrefs().barLandscape,
     };
   }
 
@@ -1985,7 +1985,7 @@ export class RdApp {
     } else {
       this.updateView();
     }
-    this.pill?.layout();
+    this.syncOrientation();
   }
 
   /** What to keep visible when the keyboard opens: the trackpad cursor, else the last touch. */
@@ -2020,48 +2020,74 @@ export class RdApp {
     this.toastTimer = setTimeout(() => this.hideToast(), 9000); // longer than a normal toast
   }
 
-  // --- floating controls (phones, tablets) ---------------------------------------
+  // --- docked controls (phones, tablets) ------------------------------------------
 
-  private setupMobileToolbar(): void {
+  private setupMobileBar(): void {
     this.el.root.classList.add('rd-mobile');
-    const prefs = loadPrefs();
-    this.pill = new MobileToolbar(
-      [
-        { id: 'kbd', icon: 'keyboard', label: tl('show_hide_on_screen_keyboard'), attrs: 'data-kbd-toggle aria-pressed="false"', onClick: () => this.toggleSoftKeyboard() },
-        { id: 'xkeys', icon: 'keyCombo', label: tl('extra_keys'), attrs: 'data-xkeys-toggle aria-pressed="false"', onClick: () => this.toggleExtraKeys() },
-        { id: 'mode', icon: this.inputModeIcon(), label: tl('input_mode'), attrs: 'aria-haspopup="true"', onClick: (b) => this.openModePop(b) },
-        { id: 'zoom', icon: 'zoom', label: tl('scale_mode'), attrs: 'aria-haspopup="true"', onClick: (b) => this.openZoomPop(b) },
-        { id: 'monitors', icon: 'monitor', label: tl('select_monitor'), attrs: 'aria-haspopup="true"', onClick: (b) => this.openMonitorPop(b) },
-        { id: 'more', icon: 'more', label: tl('more_options'), attrs: 'aria-haspopup="true"', onClick: (b) => this.openMobileMorePop(b) },
-        { id: 'disconnect', icon: 'power', label: tl('disconnect'), onClick: () => this.disconnectByUser() },
-      ],
-      {
-        label: tl('session_controls'),
-        handleLabel: tl('session_controls_handle'),
-        pos: { side: prefs.pillSide, y: prefs.pillY },
-        open: prefs.pillOpen,
-        onChange: (pos, open) => this.rememberPrefs({ pillSide: pos.side, pillY: pos.y, pillOpen: open }),
-      },
-    );
-    this.el.viewport.appendChild(this.pill.el);
-    this.syncPill();
+    const items = [
+      { id: 'kbd', icon: 'keyboard', label: tl('show_hide_on_screen_keyboard'), attrs: 'data-kbd-toggle aria-pressed="false"', onClick: () => this.toggleSoftKeyboard() },
+      { id: 'xkeys', icon: 'keyCombo', label: tl('extra_keys'), attrs: 'data-xkeys-toggle aria-pressed="false"', onClick: () => this.toggleExtraKeys() },
+      { id: 'mode', icon: this.inputModeIcon(), label: tl('input_mode'), attrs: 'aria-haspopup="true"', onClick: (b: HTMLButtonElement) => this.openModePop(b) },
+      { id: 'zoom', icon: 'zoom', label: tl('scale_mode'), attrs: 'aria-haspopup="true"', onClick: (b: HTMLButtonElement) => this.openZoomPop(b) },
+      { id: 'monitors', icon: 'monitor', label: tl('select_monitor'), attrs: 'aria-haspopup="true"', onClick: (b: HTMLButtonElement) => this.openMonitorPop(b) },
+      { id: 'clipboard', icon: 'clipboard', label: tl('send_clipboard_remote'), onClick: () => void this.sendClipboard() },
+      { id: 'files', icon: 'folderTransfer', label: tl('file_transfer_2'), onClick: () => this.openSide('files') },
+      { id: 'chat', icon: 'chat', label: tl('chat'), onClick: () => this.openSide('chat') },
+      { id: 'details', icon: 'info', label: tl('session_details'), onClick: () => this.openSide('details') },
+      { id: 'viewonly', icon: 'eye', label: tl('view_only'), attrs: 'aria-pressed="false"', onClick: () => { this.toggleViewOnly(); this.syncBar(); } },
+      { id: 'fullscreen', icon: 'fullscreen', label: tl('fullscreen'), onClick: () => void this.toggleFullscreen() },
+      { id: 'swap', icon: 'swap', label: tl('move_controls_other_side'), onClick: () => this.swapBarSide() },
+      { id: 'settings', icon: 'more', label: tl('more_options'), attrs: 'aria-haspopup="true"', pinned: true, onClick: (b: HTMLButtonElement) => this.openMorePop(b) },
+      { id: 'disconnect', icon: 'power', label: tl('disconnect'), pinned: true, onClick: () => this.disconnectByUser() },
+    ] satisfies import('./mobile-bar').BarItem[];
+    this.bar = new MobileBar(items, tl('session_controls'));
+    this.el.root.appendChild(this.bar.el);
+    const fs = this.bar.button('fullscreen');
+    if (fs) fs.hidden = document.fullscreenEnabled !== true;
+    this.syncOrientation();
+    this.syncBar();
+    const onRotate = (): void => this.syncOrientation();
+    screen.orientation?.addEventListener?.('change', onRotate);
+    window.addEventListener('orientationchange', onRotate);
+    window.addEventListener('resize', onRotate);
     // Remember where the remote screen was last touched (keyboard avoidance).
     this.el.viewport.addEventListener('pointerdown', (e) => {
       if (e.target === this.canvas || e.target === this.videoEl) this.focusPoint = this.clientToLocal(e.clientX, e.clientY);
     }, true);
-    requestAnimationFrame(() => this.pill?.layout());
   }
 
-  /** Show only what applies now (monitors), and the current mode's icon. */
-  private syncPill(): void {
-    const pill = this.pill;
-    if (!pill) return;
-    const monitors = pill.button('monitors');
+  /** Dock the bar to the remembered edge for the way the device is held. */
+  private syncOrientation(): void {
+    if (!this.bar) return;
+    const legacy = (window as unknown as { orientation?: number }).orientation;
+    this.orientation = currentOrientation(screen.orientation?.type, legacy, window.innerWidth, window.innerHeight);
+    const side = barSide(this.orientation, loadPrefs());
+    this.el.root.dataset.orient = this.orientation;
+    if (this.el.root.dataset.bar !== side) {
+      this.el.root.dataset.bar = side;
+      this.closePop();
+    }
+  }
+
+  private swapBarSide(): void {
+    this.rememberPrefs(swappedPrefs(this.orientation, loadPrefs()));
+    this.syncOrientation();
+  }
+
+  /** Show only what applies now (monitors), and the current mode's icon and toggles. */
+  private syncBar(): void {
+    const bar = this.bar;
+    if (!bar) return;
+    const monitors = bar.button('monitors');
     if (monitors) monitors.hidden = this.el.btnMonitors.hidden;
-    pill.setIcon('mode', this.inputModeIcon());
+    bar.setIcon('mode', this.inputModeIcon());
+    bar.setOn('viewonly', this.viewOnly);
+    const files = bar.button('files');
+    if (files) files.disabled = this.permissions.File === false;
+    const clip = bar.button('clipboard');
+    if (clip) clip.disabled = this.permissions.Clipboard === false;
     this.syncSoftKeyboardButton();
     this.syncExtraKeysButton();
-    pill.layout();
   }
 
   private inputModeIcon(): IconName {
@@ -2112,47 +2138,6 @@ export class RdApp {
           this.setFitMode(mode);
           this.rememberPrefs({ fitMode: mode });
           this.closePop();
-        });
-      }
-    });
-  }
-
-  /** The dock and the top bar's other controls, as one menu. */
-  private openMobileMorePop(anchor: HTMLElement): void {
-    this.openPop(anchor, (pop) => {
-      const can = (perm: string): boolean => this.permissions[perm] !== false;
-      const input = remoteInputAllowed(this.viewOnly, 'keyboard');
-      const items: [string, IconName | null, string, boolean][] = [
-        ['files', 'folderTransfer', tl('file_transfer_2'), can('File')],
-        ['chat', 'chat', tl('chat'), true],
-        ['details', 'info', tl('session_details'), true],
-        ['clipboard', 'clipboard', tl('send_clipboard_remote'), can('Clipboard') && remoteInputAllowed(this.viewOnly, 'clipboard')],
-        ['type', 'typeText', tl('type_text_on_remote_device'), can('Keyboard') && input],
-        ['keys', 'keyboard', tl('keyboard_shortcuts'), can('Keyboard') && input],
-        ['viewonly', 'eye', tl('view_only'), true],
-        ['fullscreen', 'fullscreen', document.fullscreenElement ? tl('exit_fullscreen') : tl('fullscreen'), document.fullscreenEnabled === true],
-        ['settings', 'more', tl('more_options'), true],
-      ];
-      pop.innerHTML = items
-        .filter(([, , , show]) => show)
-        .map(([id, icon, label]) => this.menuItem(icon, label, id === 'viewonly' && this.viewOnly, `m:${id}`))
-        .join('');
-      const act: Record<string, () => void> = {
-        files: () => this.openSide('files'),
-        chat: () => this.openSide('chat'),
-        details: () => this.openSide('details'),
-        clipboard: () => void this.sendClipboard(),
-        type: () => this.openTypePop(anchor),
-        keys: () => this.openKeysPop(anchor),
-        viewonly: () => this.toggleViewOnly(),
-        fullscreen: () => void this.toggleFullscreen(),
-        settings: () => this.openMorePop(anchor),
-      };
-      for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-action^="m:"]')) {
-        b.addEventListener('click', () => {
-          const id = b.dataset.action!.slice(2);
-          this.closePop(); // the follow-up popovers anchor on the same button
-          act[id]?.();
         });
       }
     });
@@ -2723,7 +2708,7 @@ export class RdApp {
         const hasDisplayControls = !!currentDisplay?.resolutions.length || !!currentDisplay?.originalResolution ||
           !!parseVirtualDisplayCapability(this.peerPlatform, this.platformAdditions);
         this.el.btnMonitors.hidden = this.displays.length < 2 && !hasDisplayControls;
-        this.syncPill();
+        this.syncBar();
         document.title = `${this.peerId} — CortenDesk`;
         break;
       }

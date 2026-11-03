@@ -323,7 +323,9 @@ export type IconName =
   | 'grip'
   | 'trackpad'
   | 'zoom'
-  | 'keyCombo';
+  | 'keyCombo'
+  | 'swap'
+  | 'keyboardHide';
 
 export const ICONS: Record<IconName, { ri: string; svg: string }> = {
   pointer: {
@@ -469,6 +471,14 @@ export const ICONS: Record<IconName, { ri: string; svg: string }> = {
   zoom: {
     ri: '',
     svg: '<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5M8 10.5h5M10.5 8v5"/>',
+  },
+  swap: {
+    ri: '',
+    svg: '<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
+  },
+  keyboardHide: {
+    ri: '',
+    svg: '<rect x="3" y="3" width="18" height="11" rx="2"/><path d="M7 7h.01M11 7h.01M15 7h.01M8 10.5h8M9 18l3 3 3-3"/>',
   },
   keyCombo: {
     ri: '',
