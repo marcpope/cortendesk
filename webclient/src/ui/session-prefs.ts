@@ -44,6 +44,8 @@ export type SessionPrefs = {
    * pen is the same in every mode.
    */
   inputMode: InputModePref;
+  /** The extra-keys bar is open (phones, tablets). */
+  extraKeys: boolean;
 };
 
 export const INPUT_MODES = ['auto', 'pointer', 'touch'] as const;
@@ -74,6 +76,7 @@ export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   audioVolume: 1,
   keyboardMode: 'map',
   inputMode: 'auto',
+  extraKeys: false,
 });
 
 export const PREFS_KEY = 'cortendesk.rdprefs.v1';
@@ -125,6 +128,7 @@ export function validatePrefs(raw: unknown): SessionPrefs {
     inputMode: typeof r.inputMode === 'string' && (INPUT_MODES as readonly string[]).includes(r.inputMode)
       ? (r.inputMode as InputModePref)
       : d.inputMode,
+    extraKeys: bool(r.extraKeys, d.extraKeys),
   };
 }
 

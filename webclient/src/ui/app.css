@@ -457,6 +457,73 @@
   margin: 0 auto;
 }
 
+/* --- extra-keys bar (phones, tablets; extra-keys-bar.ts) ----------------------- */
+
+#rd-xkeys {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: color-mix(in srgb, var(--rd-bg) 88%, black 12%);
+  border-top: 1px solid var(--rd-border);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+#rd-xkeys[hidden] {
+  display: none;
+}
+.rd-xk-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.rd-xk-row::-webkit-scrollbar {
+  display: none;
+}
+.rd-xk {
+  appearance: none;
+  flex: 0 0 auto;
+  min-width: 44px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--rd-border);
+  background: var(--rd-surface);
+  color: var(--rd-fg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rd-xk:active {
+  background: var(--rd-surface-3);
+}
+.rd-xk[data-latch='once'] {
+  border-color: var(--rd-accent);
+  background: color-mix(in srgb, var(--rd-accent) 15%, transparent);
+}
+.rd-xk[data-latch='locked'] {
+  border-color: var(--rd-accent);
+  background: var(--rd-accent);
+  color: var(--rd-accent-fg);
+}
+.rd-xk:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.rd-xk-page {
+  color: var(--rd-muted);
+  font-weight: 500;
+}
+
 /* --- bottom dock -------------------------------------------------------------- */
 
 #rd-dock {

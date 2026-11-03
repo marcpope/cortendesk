@@ -38,6 +38,8 @@ import {
 } from '../input/mouse-keyboard';
 import { SoftKeyboardInput, type SoftKeyAction, type SoftKey } from '../input/soft-keyboard';
 import { trackVisualViewport, type ViewportState } from './viewport';
+import { ExtraKeysBar } from './extra-keys-bar';
+import { keyComboCommands, modControlKeys, stickyTextCommands } from '../input/extra-keys';
 import { readLocalClipboardText } from '../input/clipboard-cursor';
 import {
   BackNotification_BlockInputState,
@@ -194,7 +196,7 @@ export const PERMISSION_CONTROLS: Record<string, { id: string; title: string }> 
 };
 
 /** Controls beyond the canonical one that a withdrawn Keyboard permission disables. */
-const KEYBOARD_EXTRA_IDS = ['rd-lat-ctrl', 'rd-lat-alt', 'rd-key-del', 'rd-btn-type', 'rd-btn-kbd'];
+const KEYBOARD_EXTRA_IDS = ['rd-lat-ctrl', 'rd-lat-alt', 'rd-key-del', 'rd-btn-type', 'rd-btn-kbd', 'rd-btn-xkeys'];
 
 /** On-screen keyboard keys -> the control keys sent for them. */
 const SOFT_KEY_CONTROL: Record<SoftKey, ControlKey> = {
@@ -305,6 +307,7 @@ export class RdApp {
   /** Physical keys typed into the field (iPad / Bluetooth keyboards). */
   private sinkKeys!: KeyHandler;
   private viewportState: ViewportState | undefined;
+  private xkeys!: ExtraKeysBar;
 
   mount(): void {
     (window as unknown as { __rdApp?: RdApp }).__rdApp = this; // console/debug handle
@@ -315,6 +318,7 @@ export class RdApp {
     this.renderSide();
     this.renderOverlay();
     this.setupSoftKeyboard();
+    this.setupExtraKeys();
     if (coarsePointer()) {
       trackVisualViewport(this.el.root, (s) => this.onViewportChange(s));
     }
@@ -640,6 +644,7 @@ export class RdApp {
     // Latched modifiers make no sense with input off; drop them quietly.
     if (this.viewOnly) {
       this.setLatches(false, false);
+      this.xkeys.clearLatches();
       this.terminalPanel?.destroy();
       this.terminalPanel = undefined;
       this.removeClipboardSyncOffer();
@@ -656,6 +661,7 @@ export class RdApp {
     this.el.dock.innerHTML = `
       <div class="rd-dock-group" role="group" aria-label="${htl('keyboard')}">
         ${db('rd-btn-kbd', 'keyboard', tl('keyboard'), tl('show_hide_on_screen_keyboard')).replace('class="rd-db"', 'class="rd-db rd-coarse-only" aria-pressed="false"')}
+        ${db('rd-btn-xkeys', 'keyboard', tl('extra_keys'), tl('extra_keys_title')).replace('class="rd-db"', 'class="rd-db rd-coarse-only" aria-pressed="false"')}
         ${db('rd-lat-ctrl', 'keyboard', 'Ctrl', tl('hold_ctrl_for_clicks_and'))}
         ${db('rd-lat-alt', 'keyboard', 'Alt', tl('hold_alt_for_clicks_and'))}
         ${db('rd-key-del', 'keyboard', 'Del', tl('send_delete'))}
@@ -685,6 +691,7 @@ export class RdApp {
       this.setLatches(this.latchCtrl, !this.latchAlt),
     );
     q<HTMLButtonElement>(d, '#rd-btn-kbd').addEventListener('click', () => this.toggleSoftKeyboard());
+    q<HTMLButtonElement>(d, '#rd-btn-xkeys').addEventListener('click', () => this.toggleExtraKeys());
     q<HTMLButtonElement>(d, '#rd-key-del').addEventListener('click', () => {
       this.pressControl(ControlKey.Delete, tl('delete_sent'));
     });
@@ -1641,6 +1648,7 @@ export class RdApp {
       audioVolume: this.audioVolume,
       keyboardMode: this.keyboardMode,
       inputMode: this.inputModePref,
+      extraKeys: this.xkeys.shown,
     };
   }
 
@@ -1785,20 +1793,66 @@ export class RdApp {
       case 'hardware':
         this.sinkKeys.onKey(a.event, a.down);
         return;
-      case 'key':
+      case 'key': {
+        const mods = this.xkeys.activeMods();
+        if (mods.length) {
+          // Shift+Enter, Ctrl+Backspace...: a real key with the sticky modifiers.
+          const code = a.key === 'Enter' ? 'Enter' : a.key;
+          const all = a.ctrl && !mods.includes('ctrl') ? [...mods, 'ctrl' as const] : mods;
+          for (const cmd of keyComboCommands({ code, key: code }, all, this.keyboardTarget())) this.post(cmd);
+          this.xkeys.consume();
+          return;
+        }
         this.post({
           c: 'key', down: false, press: true, keyKind: 'control',
           value: SOFT_KEY_CONTROL[a.key], modifiers: a.ctrl ? [ControlKey.Control] : [],
         });
         return;
-      case 'text':
-        // Latched Ctrl/Alt turn letters into shortcuts: those need keys, not text.
-        if (this.latchCtrl || this.latchAlt) {
+      }
+      case 'text': {
+        const mods = this.xkeys.activeMods();
+        if (mods.length) {
+          // Sticky Ctrl/Alt/Win from the extra-keys bar: letters become shortcuts.
+          for (const cmd of stickyTextCommands(a.text, mods, this.keyboardTarget())) this.post(cmd);
+          if (mods.some((m) => m !== 'shift')) this.xkeys.consume();
+        } else if (this.latchCtrl || this.latchAlt) {
+          // Latched Ctrl/Alt turn letters into shortcuts: those need keys, not text.
           for (const cmd of buildKeyPressCommands(a.text)) this.post(cmd);
         } else {
           this.post({ c: 'text', text: a.text });
         }
         return;
+      }
+    }
+  }
+
+  // --- extra-keys bar (phones, tablets) ----------------------------------------
+
+  private setupExtraKeys(): void {
+    this.xkeys = new ExtraKeysBar({
+      send: (cmds) => {
+        for (const cmd of cmds) this.post(cmd);
+      },
+      target: () => this.keyboardTarget(),
+    });
+    this.el.root.insertBefore(this.xkeys.el, this.el.dock);
+    if (coarsePointer() && loadPrefs().extraKeys) this.xkeys.show(true);
+    this.syncExtraKeysButton();
+  }
+
+  private toggleExtraKeys(): void {
+    const on = !this.xkeys.shown;
+    this.xkeys.show(on);
+    if (!on) this.xkeys.clearLatches();
+    this.rememberPrefs({ extraKeys: on });
+    this.syncExtraKeysButton();
+  }
+
+  private syncExtraKeysButton(): void {
+    const on = this.xkeys.shown;
+    for (const b of this.el.root.querySelectorAll<HTMLButtonElement>('[data-xkeys-toggle], #rd-btn-xkeys')) {
+      b.classList.toggle('rd-on', on);
+      b.setAttribute('aria-pressed', String(on));
     }
   }
 
@@ -2191,8 +2245,14 @@ export class RdApp {
       if (this.latchAlt) extra.push(ControlKey.Alt);
       cmd = { ...cmd, modifiers: [...new Set([...cmd.modifiers, ...extra])] };
     }
+    const sticky = cmd.c === 'mouse' ? this.xkeys?.activeMods() ?? [] : [];
+    if (sticky.length && cmd.c === 'mouse') {
+      cmd = { ...cmd, modifiers: [...new Set([...cmd.modifiers, ...modControlKeys(sticky)])] };
+    }
     if (!this.worker) return false;
     this.worker.postMessage(cmd);
+    // Ctrl+click, Shift+click: a one-shot modifier is spent when the button comes up.
+    if (sticky.length && cmd.c === 'mouse' && (cmd.mask & 7) === 2) this.xkeys.consume();
     return true;
   }
 
@@ -2653,6 +2713,7 @@ export class RdApp {
       return; // nothing in the chrome maps to it
     }
 
+    if (kind === 'Keyboard') this.xkeys.setEnabled(enabled);
     const ids = kind === 'Keyboard' ? [target.id, ...KEYBOARD_EXTRA_IDS] : [target.id];
     for (const id of ids) {
       const el = this.el.root.querySelector<HTMLButtonElement>(`#${id}`);
@@ -2682,6 +2743,7 @@ export class RdApp {
   /** Forget peer permissions — they belong to one session, not to the client. */
   private resetPermissions(): void {
     this.permissions = {};
+    this.xkeys?.setEnabled(true);
     const all = new Set<string>(KEYBOARD_EXTRA_IDS);
     for (const { id } of Object.values(PERMISSION_CONTROLS)) all.add(id);
     for (const id of all) {
