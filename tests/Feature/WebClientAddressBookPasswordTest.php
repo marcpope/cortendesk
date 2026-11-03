@@ -64,7 +64,7 @@ it('returns h1 for the device salt, never the password', function () {
 
 // Fixed vector shared with webclient/src/core/session.address-book.test.ts: the
 // console's h1 and the web client's computeLoginH1() must agree byte for byte.
-it('matches the web client's h1 for a fixed vector', function () {
+it('matches the web client h1 for a fixed vector', function () {
     escrowBook($this->owner);
 
     askPassword($this->owner)->assertOk()
