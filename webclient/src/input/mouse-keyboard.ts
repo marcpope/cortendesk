@@ -1,8 +1,8 @@
 import { ControlKey } from '../gen/message';
 import type { UiCommand } from '../core/contracts';
 import { DOM_CODE_KEYCODES } from './keycodes';
-import { GestureRecognizer, type GestureEvent, type Pt } from './gesture';
-import { DirectTouchMapper, type TouchOutput } from './touch-direct';
+import { GestureRecognizer, type Pt } from './gesture';
+import { DirectTouchMapper, type GestureMapper, type TouchOutput } from './touch-direct';
 
 export const MouseType = { MOVE: 0, DOWN: 1, UP: 2, WHEEL: 3, TRACKPAD: 4, MOVE_RELATIVE: 5 } as const;
 export const MouseButton = { LEFT: 0x01, RIGHT: 0x02, MIDDLE: 0x04, BACK: 0x08, FORWARD: 0x10 } as const;
@@ -386,8 +386,6 @@ export type InputOptions = {
     mapper?(out: TouchOutput): GestureMapper | null;
   };
 };
-
-export type GestureMapper = { handle(e: GestureEvent): void };
 
 export type KeyHandler = {
   /** Send one key event; true when it was sent (and its default prevented). */

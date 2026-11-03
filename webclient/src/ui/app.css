@@ -407,6 +407,19 @@
   overscroll-behavior: none;
 }
 
+/* Trackpad mode's local cursor (app.ts drawTrackpadCursor). */
+#rd-tp-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+#rd-tp-cursor[hidden] {
+  display: none;
+}
+
 /* The field the on-screen keyboard types into (app.ts setupSoftKeyboard).
    Focusable but invisible; 16px so iOS does not zoom the page to it. */
 #rd-kbd-sink {

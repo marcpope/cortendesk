@@ -349,6 +349,8 @@ return [
     'tools' => 'Ferramentas',
     'touch' => 'Toque',
     'touch_mode_tap_drag_scroll' => 'Modo toque — tocar clica, arrastar arrasta, toque longo ou toque com dois dedos clica com o botão direito, dois dedos rolam, pinçar amplia',
+    'trackpad' => 'Trackpad',
+    'trackpad_mode_move_cursor' => 'Modo trackpad — deslize para mover o cursor, tocar clica, tocar e arrastar arrasta, toque com dois dedos clica com o botão direito',
     'transfers' => 'Transferências',
     'transport' => 'Transporte',
     'transport_relay' => 'Relay',

@@ -50,7 +50,7 @@ export type SessionPrefs = {
   haptics: boolean;
 };
 
-export const INPUT_MODES = ['auto', 'pointer', 'touch'] as const;
+export const INPUT_MODES = ['auto', 'pointer', 'touch', 'trackpad'] as const;
 export type InputModePref = (typeof INPUT_MODES)[number];
 export type InputMode = Exclude<InputModePref, 'auto'>;
 

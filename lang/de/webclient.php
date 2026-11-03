@@ -349,6 +349,8 @@ return [
     'tools' => 'Werkzeuge',
     'touch' => 'Touch',
     'touch_mode_tap_drag_scroll' => 'Touch-Modus — Tippen klickt, Ziehen zieht, langes Drücken oder Tippen mit zwei Fingern ist Rechtsklick, zwei Finger scrollen, Spreizen zoomt',
+    'trackpad' => 'Trackpad',
+    'trackpad_mode_move_cursor' => 'Trackpad-Modus — wischen bewegt den Zeiger, Tippen klickt, Tippen und Ziehen zieht, Tippen mit zwei Fingern ist Rechtsklick',
     'transfers' => 'Übertragungen',
     'transport' => 'Transport',
     'transport_relay' => 'Relay',

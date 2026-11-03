@@ -13,6 +13,9 @@ export type TouchOutput = {
   zoom(scale: number, center: Pt, pan: Pt): void;
 };
 
+/** Turns gesture intents into input; one per touch mode. */
+export type GestureMapper = { handle(e: GestureEvent): void };
+
 export const LEFT = 0x01;
 export const RIGHT = 0x02;
 
@@ -96,6 +99,8 @@ export class DirectTouchMapper {
         return;
       case 'idle':
         this.scroll.reset();
+        return;
+      case 'down':
         return;
     }
   }

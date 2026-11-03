@@ -41,6 +41,10 @@ import { SoftKeyboardInput, type SoftKeyAction, type SoftKey } from '../input/so
 import { trackVisualViewport, type ViewportState } from './viewport';
 import { ExtraKeysBar } from './extra-keys-bar';
 import { haptic, setHapticsEnabled } from './haptics';
+import { ViewTransformer, containRect, type Rect } from '../input/view-transform';
+import { TrackpadMapper } from '../input/touch-trackpad';
+import type { TouchOutput } from '../input/touch-direct';
+import type { Pt } from '../input/gesture';
 import { keyComboCommands, modControlKeys, stickyTextCommands } from '../input/extra-keys';
 import { readLocalClipboardText } from '../input/clipboard-cursor';
 import {
@@ -310,6 +314,12 @@ export class RdApp {
   private sinkKeys!: KeyHandler;
   private viewportState: ViewportState | undefined;
   private xkeys!: ExtraKeysBar;
+  /** Local zoom / pan of the remote screen (pinch, Fit / 1:1). */
+  private readonly view = new ViewTransformer();
+  private trackpad: TrackpadMapper | undefined;
+  private trackpadOut: TouchOutput | undefined;
+  /** Trackpad mode's local cursor. */
+  private tpCursor!: HTMLElement;
 
   mount(): void {
     (window as unknown as { __rdApp?: RdApp }).__rdApp = this; // console/debug handle
@@ -457,6 +467,21 @@ export class RdApp {
     viewport.dataset.fit = 'fit';
     // Safari's own pinch would zoom the whole page out from under the session.
     viewport.addEventListener('gesturestart', (e) => e.preventDefault());
+    let tpCursor = document.getElementById('rd-tp-cursor');
+    if (!tpCursor) {
+      tpCursor = document.createElement('div');
+      tpCursor.id = 'rd-tp-cursor';
+      tpCursor.className = 'rd-stream-only';
+      tpCursor.setAttribute('aria-hidden', 'true');
+      tpCursor.innerHTML =
+        '<svg viewBox="0 0 20 24" width="20" height="24"><path d="M2 2v17l4.6-4.4 3 7 3-1.3-3-6.8H16Z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+      tpCursor.hidden = true;
+      viewport.appendChild(tpCursor);
+    }
+    this.tpCursor = tpCursor;
+    if (typeof ResizeObserver === 'function') {
+      new ResizeObserver(() => this.updateView()).observe(viewport);
+    }
     this.canvas = canvas;
     this.el = {
       root,
@@ -727,7 +752,9 @@ export class RdApp {
   }
 
   private setInputMode(mode: InputMode): void {
+    if (mode !== 'trackpad') this.trackpad?.reset();
     this.inputMode = mode;
+    if (this.tpCursor) this.drawTrackpadCursor();
     this.el.dock.querySelector('#rd-mode-pointer')?.classList.toggle('rd-on', mode === 'pointer');
     this.el.dock.querySelector('#rd-mode-touch')?.classList.toggle('rd-on', mode === 'touch');
   }
@@ -1354,7 +1381,8 @@ export class RdApp {
       });
       for (const button of pop.querySelectorAll<HTMLButtonElement>('[data-action^="input:"]')) {
         button.addEventListener('click', () => {
-          this.chooseInputMode(button.dataset.action === 'input:pointer' ? 'pointer' : 'touch');
+          const mode = button.dataset.action?.slice('input:'.length);
+          this.chooseInputMode(mode === 'pointer' || mode === 'trackpad' ? mode : 'touch');
           this.closePop();
         });
       }
@@ -1595,7 +1623,13 @@ export class RdApp {
 
   private setFitMode(mode: FitMode): void {
     this.fitMode = mode;
-    this.el.viewport.dataset.fit = mode;
+    if (coarsePointer()) {
+      // Phones and tablets zoom the view instead (pinch-able, no scrollbars).
+      this.el.viewport.dataset.fit = 'fit';
+      this.applyFitZoom();
+    } else {
+      this.el.viewport.dataset.fit = mode;
+    }
     q(this.el.toolbar, '#rd-fit-label').textContent = mode === 'fit' ? tl('fit_screen') : tl('actual_size');
   }
 
@@ -1677,6 +1711,7 @@ export class RdApp {
     return (
       '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('input_mode') + '</div>' +
       this.menuItem(null, tl('touch'), this.inputMode === 'touch', 'input:touch') +
+      this.menuItem(null, tl('trackpad'), this.inputMode === 'trackpad', 'input:trackpad') +
       this.menuItem(null, tl('pointer'), this.inputMode === 'pointer', 'input:pointer') +
       ('vibrate' in navigator ? this.menuItem(null, tl('vibrate_on_touch_actions'), loadPrefs().haptics, 'haptics') : '')
     );
@@ -2151,6 +2186,10 @@ export class RdApp {
     this.removeClipboardSyncOffer();
     this.createAudioPlayback();
     const canvas = this.freshCanvas();
+    this.trackpad?.reset();
+    this.trackpad = this.trackpadOut = undefined;
+    this.view.reset();
+    this.applyView();
     const offscreen = canvas.transferControlToOffscreen();
     const worker = new Worker(this.workerUrl, { type: 'module' });
     this.worker = worker;
@@ -2282,15 +2321,110 @@ export class RdApp {
     return true;
   }
 
+  // --- local zoom / pan, trackpad cursor --------------------------------------
+
+  /** The element showing the remote screen (canvas, or the MSE <video> fallback). */
+  private surface(): HTMLElement {
+    return this.videoEl.hidden ? this.canvas : this.videoEl;
+  }
+
+  /** Re-measure after a resize, rotation, keyboard or display change; keeps the zoom. */
+  private updateView(): void {
+    const vp = this.el.viewport;
+    const d = this.currentRect();
+    if (!vp.clientWidth || !vp.clientHeight || !d.width || !d.height) return;
+    this.view.setGeometry(vp.clientWidth, vp.clientHeight, d.width / d.height);
+    this.view.allowZoom(this.view.oneToOneScale(d.width));
+    this.applyView();
+  }
+
+  /** New session or display: back to Fit (or 1:1 if that is the remembered choice). */
+  private resetView(): void {
+    this.view.reset();
+    this.updateView();
+    this.applyFitZoom();
+  }
+
+  private applyFitZoom(): void {
+    if (!coarsePointer()) return;
+    if (this.fitMode === 'actual') this.view.zoomTo(this.view.oneToOneScale(this.currentRect().width));
+    else this.view.reset();
+    this.applyView();
+  }
+
+  private applyView(): void {
+    const css = this.view.css();
+    for (const el of [this.canvas, this.videoEl]) {
+      el.style.transformOrigin = css ? '0 0' : '';
+      el.style.transform = css;
+    }
+    if (this.tpCursor) this.drawTrackpadCursor();
+  }
+
+  /** Pinch: zoom about the fingers (client coordinates), then pan with them. */
+  private zoomView(scale: number, center: Pt, pan: Pt): void {
+    const vp = this.el.viewport.getBoundingClientRect();
+    this.view.zoomAt(scale, center.x - vp.left, center.y - vp.top);
+    this.view.panBy(pan.x, pan.y);
+    this.applyView();
+  }
+
+  /** Where the remote image is on screen (client coordinates). */
+  private contentClientRect(): Rect {
+    const r = this.surface().getBoundingClientRect();
+    const d = this.currentRect();
+    const c = containRect(r.width, r.height, d.height ? d.width / d.height : 0);
+    return { x: r.left + c.x, y: r.top + c.y, width: c.width, height: c.height };
+  }
+
+  private trackpadFor(out: TouchOutput): TrackpadMapper {
+    if (!this.trackpad || this.trackpadOut !== out) {
+      this.trackpad?.reset();
+      this.trackpadOut = out;
+      this.trackpad = new TrackpadMapper(out, {
+        content: () => this.contentClientRect(),
+        cursor: (p) => this.onTrackpadCursor(p),
+      });
+    }
+    return this.trackpad;
+  }
+
+  /** Trackpad cursor moved: keep it in view when zoomed in, and draw it. */
+  private onTrackpadCursor(p: Pt): void {
+    if (this.view.zoomed) {
+      const vp = this.el.viewport.getBoundingClientRect();
+      const v = this.view.view;
+      const lx = (p.x - vp.left - v.tx) / v.scale;
+      const ly = (p.y - vp.top - v.ty) / v.scale;
+      if (this.view.ensureVisible(lx, ly, 0.5, 48)) this.applyView();
+    }
+    this.drawTrackpadCursor();
+  }
+
+  private drawTrackpadCursor(): void {
+    const on = this.inputMode === 'trackpad';
+    this.tpCursor.hidden = !on;
+    if (!on) return;
+    let p = this.trackpad?.position();
+    if (!p) {
+      const c = this.contentClientRect();
+      p = { x: c.x + c.width / 2, y: c.y + c.height / 2 };
+    }
+    const vp = this.el.viewport.getBoundingClientRect();
+    this.tpCursor.style.transform = `translate(${Math.round(p.x - vp.left)}px, ${Math.round(p.y - vp.top)}px)`;
+  }
+
   /** Input wiring shared by the canvas and the MSE <video> surface. */
   private inputOptions(): InputOptions {
     return {
-      isTouchMode: () => this.inputMode === 'touch',
+      isTouchMode: () => this.inputMode !== 'pointer',
       keyboardTarget: () => this.keyboardTarget(),
       focusTarget: () => (this.softKeyboardFocused() ? this.kbdSink : null),
       touch: {
         haptic: () => haptic(),
         keyboard: () => this.toggleSoftKeyboard(),
+        zoom: (scale, center, pan) => this.zoomView(scale, center, pan),
+        mapper: (out) => (this.inputMode === 'trackpad' ? this.trackpadFor(out) : null),
       },
     };
   }
@@ -2320,6 +2454,9 @@ export class RdApp {
         break;
       case 'peerInfo': {
         this.dbg('peerInfo', { current: ev.current, displays: ev.displays });
+        // Login: start at Fit; a later refresh (resolution change) keeps the zoom.
+        const firstInfo = ev.current !== undefined;
+        queueMicrotask(() => (firstInfo ? this.resetView() : this.updateView()));
         this.displays = ev.current === undefined
           ? mergeDisplayRefresh(this.displays, ev.displays, this.current)
           : ev.displays;
@@ -2362,6 +2499,7 @@ export class RdApp {
         // rebuilds this on the following push.
         this.teardownMse();
         this.refreshPeerSub();
+        this.resetView();
         break;
       }
       case 'followDisplay':

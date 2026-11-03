@@ -349,6 +349,8 @@ return [
     'tools' => 'Hulpmiddelen',
     'touch' => 'Aanraken',
     'touch_mode_tap_drag_scroll' => 'Aanraakmodus — tikken klikt, slepen sleept, lang drukken of tikken met twee vingers is rechtsklikken, twee vingers scrollen, knijpen zoomt',
+    'trackpad' => 'Trackpad',
+    'trackpad_mode_move_cursor' => 'Trackpadmodus — veeg om de cursor te bewegen, tikken klikt, tikken en slepen sleept, tikken met twee vingers is rechtsklikken',
     'transfers' => 'Overdrachten',
     'transport' => 'Transport',
     'transport_relay' => 'Relay',

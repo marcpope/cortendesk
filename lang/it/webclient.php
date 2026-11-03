@@ -349,6 +349,8 @@ return [
     'tools' => 'Strumenti',
     'touch' => 'Tocco',
     'touch_mode_tap_drag_scroll' => 'Modalità tocco: tocca per fare clic, trascina per trascinare, tieni premuto o tocca con due dita per il clic destro, due dita scorrono, pizzica per lo zoom',
+    'trackpad' => 'Trackpad',
+    'trackpad_mode_move_cursor' => 'Modalità trackpad: scorri per muovere il cursore, tocca per fare clic, tocca e trascina per trascinare, tocca con due dita per il clic destro',
     'transfers' => 'Trasferimenti',
     'transport' => 'Trasporto',
     'transport_relay' => 'Relay',

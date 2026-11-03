@@ -347,6 +347,8 @@
     "tools": "Tools",
     "touch": "Touch",
     "touch_mode_tap_drag_scroll": "Touch mode — tap clicks, drag drags, long-press or two-finger tap right-clicks, two fingers scroll, pinch zooms",
+    "trackpad": "Trackpad",
+    "trackpad_mode_move_cursor": "Trackpad mode — slide to move the cursor, tap clicks, tap then drag drags, two-finger tap right-clicks",
     "transfers": "Transfers",
     "transport": "Transport",
     "transport_relay": "Relay",

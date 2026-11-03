@@ -349,6 +349,8 @@ return [
     'tools' => 'Műveletek',
     'touch' => 'Érintés',
     'touch_mode_tap_drag_scroll' => 'Érintés mód — koppintás kattint, húzás húz, hosszú nyomás vagy kétujjas koppintás jobb kattintás, két ujj görget, csippentés nagyít',
+    'trackpad' => 'Érintőpad',
+    'trackpad_mode_move_cursor' => 'Érintőpad mód — csúsztatás mozgatja a kurzort, koppintás kattint, koppintás majd húzás húz, kétujjas koppintás jobb kattintás',
     'transfers' => 'Átvitelek',
     'transport' => 'Átvitel',
     'transport_relay' => 'Továbbító',

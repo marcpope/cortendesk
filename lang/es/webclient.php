@@ -349,6 +349,8 @@ return [
     'tools' => 'Herramientas',
     'touch' => 'Táctil',
     'touch_mode_tap_drag_scroll' => 'Modo táctil: tocar hace clic, arrastrar arrastra, mantener pulsado o tocar con dos dedos hace clic derecho, dos dedos desplazan, pellizcar hace zoom',
+    'trackpad' => 'Panel táctil',
+    'trackpad_mode_move_cursor' => 'Modo panel táctil: desliza para mover el cursor, tocar hace clic, tocar y arrastrar arrastra, tocar con dos dedos hace clic derecho',
     'transfers' => 'Transferencias',
     'transport' => 'Transporte',
     'transport_relay' => 'Relay',

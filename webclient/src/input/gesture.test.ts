@@ -6,7 +6,7 @@ import { DirectTouchMapper, ScrollAccumulator, type TouchOutput } from './touch-
 function rig() {
   const ev: GestureEvent[] = [];
   const g = new GestureRecognizer((e) => {
-    if (e.g !== 'idle') ev.push(e);
+    if (e.g !== 'idle' && e.g !== 'down') ev.push(e);
   });
   return { g, ev };
 }

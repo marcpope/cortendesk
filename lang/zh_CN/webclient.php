@@ -349,6 +349,8 @@ return [
     'tools' => '工具',
     'touch' => '触屏',
     'touch_mode_tap_drag_scroll' => '触屏模式——轻点即单击，拖动即拖拽，长按或双指轻点为右键，双指滚动，捏合缩放',
+    'trackpad' => '触控板',
+    'trackpad_mode_move_cursor' => '触控板模式——滑动移动光标，轻点即单击，轻点后拖动即拖拽，双指轻点为右键',
     'transfers' => '传输',
     'transport' => '传输',
     'transport_relay' => '中继',

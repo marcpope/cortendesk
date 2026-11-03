@@ -349,6 +349,8 @@ return [
     'tools' => 'Narzędzia',
     'touch' => 'Dotyk',
     'touch_mode_tap_drag_scroll' => 'Tryb dotykowy — dotknięcie klika, przeciąganie przeciąga, długie przytrzymanie lub dotknięcie dwoma palcami to prawy klik, dwa palce przewijają, uszczypnięcie powiększa',
+    'trackpad' => 'Gładzik',
+    'trackpad_mode_move_cursor' => 'Tryb gładzika — przesuń, aby poruszyć kursorem, dotknięcie klika, dotknięcie i przeciągnięcie przeciąga, dotknięcie dwoma palcami to prawy klik',
     'transfers' => 'Transfery',
     'transport' => 'Transport',
     'transport_relay' => 'Serwer pośredniczący',

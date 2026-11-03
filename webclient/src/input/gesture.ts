@@ -16,6 +16,8 @@
 export type Pt = { x: number; y: number };
 
 export type GestureEvent =
+  /** First finger down (afterTap: right after a tap, nearby — a double tap or tap-and-drag may follow). */
+  | { g: 'down'; at: Pt; afterTap: boolean }
   /** `at`: where to click. A double tap reports the FIRST tap's point (count 2). */
   | { g: 'tap'; fingers: 1 | 2 | 3; at: Pt; count: 1 | 2 }
   | { g: 'longPress'; at: Pt }
@@ -95,6 +97,7 @@ export class GestureRecognizer {
         dist2(this.lastTap.at, p) <= this.o.doubleTapSlopPx ** 2;
       this.state = { s: 'one', id, start: p, last: p, t0: t, afterTap };
       this.timer = setTimeout(() => this.onLongPress(), this.o.longPressMs);
+      this.emit({ g: 'down', at: p, afterTap });
       return;
     }
     if (st.s === 'one') {

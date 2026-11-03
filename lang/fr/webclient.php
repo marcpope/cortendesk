@@ -349,6 +349,8 @@ return [
     'tools' => 'Outils',
     'touch' => 'Tactile',
     'touch_mode_tap_drag_scroll' => 'Mode tactile — toucher clique, glisser fait glisser, appui long ou toucher à deux doigts fait un clic droit, deux doigts font défiler, pincer zoome',
+    'trackpad' => 'Pavé tactile',
+    'trackpad_mode_move_cursor' => 'Mode pavé tactile — glissez pour déplacer le curseur, toucher clique, toucher puis glisser fait glisser, toucher à deux doigts fait un clic droit',
     'transfers' => 'Transferts',
     'transport' => 'Transport',
     'transport_relay' => 'Relais',
