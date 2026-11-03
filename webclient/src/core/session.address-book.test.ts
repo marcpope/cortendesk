@@ -69,6 +69,20 @@ describe('address-book sign-in', () => {
     expect(h.events).toContainEqual({ t: 'credentials', hashHex: hex(h1), fromAddressBook: true });
   });
 
+  it('agrees with the console on h1 for a fixed vector (raw digests, hex only on the wire)', async () => {
+    // Same vector as tests/Feature/WebClientAddressBookPasswordTest.php.
+    const h1Hex = 'a3359ea34ba87a32d2701ea1eec9b1873ba1f634c2880715e1ad40a37dbe182a';
+    expect(hex(await computeLoginH1('Escrowed-Pa55', 'Zx8pQ2'))).toBe(h1Hex);
+
+    const h = harness({ addressBook: { url: '/u', csrfToken: 't' } }, async () => h1Hex);
+    await h.challenge('Zx8pQ2', 'chal-2');
+    // What a typed password produces for the same device and challenge.
+    expect(h.loginPassword()).toEqual(
+      await loginHashFromH1(await computeLoginH1('Escrowed-Pa55', 'Zx8pQ2'), 'chal-2'),
+    );
+    expect(h.loginPassword()).toHaveLength(32);
+  });
+
   it('falls back to an empty password when the console has nothing', async () => {
     const h = harness({ addressBook: { url: '/u', csrfToken: 't' } }, async () => null);
     await h.challenge('s', 'c');

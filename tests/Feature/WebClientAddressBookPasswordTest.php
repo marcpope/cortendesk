@@ -62,6 +62,15 @@ it('returns h1 for the device salt, never the password', function () {
     expect($response->headers->get('Cache-Control'))->toContain('no-store');
 });
 
+// Fixed vector shared with webclient/src/core/session.address-book.test.ts: the
+// console's h1 and the web client's computeLoginH1() must agree byte for byte.
+it('matches the web client's h1 for a fixed vector', function () {
+    escrowBook($this->owner);
+
+    askPassword($this->owner)->assertOk()
+        ->assertExactJson(['hash' => 'a3359ea34ba87a32d2701ea1eec9b1873ba1f634c2880715e1ad40a37dbe182a']);
+});
+
 it('gives a different hash for a different salt', function () {
     escrowBook($this->owner);
 
