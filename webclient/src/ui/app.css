@@ -393,6 +393,27 @@
   touch-action: none;
 }
 
+/* The remote screen owns every touch: no text selection, iOS callout menu,
+   tap flash, pull-to-refresh or overscroll bounce on top of it. */
+#rd-canvas,
+#rd-video,
+#rd-remote-cursor {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#rd-viewport {
+  overscroll-behavior: none;
+}
+/* Buttons react at once instead of waiting out a double-tap-to-zoom. */
+#rd-toolbar,
+#rd-dock,
+#rd-edge,
+.rd-pop {
+  touch-action: manipulation;
+}
+
 /* Actual size: the canvas keeps its remote pixel dimensions and the viewport
    pans. The input mapper stays exact here because the element box equals the
    display aspect, so its letterbox math degenerates to identity. */
@@ -1310,6 +1331,12 @@
 
 /* --- small screens ------------------------------------------------------------ */
 
+@media (min-width: 901px) {
+  .rd-narrow-only {
+    display: none; /* the toolbar has its own Fit chip at this width */
+  }
+}
+
 @media (max-width: 900px) {
   .rd-tb-sub {
     display: none;
@@ -1322,7 +1349,7 @@
     display: none; /* icon-only chips; the title attribute still names them */
   }
   #rd-btn-fit {
-    display: none; /* fit control matters least on a phone; lives in overflow later */
+    display: none; /* the More menu carries Fit / Actual size here */
   }
 }
 

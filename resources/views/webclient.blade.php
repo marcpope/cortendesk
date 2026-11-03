@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="{{ \App\Support\Asset::url('assets/vendor/remixicon/remixicon.css') }}">
     <link rel="stylesheet" href="/rdclient/app.css?v={{ $rdVer }}">
     <style>
-        html, body { height: 100%; margin: 0; overflow: hidden; background: #000; }
+        html, body { height: 100%; margin: 0; overflow: hidden; background: #000; overscroll-behavior: none; }
         #rd-root { height: 100vh; height: 100dvh; }
     </style>
 </head>

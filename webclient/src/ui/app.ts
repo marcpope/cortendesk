@@ -95,7 +95,10 @@ import {
   resetPrefs,
   savePrefs,
   withRememberedOptions,
+  resolveInputMode,
   type CodecName,
+  type InputMode,
+  type InputModePref,
   type SessionPrefs,
 } from './session-prefs';
 import { isRtcEvent, webRtcFor, type WebRtcHost } from './webrtc-host';
@@ -107,7 +110,6 @@ export * from './common';
 type RdWindow = Window & { __RD__?: RdGlobalConfig };
 
 type SideTab = 'files' | 'chat' | 'details';
-type InputMode = 'pointer' | 'touch';
 type FitMode = 'fit' | 'actual';
 
 type ChatEntry = { who: 'me' | 'peer'; text: string; at: number };
@@ -156,6 +158,11 @@ type Els = ConnectCardEls & {
   statUser: HTMLElement;
   statPlatform: HTMLElement;
 };
+
+/** A phone or tablet: the primary pointer is a finger. */
+function coarsePointer(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+}
 
 function q<T extends Element>(scope: ParentNode, sel: string): T {
   const el = scope.querySelector<T>(sel);
@@ -238,6 +245,8 @@ export class RdApp {
   private latchCtrl = false;
   private latchAlt = false;
   private inputMode: InputMode = 'pointer';
+  /** The remembered choice behind inputMode ('auto' follows the device). */
+  private inputModePref: InputModePref = 'auto';
   private fitMode: FitMode = 'fit';
   private quality: number = QUALITY.balanced;
   private customQuality = 75;
@@ -411,6 +420,8 @@ export class RdApp {
     root.appendChild(dock);
     root.dataset.state = 'closed';
     viewport.dataset.fit = 'fit';
+    // Safari's own pinch would zoom the whole page out from under the session.
+    viewport.addEventListener('gesturestart', (e) => e.preventDefault());
     this.canvas = canvas;
     this.el = {
       root,
@@ -649,9 +660,9 @@ export class RdApp {
     q<HTMLButtonElement>(d, '#rd-btn-cad').addEventListener('click', (e) =>
       this.openKeysPop(e.currentTarget as HTMLElement),
     );
-    q<HTMLButtonElement>(d, '#rd-mode-pointer').addEventListener('click', () => this.setInputMode('pointer'));
-    q<HTMLButtonElement>(d, '#rd-mode-touch').addEventListener('click', () => this.setInputMode('touch'));
-    this.setInputMode('pointer');
+    q<HTMLButtonElement>(d, '#rd-mode-pointer').addEventListener('click', () => this.chooseInputMode('pointer'));
+    q<HTMLButtonElement>(d, '#rd-mode-touch').addEventListener('click', () => this.chooseInputMode('touch'));
+    this.applyInputModePref(loadPrefs().inputMode);
     q<HTMLButtonElement>(d, '#rd-btn-type').addEventListener('click', (e) =>
       this.openTypePop(e.currentTarget as HTMLElement),
     );
@@ -661,6 +672,17 @@ export class RdApp {
     q<HTMLButtonElement>(d, '#rd-btn-files').addEventListener('click', () => this.openSide('files'));
     q<HTMLButtonElement>(d, '#rd-btn-chat').addEventListener('click', () => this.openSide('chat'));
     q<HTMLButtonElement>(d, '#rd-btn-session').addEventListener('click', () => this.openSide('details'));
+  }
+
+  /** The user picked a mode: use it and remember it for the next session. */
+  private chooseInputMode(mode: InputMode): void {
+    this.applyInputModePref(mode);
+    this.rememberPrefs({ inputMode: mode });
+  }
+
+  private applyInputModePref(pref: InputModePref): void {
+    this.inputModePref = pref;
+    this.setInputMode(resolveInputMode(pref, coarsePointer()));
   }
 
   private setInputMode(mode: InputMode): void {
@@ -1257,6 +1279,10 @@ export class RdApp {
           : '';
       pop.innerHTML =
         this.menuItem('refresh', tl('refresh_video'), false, 'refresh') +
+        // The toolbar's Fit chip is hidden on narrow screens; offer it here.
+        '<div class="rd-narrow-only"><div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('scale_mode') + '</div>' +
+        this.menuItem(null, tl('fit_screen'), this.fitMode === 'fit', 'fit:fit') +
+        this.menuItem(null, tl('actual_size'), this.fitMode === 'actual', 'fit:actual') + '</div>' +
         '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('image_quality') + '</div>' +
         this.menuItem(null, tl('best'), !this.customQualityActive && this.quality === QUALITY.best, 'quality:best') +
         this.menuItem(null, tl('balanced'), !this.customQualityActive && this.quality === QUALITY.balanced, 'quality:balanced') +
@@ -1284,6 +1310,14 @@ export class RdApp {
         this.post({ c: 'refresh' });
         this.closePop();
       });
+      for (const button of pop.querySelectorAll<HTMLButtonElement>('[data-action^="fit:"]')) {
+        button.addEventListener('click', () => {
+          const mode: FitMode = button.dataset.action === 'fit:actual' ? 'actual' : 'fit';
+          this.setFitMode(mode);
+          this.rememberPrefs({ fitMode: mode });
+          this.closePop();
+        });
+      }
       pop.querySelector<HTMLButtonElement>('[data-action="resetPrefs"]')?.addEventListener('click', () => {
         this.resetSessionPrefs();
         this.toast(tl('settings_reset_defaults'));
@@ -1541,6 +1575,7 @@ export class RdApp {
     this.audioMuted = p.audioMuted;
     this.audioVolume = p.audioVolume;
     this.keyboardMode = p.keyboardMode;
+    this.applyInputModePref(p.inputMode);
     this.audioPlayback?.setVolume(this.audioVolume);
     this.audioPlayback?.setMuted(this.audioMuted);
   }
@@ -1574,6 +1609,7 @@ export class RdApp {
       audioMuted: this.audioMuted,
       audioVolume: this.audioVolume,
       keyboardMode: this.keyboardMode,
+      inputMode: this.inputModePref,
     };
   }
 

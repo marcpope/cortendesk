@@ -404,6 +404,10 @@ export function attachInput(
     post({ c: 'mouse', mask, x, y, modifiers: modifierList(e) });
   };
 
+  // Buttons each pointer holds down on the host (pointer mode), with where it
+  // last was, so a gesture the browser cancels can still let go of them.
+  const held = new Map<number, { mask: number; x: number; y: number }>();
+
   const onPointerMove = (e: PointerEvent): void => {
     if (touchActive(e)) {
       if (!touch || e.pointerId !== touch.id) return;
@@ -417,6 +421,11 @@ export function attachInput(
       touch.lastY = e.clientY;
       sendAt(e.clientX, e.clientY, buttonMask(MouseType.MOVE, 0)); // cursor follows, no button
       return;
+    }
+    const h = held.get(e.pointerId);
+    if (h) {
+      h.x = e.clientX;
+      h.y = e.clientY;
     }
     posted(e, buttonMask(MouseType.MOVE, 0));
   };
@@ -444,7 +453,14 @@ export function attachInput(
       };
       return;
     }
-    posted(e, buttonMask(MouseType.DOWN, domButtonToMask(e.button)));
+    const mask = domButtonToMask(e.button);
+    // The host moves its cursor only on MOVE. A mouse has always hovered there
+    // first; a finger or a pen lands without one, and the click would hit
+    // wherever the cursor was before.
+    if (e.pointerType !== 'mouse') posted(e, buttonMask(MouseType.MOVE, 0));
+    const h = held.get(e.pointerId);
+    held.set(e.pointerId, { mask: (h?.mask ?? 0) | mask, x: e.clientX, y: e.clientY });
+    posted(e, buttonMask(MouseType.DOWN, mask));
   };
   const onPointerUp = (e: PointerEvent): void => {
     e.preventDefault();
@@ -461,7 +477,31 @@ export function attachInput(
       return;
     }
     if (touchActive(e)) return; // stray secondary finger
-    posted(e, buttonMask(MouseType.UP, domButtonToMask(e.button)));
+    const mask = domButtonToMask(e.button);
+    const h = held.get(e.pointerId);
+    if (h) {
+      h.mask &= ~mask;
+      if (!h.mask) held.delete(e.pointerId);
+    }
+    posted(e, buttonMask(MouseType.UP, mask));
+  };
+  /**
+   * The browser took the pointer away (a system gesture, the notification
+   * shade, an alert, capture lost): no pointerup will come. Release whatever
+   * the pointer holds on the host and forget the gesture, or the host keeps
+   * the button down and touch mode ignores every later touch.
+   */
+  const onPointerCancel = (e: PointerEvent): void => {
+    if (touch && e.pointerId === touch.id) {
+      clearTimeout(touch.timer);
+      touch = null;
+    }
+    const h = held.get(e.pointerId);
+    if (!h) return;
+    held.delete(e.pointerId);
+    for (const b of [MouseButton.LEFT, MouseButton.RIGHT, MouseButton.MIDDLE, MouseButton.BACK, MouseButton.FORWARD]) {
+      if (h.mask & b) sendAt(h.x, h.y, buttonMask(MouseType.UP, b));
+    }
   };
   const onWheel = (e: WheelEvent): void => {
     e.preventDefault();
@@ -519,6 +559,8 @@ export function attachInput(
   el.addEventListener('pointermove', onPointerMove);
   el.addEventListener('pointerdown', onPointerDown);
   el.addEventListener('pointerup', onPointerUp);
+  el.addEventListener('pointercancel', onPointerCancel);
+  el.addEventListener('lostpointercapture', onPointerCancel);
   el.addEventListener('wheel', onWheel, { passive: false });
   el.addEventListener('contextmenu', onContextMenu);
   el.addEventListener('keydown', onKeyDown);
@@ -527,10 +569,13 @@ export function attachInput(
   document.addEventListener('fullscreenchange', onFullscreenChange);
 
   return () => {
+    for (const id of [...held.keys()]) onPointerCancel({ pointerId: id } as PointerEvent);
     mapKeys?.reset();
     el.removeEventListener('pointermove', onPointerMove);
     el.removeEventListener('pointerdown', onPointerDown);
     el.removeEventListener('pointerup', onPointerUp);
+    el.removeEventListener('pointercancel', onPointerCancel);
+    el.removeEventListener('lostpointercapture', onPointerCancel);
     el.removeEventListener('wheel', onWheel);
     el.removeEventListener('contextmenu', onContextMenu);
     el.removeEventListener('keydown', onKeyDown);

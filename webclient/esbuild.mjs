@@ -28,7 +28,8 @@ const dev = watch || process.argv.includes('--dev');
 const shared = {
   bundle: true,
   format: 'esm',
-  target: ['chrome110', 'edge110'],
+  // safari16: iPhone/iPad Safari (and every iOS browser, all WebKit).
+  target: ['chrome110', 'edge110', 'safari16'],
   platform: 'browser',
   sourcemap: true,
   minify: !dev,

@@ -38,7 +38,23 @@ export type SessionPrefs = {
    * layout on both sides); 'legacy' sends the characters the browser typed.
    */
   keyboardMode: 'map' | 'legacy';
+  /**
+   * What a finger does on the remote screen. 'auto' picks touch on a phone or
+   * tablet (coarse primary pointer) and pointer everywhere else. A mouse or a
+   * pen is the same in every mode.
+   */
+  inputMode: InputModePref;
 };
+
+export const INPUT_MODES = ['auto', 'pointer', 'touch'] as const;
+export type InputModePref = (typeof INPUT_MODES)[number];
+export type InputMode = Exclude<InputModePref, 'auto'>;
+
+/** The mode a remembered choice means on this device. */
+export function resolveInputMode(pref: InputModePref, coarsePointer: boolean): InputMode {
+  if (pref !== 'auto') return pref;
+  return coarsePointer ? 'touch' : 'pointer';
+}
 
 export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   quality: QUALITY.balanced,
@@ -57,6 +73,7 @@ export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   audioMuted: false,
   audioVolume: 1,
   keyboardMode: 'map',
+  inputMode: 'auto',
 });
 
 export const PREFS_KEY = 'cortendesk.rdprefs.v1';
@@ -105,6 +122,9 @@ export function validatePrefs(raw: unknown): SessionPrefs {
       ? r.audioVolume
       : d.audioVolume,
     keyboardMode: r.keyboardMode === 'map' || r.keyboardMode === 'legacy' ? r.keyboardMode : d.keyboardMode,
+    inputMode: typeof r.inputMode === 'string' && (INPUT_MODES as readonly string[]).includes(r.inputMode)
+      ? (r.inputMode as InputModePref)
+      : d.inputMode,
   };
 }
 
