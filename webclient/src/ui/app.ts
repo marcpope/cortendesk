@@ -28,7 +28,16 @@ import type {
   SessionStats,
   UiCommand,
 } from '../core/contracts';
-import { attachInput, mapKeyboardTarget, type DisplayRect, type KeyTarget } from '../input/mouse-keyboard';
+import {
+  attachInput,
+  createKeyHandler,
+  mapKeyboardTarget,
+  type DisplayRect,
+  type KeyHandler,
+  type KeyTarget,
+} from '../input/mouse-keyboard';
+import { SoftKeyboardInput, type SoftKeyAction, type SoftKey } from '../input/soft-keyboard';
+import { trackVisualViewport, type ViewportState } from './viewport';
 import { readLocalClipboardText } from '../input/clipboard-cursor';
 import {
   BackNotification_BlockInputState,
@@ -44,6 +53,7 @@ import {
   STATE_LABEL,
   buildSessionConfig,
   newSessionId,
+  buildKeyPressCommands,
   buildTypeCommands,
   clearSavedHash,
   cursorCss,
@@ -184,7 +194,15 @@ export const PERMISSION_CONTROLS: Record<string, { id: string; title: string }> 
 };
 
 /** Controls beyond the canonical one that a withdrawn Keyboard permission disables. */
-const KEYBOARD_EXTRA_IDS = ['rd-lat-ctrl', 'rd-lat-alt', 'rd-key-del', 'rd-btn-type'];
+const KEYBOARD_EXTRA_IDS = ['rd-lat-ctrl', 'rd-lat-alt', 'rd-key-del', 'rd-btn-type', 'rd-btn-kbd'];
+
+/** On-screen keyboard keys -> the control keys sent for them. */
+const SOFT_KEY_CONTROL: Record<SoftKey, ControlKey> = {
+  Backspace: ControlKey.Backspace,
+  Enter: ControlKey.Return,
+  Delete: ControlKey.Delete,
+  Tab: ControlKey.Tab,
+};
 
 export class RdApp {
   private cfg: RdGlobalConfig | undefined;
@@ -280,6 +298,13 @@ export class RdApp {
   private pop: HTMLElement | undefined; // the one open popover
   private popAnchor: HTMLElement | undefined;
   private popCleanup: (() => void) | undefined;
+  // --- phones and tablets ----------------------------------------------------
+  /** Hidden field the on-screen keyboard types into. */
+  private kbdSink!: HTMLTextAreaElement;
+  private softKeys!: SoftKeyboardInput;
+  /** Physical keys typed into the field (iPad / Bluetooth keyboards). */
+  private sinkKeys!: KeyHandler;
+  private viewportState: ViewportState | undefined;
 
   mount(): void {
     (window as unknown as { __rdApp?: RdApp }).__rdApp = this; // console/debug handle
@@ -289,6 +314,10 @@ export class RdApp {
     this.renderDock();
     this.renderSide();
     this.renderOverlay();
+    this.setupSoftKeyboard();
+    if (coarsePointer()) {
+      trackVisualViewport(this.el.root, (s) => this.onViewportChange(s));
+    }
 
     const attr = document
       .querySelector('script[data-rd-worker]')
@@ -626,6 +655,7 @@ export class RdApp {
       `${iconHtml(icon)}<span>${escapeHtml(label)}</span></button>`;
     this.el.dock.innerHTML = `
       <div class="rd-dock-group" role="group" aria-label="${htl('keyboard')}">
+        ${db('rd-btn-kbd', 'keyboard', tl('keyboard'), tl('show_hide_on_screen_keyboard')).replace('class="rd-db"', 'class="rd-db rd-coarse-only" aria-pressed="false"')}
         ${db('rd-lat-ctrl', 'keyboard', 'Ctrl', tl('hold_ctrl_for_clicks_and'))}
         ${db('rd-lat-alt', 'keyboard', 'Alt', tl('hold_alt_for_clicks_and'))}
         ${db('rd-key-del', 'keyboard', 'Del', tl('send_delete'))}
@@ -654,6 +684,7 @@ export class RdApp {
     q<HTMLButtonElement>(d, '#rd-lat-alt').addEventListener('click', () =>
       this.setLatches(this.latchCtrl, !this.latchAlt),
     );
+    q<HTMLButtonElement>(d, '#rd-btn-kbd').addEventListener('click', () => this.toggleSoftKeyboard());
     q<HTMLButtonElement>(d, '#rd-key-del').addEventListener('click', () => {
       this.pressControl(ControlKey.Delete, tl('delete_sent'));
     });
@@ -1671,17 +1702,108 @@ export class RdApp {
             <button type="button" class="rd-chip rd-chip-solid" id="rd-type-send">${iconHtml('send')}<span>${htl('send_keystrokes')}</span></button>
           </div>`;
         const ta = q<HTMLTextAreaElement>(pop, '#rd-type-text');
-        setTimeout(() => ta.focus(), 0);
         q<HTMLButtonElement>(pop, '#rd-type-send').addEventListener('click', () => {
           const text = ta.value;
           if (!text) return;
-          for (const cmd of buildTypeCommands(text)) this.post(cmd);
+          const latched = this.latchCtrl || this.latchAlt;
+          for (const cmd of latched ? buildKeyPressCommands(text) : buildTypeCommands(text)) this.post(cmd);
           this.toast(tn('typed_chars', text.length));
           this.closePop();
         });
       },
       true,
     );
+    // Focus inside the tap itself: iOS opens its keyboard for nothing later.
+    this.pop?.querySelector<HTMLTextAreaElement>('#rd-type-text')?.focus();
+  }
+
+  // --- on-screen keyboard (phones, tablets) ----------------------------------
+
+  private setupSoftKeyboard(): void {
+    const sink = document.createElement('textarea');
+    sink.id = 'rd-kbd-sink';
+    sink.setAttribute('autocapitalize', 'off');
+    sink.setAttribute('autocomplete', 'off');
+    sink.setAttribute('autocorrect', 'off');
+    sink.setAttribute('spellcheck', 'false');
+    sink.setAttribute('enterkeyhint', 'enter');
+    sink.setAttribute('aria-label', tl('on_screen_keyboard'));
+    sink.tabIndex = -1;
+    this.el.root.appendChild(sink);
+    this.kbdSink = sink;
+    this.sinkKeys = createKeyHandler((c) => this.post(c), () => this.keyboardTarget());
+    this.softKeys = new SoftKeyboardInput(sink, (a) => this.onSoftKey(a));
+    sink.addEventListener('keydown', (e) => this.softKeys.keydown(e));
+    sink.addEventListener('keyup', (e) => this.softKeys.keyup(e));
+    sink.addEventListener('beforeinput', (e) => this.softKeys.beforeinput(e));
+    sink.addEventListener('input', () => this.softKeys.input());
+    sink.addEventListener('compositionstart', () => this.softKeys.compositionstart());
+    sink.addEventListener('compositionend', () => this.softKeys.compositionend());
+    sink.addEventListener('focus', () => this.syncSoftKeyboardButton());
+    sink.addEventListener('blur', () => {
+      this.softKeys.reset();
+      this.sinkKeys.reset();
+      this.syncSoftKeyboardButton();
+    });
+  }
+
+  private softKeyboardFocused(): boolean {
+    return !!this.kbdSink && document.activeElement === this.kbdSink;
+  }
+
+  /**
+   * Keyboard button. Must run synchronously in the tap: iOS only opens its
+   * keyboard for a focus() made inside a user gesture.
+   */
+  private toggleSoftKeyboard(): void {
+    if (this.softKeyboardFocused()) {
+      this.kbdSink.blur();
+      // Android's back button hides the keyboard but leaves the field
+      // focused: then the tap means "show it again", not "hide it".
+      if (this.viewportState && !this.viewportState.keyboard) this.focusSoftKeyboard();
+      return;
+    }
+    this.focusSoftKeyboard();
+  }
+
+  private focusSoftKeyboard(): void {
+    this.softKeys.reset();
+    this.kbdSink.focus({ preventScroll: true });
+    this.syncSoftKeyboardButton();
+  }
+
+  private syncSoftKeyboardButton(): void {
+    const on = this.softKeyboardFocused();
+    for (const b of this.el.root.querySelectorAll<HTMLButtonElement>('[data-kbd-toggle], #rd-btn-kbd')) {
+      b.classList.toggle('rd-on', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+  }
+
+  private onSoftKey(a: SoftKeyAction): void {
+    switch (a.k) {
+      case 'hardware':
+        this.sinkKeys.onKey(a.event, a.down);
+        return;
+      case 'key':
+        this.post({
+          c: 'key', down: false, press: true, keyKind: 'control',
+          value: SOFT_KEY_CONTROL[a.key], modifiers: a.ctrl ? [ControlKey.Control] : [],
+        });
+        return;
+      case 'text':
+        // Latched Ctrl/Alt turn letters into shortcuts: those need keys, not text.
+        if (this.latchCtrl || this.latchAlt) {
+          for (const cmd of buildKeyPressCommands(a.text)) this.post(cmd);
+        } else {
+          this.post({ c: 'text', text: a.text });
+        }
+        return;
+    }
+  }
+
+  private onViewportChange(s: ViewportState): void {
+    this.viewportState = s;
   }
 
   // --- connect overlay ------------------------------------------------------------
@@ -1959,6 +2081,7 @@ export class RdApp {
     this.detach = attachInput(canvas, (c) => this.post(c), () => this.currentRect(), {
       isTouchMode: () => this.inputMode === 'touch',
       keyboardTarget: () => this.keyboardTarget(),
+      focusTarget: () => (this.softKeyboardFocused() ? this.kbdSink : null),
     });
     this.el.peerLabel.textContent = this.peerId;
     this.el.statDevice.textContent = this.peerId;
@@ -2037,12 +2160,12 @@ export class RdApp {
     const lockScreen = cmd.c === 'key' && cmd.keyKind === 'control' && cmd.value === ControlKey.LockScreen;
     const inputChannel: RemoteInputChannel | null = cmd.c === 'mouse'
       ? 'pointer'
-      : cmd.c === 'key' || cmd.c === 'ctrlAltDel'
+      : cmd.c === 'key' || cmd.c === 'ctrlAltDel' || cmd.c === 'text'
         ? 'keyboard'
         : cmd.c === 'clipboardText'
           ? 'clipboard'
           : null;
-    const sendsRemoteInput = cmd.c === 'mouse' || cmd.c === 'key' || cmd.c === 'ctrlAltDel';
+    const sendsRemoteInput = cmd.c === 'mouse' || cmd.c === 'key' || cmd.c === 'ctrlAltDel' || cmd.c === 'text';
     if (sendsRemoteInput && !lockScreen && this.displays[this.current]?.online !== true) return false;
     if (cmd.c === 'mouse') {
       const now = Date.now();
@@ -2598,6 +2721,7 @@ export class RdApp {
       this.detach = attachInput(this.videoEl, (c) => this.post(c), () => this.currentRect(), {
         isTouchMode: () => this.inputMode === 'touch',
         keyboardTarget: () => this.keyboardTarget(),
+        focusTarget: () => (this.softKeyboardFocused() ? this.kbdSink : null),
       });
       this.el.viewport.dataset.mse = '1';
     }

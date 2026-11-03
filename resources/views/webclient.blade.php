@@ -7,7 +7,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="{{ $rdTheme === 'light' ? 'light' : 'dark' }}" data-rd-theme-pref="{{ $rdTheme }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <title>{{ $peerId !== '' ? $peerId.' — ' : '' }}CortenDesk Web Client</title>
     <link rel="shortcut icon" href="{{ \App\Support\Asset::url('assets/images/cortendesk-sm.svg') }}">
     <script src="{{ \App\Support\Asset::url('assets/js/theme-init.js') }}"></script>

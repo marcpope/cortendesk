@@ -406,6 +406,35 @@
 #rd-viewport {
   overscroll-behavior: none;
 }
+
+/* The field the on-screen keyboard types into (app.ts setupSoftKeyboard).
+   Focusable but invisible; 16px so iOS does not zoom the page to it. */
+#rd-kbd-sink {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  font-size: 16px;
+  resize: none;
+  overflow: hidden;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Controls only a finger needs (on-screen keyboard, ...). */
+@media not all and (pointer: coarse) {
+  .rd-coarse-only {
+    display: none !important;
+  }
+}
 /* Buttons react at once instead of waiting out a double-tap-to-zoom. */
 #rd-toolbar,
 #rd-dock,

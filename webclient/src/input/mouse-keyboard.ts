@@ -370,7 +370,57 @@ export type InputOptions = {
    * info arriving, the keyboard setting).
    */
   keyboardTarget?: () => KeyTarget | null;
+  /**
+   * Element to focus when the remote screen is touched, instead of the
+   * screen itself (the on-screen keyboard's field while it is open).
+   */
+  focusTarget?: () => HTMLElement | null;
 };
+
+export type KeyHandler = {
+  /** Send one key event; true when it was sent (and its default prevented). */
+  onKey(e: KeyboardEvent, down: boolean): boolean;
+  /** Focus left: release what the host holds, forget AltGr state. */
+  reset(): void;
+};
+
+/**
+ * Browser key events -> KeyEvents, in Map mode when the host takes keycodes
+ * and in legacy mode otherwise. Shared by the remote screen and the
+ * on-screen keyboard's field.
+ */
+export function createKeyHandler(
+  post: (cmd: UiCommand) => void,
+  keyboardTarget?: () => KeyTarget | null,
+): KeyHandler {
+  const keys = new LegacyKeyTranslator();
+  const postMapKey = (k: MapKeyMessage): void =>
+    post({ c: 'key', down: k.down, press: false, keyKind: 'map', value: k.keyCode, modifiers: k.modifiers });
+  let mapKeys: MapKeyTranslator | null = null;
+  return {
+    onKey(e, down) {
+      const target = keyboardTarget?.() ?? null;
+      if (target !== (mapKeys?.target ?? null)) {
+        mapKeys?.reset();
+        mapKeys = target ? new MapKeyTranslator(target, postMapKey) : null;
+      }
+      if (mapKeys?.handle(e, down)) {
+        e.preventDefault(); // keeps Ctrl+W / F5 / Tab from hitting the browser while focused
+        return true;
+      }
+      if (!legacyKeyCommand(e, down)) return false;
+      e.preventDefault();
+      for (const k of keys.translate(e, down)) {
+        post({ c: 'key', down: k.down, press: false, keyKind: k.keyKind, value: k.value, modifiers: k.modifiers });
+      }
+      return true;
+    },
+    reset() {
+      keys.reset();
+      mapKeys?.reset();
+    },
+  };
+}
 
 const TOUCH_TAP_MS = 500;      // tap = shorter than this…
 const TOUCH_SLOP_PX = 12;      // …and moved less than this
@@ -430,7 +480,11 @@ export function attachInput(
     posted(e, buttonMask(MouseType.MOVE, 0));
   };
   const onPointerDown = (e: PointerEvent): void => {
-    el.focus();
+    // Keep the on-screen keyboard's field focused while it is open: focusing
+    // the canvas would close the keyboard on every tap.
+    const focusTarget = options.focusTarget?.();
+    if (focusTarget) focusTarget.focus({ preventScroll: true });
+    else el.focus();
     try {
       el.setPointerCapture(e.pointerId);
     } catch {
@@ -515,32 +569,10 @@ export function attachInput(
     e.preventDefault();
   };
 
-  const keys = new LegacyKeyTranslator();
-  const postMapKey = (k: MapKeyMessage): void =>
-    post({ c: 'key', down: k.down, press: false, keyKind: 'map', value: k.keyCode, modifiers: k.modifiers });
-  let mapKeys: MapKeyTranslator | null = null;
-  const onKey = (down: boolean) => (e: KeyboardEvent): void => {
-    const target = options.keyboardTarget?.() ?? null;
-    if (target !== (mapKeys?.target ?? null)) {
-      mapKeys?.reset();
-      mapKeys = target ? new MapKeyTranslator(target, postMapKey) : null;
-    }
-    if (mapKeys?.handle(e, down)) {
-      e.preventDefault(); // keeps Ctrl+W / F5 / Tab from hitting the browser while focused
-      return;
-    }
-    if (!legacyKeyCommand(e, down)) return;
-    e.preventDefault();
-    for (const k of keys.translate(e, down)) {
-      post({ c: 'key', down: k.down, press: false, keyKind: k.keyKind, value: k.value, modifiers: k.modifiers });
-    }
-  };
-  const onKeyDown = onKey(true);
-  const onKeyUp = onKey(false);
-  const onBlur = (): void => {
-    keys.reset();
-    mapKeys?.reset();
-  };
+  const keys = createKeyHandler(post, options.keyboardTarget);
+  const onKeyDown = (e: KeyboardEvent): void => void keys.onKey(e, true);
+  const onKeyUp = (e: KeyboardEvent): void => void keys.onKey(e, false);
+  const onBlur = (): void => keys.reset();
 
   const kb: KeyboardLock | undefined =
     typeof navigator !== 'undefined' && 'keyboard' in navigator
@@ -570,7 +602,7 @@ export function attachInput(
 
   return () => {
     for (const id of [...held.keys()]) onPointerCancel({ pointerId: id } as PointerEvent);
-    mapKeys?.reset();
+    keys.reset();
     el.removeEventListener('pointermove', onPointerMove);
     el.removeEventListener('pointerdown', onPointerDown);
     el.removeEventListener('pointerup', onPointerUp);
