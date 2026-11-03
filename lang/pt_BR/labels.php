@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Perfil atualizado',
     'audit_action_address_book_create' => 'Lista de endereços criada',
     'audit_action_address_book_delete' => 'Lista de endereços apagada',
+    'audit_action_address_book_password_use' => 'Senha usada pelo cliente web',
     'audit_action_address_book_peer_add' => 'Entrada adicionada',
     'audit_action_address_book_peer_delete' => 'Entrada removida',
     'audit_action_address_book_peer_update' => 'Entrada atualizada',

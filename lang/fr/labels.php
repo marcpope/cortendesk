@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Profil mis à jour',
     'audit_action_address_book_create' => 'Carnet d’adresses créé',
     'audit_action_address_book_delete' => 'Carnet d’adresses supprimé',
+    'audit_action_address_book_password_use' => 'Mot de passe utilisé par le client web',
     'audit_action_address_book_peer_add' => 'Entrée ajoutée',
     'audit_action_address_book_peer_delete' => 'Entrée retirée',
     'audit_action_address_book_peer_update' => 'Entrée mise à jour',

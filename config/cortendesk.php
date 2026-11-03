@@ -70,6 +70,15 @@ return [
     'ws_relay_url' => env('CORTENDESK_WS_RELAY_URL', ''),
 
     /*
+    | Let the native web client sign in with a password kept in an address
+    | book the user can read (shared-book passwords, own personal-book
+    | hashes), as the desktop client does. The browser gets only the salted
+    | hash for the device it is connecting to; each use is audit-logged.
+    | Set false to always ask for the password.
+    */
+    'webclient_address_book_passwords' => env('CORTENDESK_WEBCLIENT_AB_PASSWORDS', true),
+
+    /*
     |--------------------------------------------------------------------------
     | Presence
     |--------------------------------------------------------------------------

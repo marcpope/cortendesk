@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Профиль обновлён',
     'audit_action_address_book_create' => 'Адресная книга создана',
     'audit_action_address_book_delete' => 'Адресная книга удалена',
+    'audit_action_address_book_password_use' => 'Пароль использован веб-клиентом',
     'audit_action_address_book_peer_add' => 'Запись добавлена',
     'audit_action_address_book_peer_delete' => 'Запись удалена',
     'audit_action_address_book_peer_update' => 'Запись обновлена',

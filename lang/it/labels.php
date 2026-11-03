@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Profilo aggiornato',
     'audit_action_address_book_create' => 'Rubrica creata',
     'audit_action_address_book_delete' => 'Rubrica eliminata',
+    'audit_action_address_book_password_use' => 'Password usata dal client web',
     'audit_action_address_book_peer_add' => 'Voce aggiunta',
     'audit_action_address_book_peer_delete' => 'Voce rimossa',
     'audit_action_address_book_peer_update' => 'Voce aggiornata',

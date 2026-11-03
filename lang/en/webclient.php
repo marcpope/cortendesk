@@ -8,6 +8,8 @@ return [
     'add_files' => 'Add files…',
     'add_files_stage' => 'Add files to stage',
     'add_virtual_display' => 'Add virtual display',
+    'address_book_password_ready' => 'Password from the address book — type to override',
+    'address_book_password_refused' => 'The password from the address book did not work. Enter the password.',
     'apply_all_files_in_this' => 'Apply to all files in this transfer',
     'are_you_sure' => 'Are you sure?',
     'ask_remote_windows_user_approve' => 'Ask the remote Windows user to approve elevation?',

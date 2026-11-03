@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Profiel bijgewerkt',
     'audit_action_address_book_create' => 'Adresboek aangemaakt',
     'audit_action_address_book_delete' => 'Adresboek verwijderd',
+    'audit_action_address_book_password_use' => 'Wachtwoord gebruikt door de webclient',
     'audit_action_address_book_peer_add' => 'Item toegevoegd',
     'audit_action_address_book_peer_delete' => 'Item verwijderd',
     'audit_action_address_book_peer_update' => 'Item bijgewerkt',

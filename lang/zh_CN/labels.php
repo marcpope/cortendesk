@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => '个人资料已更新',
     'audit_action_address_book_create' => '地址簿已创建',
     'audit_action_address_book_delete' => '地址簿已删除',
+    'audit_action_address_book_password_use' => '网页客户端已使用密码',
     'audit_action_address_book_peer_add' => '条目已添加',
     'audit_action_address_book_peer_delete' => '条目已移除',
     'audit_action_address_book_peer_update' => '条目已更新',

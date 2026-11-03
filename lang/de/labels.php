@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Profil aktualisiert',
     'audit_action_address_book_create' => 'Adressbuch erstellt',
     'audit_action_address_book_delete' => 'Adressbuch gelöscht',
+    'audit_action_address_book_password_use' => 'Passwort vom Web-Client verwendet',
     'audit_action_address_book_peer_add' => 'Eintrag hinzugefügt',
     'audit_action_address_book_peer_delete' => 'Eintrag entfernt',
     'audit_action_address_book_peer_update' => 'Eintrag aktualisiert',

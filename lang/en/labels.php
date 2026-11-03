@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Profile updated',
     'audit_action_address_book_create' => 'Address book created',
     'audit_action_address_book_delete' => 'Address book deleted',
+    'audit_action_address_book_password_use' => 'Password used by the web client',
     'audit_action_address_book_peer_add' => 'Entry added',
     'audit_action_address_book_peer_delete' => 'Entry removed',
     'audit_action_address_book_peer_update' => 'Entry updated',

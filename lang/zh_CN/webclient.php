@@ -8,6 +8,8 @@ return [
     'add_files' => '添加文件…',
     'add_files_stage' => '添加文件到暂存区',
     'add_virtual_display' => '添加虚拟显示器',
+    'address_book_password_ready' => '使用地址簿中的密码 — 输入以覆盖',
+    'address_book_password_refused' => '地址簿中的密码无效，请输入密码。',
     'apply_all_files_in_this' => '应用于此次传输中的所有文件',
     'are_you_sure' => '确定吗？',
     'ask_remote_windows_user_approve' => '请求远程 Windows 用户批准提权？',

@@ -4,6 +4,7 @@
 // The module is Node-import-safe: worker-global wiring only happens when the
 // script actually runs inside a worker scope; tests drive WorkerHost directly.
 import type {
+  AddressBookSignIn,
   SessionConfig,
   SessionEvent,
   SessionState,
@@ -34,6 +35,7 @@ import { VideoPipeline, mseH264Available, probeSupportedDecoding, type EncodedCa
 import { ForwardingVideoPipeline } from '../media/mse-video';
 import { cursorToDataUrl, decodeClipboardText, initZstd, zstdDecode } from '../input/clipboard-cursor';
 import { decodeTerminalOutput } from './terminal-output';
+import { fetchAddressBookHash } from './address-book';
 import { setCatalog, tl } from '../i18n';
 
 // Decoded audio is outside the frozen SessionEvent union: the main thread
@@ -150,6 +152,8 @@ export interface WorkerDeps {
   ready?(): Promise<void>;
   cursorToPng?(c: CursorData): Promise<{ pngDataUrl: string; hotx: number; hoty: number }>;
   decodeClipboard?(c: Clipboard): string | null;
+  /** Address-book sign-in: h1 hex for the device's salt, or null. */
+  fetchAddressBookHash?(signIn: AddressBookSignIn, peerId: string, salt: string): Promise<string | null>;
 }
 
 function errMsg(e: unknown): string {
@@ -207,6 +211,7 @@ export class WorkerHost {
       },
       cursorToPng: (c) => cursorToDataUrl(c),
       decodeClipboard: (c) => decodeClipboardText(c),
+      fetchAddressBookHash: (signIn, peerId, salt) => fetchAddressBookHash(signIn, peerId, salt),
       ...deps,
     };
   }
@@ -508,8 +513,12 @@ export class WorkerHost {
       }
       this.ws1 = ws1;
 
+      const addressBook = config.addressBook;
       const session = this.deps.createSession({ ...config, videoAck }, {
         sendSignaling: (b) => this.ws1?.send(b),
+        ...(addressBook
+          ? { addressBookHash: (salt: string) => this.deps.fetchAddressBookHash(addressBook, config.peerId, salt) }
+          : {}),
         sendRelay: (b) => {
           if (this.transport === 'webrtc') this.sendRtc(b);
           else this.ws2?.send(b);

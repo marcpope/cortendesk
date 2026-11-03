@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Zaktualizowano profil',
     'audit_action_address_book_create' => 'Utworzono książkę adresową',
     'audit_action_address_book_delete' => 'Usunięto książkę adresową',
+    'audit_action_address_book_password_use' => 'Hasło użyte przez klienta webowego',
     'audit_action_address_book_peer_add' => 'Dodano wpis',
     'audit_action_address_book_peer_delete' => 'Usunięto wpis',
     'audit_action_address_book_peer_update' => 'Zaktualizowano wpis',

@@ -13,6 +13,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OidcController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\WebClientPageController;
+use App\Http\Controllers\WebClientPasswordController;
 use Illuminate\Support\Facades\Route;
 
 // Web-client bootstrap script (loaded by the static V1 web client pre-login)
@@ -111,6 +112,11 @@ Route::middleware('auth')->group(function () {
 
     // Native in-browser RustDesk client (full-viewport standalone page; assets in public/rdclient/)
     Route::get('/webclient', [WebClientPageController::class, 'show'])->name('webclient');
+    // Sign-in with a password from an address book the user can read: the
+    // session worker sends the device's salt and gets h1 back, never the
+    // password (WebClientAddressBookPassword). POST + CSRF + session only.
+    Route::post('/webclient/address-book-password', WebClientPasswordController::class)
+        ->middleware('throttle:30,1,webclient-ab-password')->name('webclient.address-book-password');
 
     // Operational logs — the baseline every user has always had.
     Route::middleware('console-can:audit,r')->group(function () {

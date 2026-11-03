@@ -8,6 +8,8 @@ return [
     'add_files' => 'Aggiungi file…',
     'add_files_stage' => 'Aggiungi file da preparare',
     'add_virtual_display' => 'Aggiungi display virtuale',
+    'address_book_password_ready' => 'Password dalla rubrica — digita per sostituirla',
+    'address_book_password_refused' => 'La password della rubrica non ha funzionato. Inserisci la password.',
     'apply_all_files_in_this' => 'Applica a tutti i file di questo trasferimento',
     'are_you_sure' => 'Sei sicuro?',
     'ask_remote_windows_user_approve' => 'Chiedere all\'utente Windows remoto di approvare l\'elevazione dei diritti?',

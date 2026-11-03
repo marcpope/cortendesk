@@ -15,6 +15,7 @@ return [
     'audit_action_account_update' => 'Profil módosítva',
     'audit_action_address_book_create' => 'Címjegyzék létrehozva',
     'audit_action_address_book_delete' => 'Címjegyzék törölve',
+    'audit_action_address_book_password_use' => 'Jelszó felhasználva a webkliensben',
     'audit_action_address_book_peer_add' => 'Bejegyzés hozzáadva',
     'audit_action_address_book_peer_delete' => 'Bejegyzés eltávolítva',
     'audit_action_address_book_peer_update' => 'Bejegyzés módosítva',

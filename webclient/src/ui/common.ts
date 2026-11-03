@@ -20,6 +20,12 @@ export type RdGlobalConfig = {
   workerUrl?: string;
   /** RustDesk 1.5 WebRTC: present when the console allows it; iceServers in the client option's format, "" for the defaults. */
   webrtc?: { iceServers: string } | null;
+  /**
+   * Sign-in with a password from an address book the user can read; null when
+   * the console has it off. `available`: the page's own device has an entry,
+   * so the page may connect without asking.
+   */
+  addressBook?: { url: string; csrfToken: string; available: boolean } | null;
 };
 
 export const QUALITY = { best: 4, balanced: 3, speed: 2 } as const; // ImageQuality enum values
@@ -130,6 +136,11 @@ export function cursorCss(pngDataUrl: string, hotx: number, hoty: number): strin
 // never the plaintext. h1 is a per-device login credential (same thing the
 // native RustDesk client stores), so it is scoped per peerId.
 const SAVED_PW_PREFIX = 'cortendesk.rdpw.';
+/** The page's device has an address-book password the user may sign in with. */
+export function addressBookReady(g: RdGlobalConfig | undefined, peerId: string): boolean {
+  return !!g?.addressBook?.available && !!peerId && normalizePeerId(g.peerId ?? '') === peerId;
+}
+
 export function loadSavedHash(peerId: string): string | null {
   try {
     return localStorage.getItem(SAVED_PW_PREFIX + peerId);
@@ -172,7 +183,12 @@ export function buildSessionConfig(
   password: string,
   savedHashHex?: string,
   connType?: SessionConfig['connType'],
+  useAddressBook = true,
 ): SessionConfig {
+  // The address book only stands in for a password nobody gave.
+  const addressBook = useAddressBook && !password && !savedHashHex && g.addressBook
+    ? { url: g.addressBook.url, csrfToken: g.addressBook.csrfToken }
+    : undefined;
   return {
     peerId,
     serverKeyB64: g.serverKeyB64,
@@ -183,6 +199,7 @@ export function buildSessionConfig(
     myName: g.myName,
     ...(g.signalToken ? { signalToken: g.signalToken } : {}),
     savedHashHex,
+    ...(addressBook ? { addressBook } : {}),
     ...(connType ? { connType } : {}),
     ...(g.webrtc && webRtcAvailable() ? { webrtc: { iceServers: iceServersFor(g.webrtc.iceServers), ...relayHold() } } : {}),
   };

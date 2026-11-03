@@ -37,6 +37,7 @@ class ConsoleAuditList extends Component
         'address-book.tag-add' => 'Tag added',
         'address-book.tag-update' => 'Tag updated',
         'address-book.tag-delete' => 'Tag deleted',
+        'address-book.password-use' => 'Password used by the web client',
         'address-book.peer-add' => 'Entry added',
         'address-book.peer-update' => 'Entry updated',
         'address-book.peer-delete' => 'Entry removed',

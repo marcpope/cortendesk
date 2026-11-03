@@ -48,6 +48,7 @@ import {
   clearSavedHash,
   cursorCss,
   debugEnabled,
+  addressBookReady,
   applySwitchDisplay,
   displayToRect,
   escapeHtml,
@@ -200,6 +201,8 @@ export class RdApp {
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
   private pendingHashHex: string | undefined; // h1 emitted this session, pending persist
   private connectedWithSavedHash = false; // this attempt used a stored hash
+  private connectedWithAddressBook = false; // this attempt signed in with an address-book password
+  private addressBookRefused = false; // the device refused it: ask for the password instead
   private sessionHashHex: string | undefined; // h1 of the live session — lets the file panel log in silently
   /** Peer-advertised permissions for THIS session; absent means granted. */
   private permissions: Record<string, boolean> = {};
@@ -310,9 +313,14 @@ export class RdApp {
       this.hydrateSavedPassword(this.el.peerIdInput.value);
     });
 
-    // Saved password + fixed peer -> sign straight in. Skipped when ?lo=1
-    // (the user logged out on purpose) so the connect screen stays put.
-    if (this.fixedPeerId && !loggedOutFromSearch(location.search) && loadSavedHash(this.fixedPeerId)) {
+    // Saved password (or an address-book password) + fixed peer -> sign
+    // straight in. Skipped when ?lo=1 (the user logged out on purpose) so the
+    // connect screen stays put.
+    if (
+      this.fixedPeerId &&
+      !loggedOutFromSearch(location.search) &&
+      (loadSavedHash(this.fixedPeerId) || addressBookReady(this.cfg, this.fixedPeerId))
+    ) {
       this.onConnectClick();
     }
 
@@ -1700,7 +1708,11 @@ export class RdApp {
     const has = !!peerId && loadSavedHash(peerId) !== null;
     this.el.saveCheckbox.checked = has;
     this.el.passwordInput.value = '';
-    this.el.passwordInput.placeholder = has ? tl('saved_password_click_change') : tl('enter_password');
+    this.el.passwordInput.placeholder = has
+      ? tl('saved_password_click_change')
+      : !this.addressBookRefused && addressBookReady(this.cfg, peerId)
+        ? tl('address_book_password_ready')
+        : tl('enter_password');
   }
 
   /**
@@ -1760,13 +1772,14 @@ export class RdApp {
     if (!this.el.saveCheckbox.checked) clearSavedHash(peerId);
     this.pendingHashHex = undefined;
     this.connectedWithSavedHash = false;
+    this.connectedWithAddressBook = false;
 
     let config: SessionConfig;
     if (!typed && saved) {
       this.connectedWithSavedHash = true;
       config = buildSessionConfig(this.cfg, peerId, '', saved);
     } else {
-      config = buildSessionConfig(this.cfg, peerId, typed);
+      config = buildSessionConfig(this.cfg, peerId, typed, undefined, undefined, !this.addressBookRefused);
     }
     this.startSession({ ...config, sessionId: newSessionId() });
   }
@@ -2177,7 +2190,10 @@ export class RdApp {
         else this.toast(tl('elevation_approved_waiting_for_elevated'), true);
         break;
       case 'credentials':
-        this.pendingHashHex = ev.hashHex; // persisted only once the session streams
+        // An address-book credential is the console's, for this session only:
+        // never offered to "Save password".
+        if (ev.fromAddressBook) this.connectedWithAddressBook = true;
+        else this.pendingHashHex = ev.hashHex; // persisted only once the session streams
         this.sessionHashHex = ev.hashHex; // in-memory: reused by the file panel
         if (this.reconnectConfig) this.reconnectConfig.savedHashHex = ev.hashHex;
         break;
@@ -2211,9 +2227,17 @@ export class RdApp {
           this.el.passwordInput.placeholder = tl('enter_password');
           this.connectedWithSavedHash = false;
         }
+        let loginMessage = ev.message || tl('login_failed');
+        if (this.connectedWithAddressBook) {
+          // Out of date in the address book: the next Connect asks instead.
+          this.addressBookRefused = true;
+          this.connectedWithAddressBook = false;
+          this.el.passwordInput.placeholder = tl('enter_password');
+          loginMessage = `${tl('address_book_password_refused')} (${loginMessage})`;
+        }
         this.showOverlay();
         this.setOverlayBusy(false);
-        this.setOverlayError(ev.message || tl('login_failed'));
+        this.setOverlayError(loginMessage);
         this.el.passwordInput.focus();
         this.el.passwordInput.select();
         break;

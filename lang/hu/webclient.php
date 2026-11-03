@@ -8,6 +8,8 @@ return [
     'add_files' => 'Fájlok hozzáadása…',
     'add_files_stage' => 'Fájlok hozzáadása az előkészítéshez',
     'add_virtual_display' => 'Virtuális kijelző hozzáadása',
+    'address_book_password_ready' => 'Jelszó a címjegyzékből – gépeljen a felülíráshoz',
+    'address_book_password_refused' => 'A címjegyzékből vett jelszó nem működött. Adja meg a jelszót.',
     'apply_all_files_in_this' => 'Alkalmazás az átvitel összes fájljára',
     'are_you_sure' => 'Biztos benne?',
     'ask_remote_windows_user_approve' => 'Megkéri a távoli Windows-felhasználót, hogy engedélyezze az emelt szintű jogokat?',
