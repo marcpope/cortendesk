@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!-- Mirrors resources/views/webclient.blade.php, with a mock session worker. -->
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>CortenDesk Web Client (e2e)</title>
+    <link rel="manifest" href="/rdclient/manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
+    <link rel="stylesheet" href="/rdclient/app.css">
+    <style>
+        html, body { height: 100%; margin: 0; overflow: hidden; background: #000; overscroll-behavior: none; }
+        #rd-root { height: 100vh; height: 100dvh; }
+    </style>
+    <script>
+        // Record every command the page sends to the session worker.
+        window.__cmds = [];
+        window.__connects = 0;
+        const post = Worker.prototype.postMessage;
+        Worker.prototype.postMessage = function (msg, transfer) {
+            window.__worker = this;
+            if (msg && msg.c === 'connect') window.__connects++;
+            const copy = { ...msg };
+            delete copy.canvas;
+            if (copy.c !== 'connect') window.__cmds.push(copy);
+            if (msg && msg.c === 'connect' && msg.canvas && msg.canvas.__fake) {
+                // Engine without OffscreenCanvas: the page painted the canvas itself.
+                return post.call(this, { ...msg, canvas: null }, []);
+            }
+            return post.call(this, msg, transfer);
+        };
+        // Playwright's WebKit on some platforms lacks WebCodecs / OffscreenCanvas.
+        // The input layer under test does not need them: stand in for both.
+        if (typeof VideoDecoder === 'undefined') window.VideoDecoder = class {};
+        if (!HTMLCanvasElement.prototype.transferControlToOffscreen) {
+            HTMLCanvasElement.prototype.transferControlToOffscreen = function () {
+                this.width = 1920;
+                this.height = 1080;
+                const g = this.getContext('2d');
+                g.fillStyle = '#204060';
+                g.fillRect(0, 0, 1920, 1080);
+                return { __fake: true };
+            };
+        }
+    </script>
+</head>
+<body>
+    <div id="rd-root">
+        <div id="rd-toolbar"></div>
+        <div id="rd-viewport">
+            <canvas id="rd-canvas"></canvas>
+            <div id="rd-overlay"></div>
+        </div>
+    </div>
+    <script>
+        window.__RD__ = {
+            peerId: '123456789',
+            serverKeyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+            wsIdUrl: 'ws://127.0.0.1:9/id',
+            wsRelayUrl: 'ws://127.0.0.1:9/relay',
+            myId: 'web-e2e',
+            myName: 'E2E Tester',
+            signalToken: '',
+            webrtc: null,
+            version: 'e2e',
+            messages: {},
+            workerUrl: '/mock-worker.js',
+        };
+    </script>
+    <script type="module" src="/rdclient/app.js" data-rd-worker="/mock-worker.js"></script>
+</body>
+</html>

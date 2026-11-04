@@ -1,0 +1,14 @@
+{
+  "name": "cortendesk-webclient-e2e",
+  "private": true,
+  "description": "Playwright tests of the built web client (public/rdclient) on phone, tablet and desktop browsers, against a mock session worker. Optional; see README.md.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --project=smoke"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  }
+}

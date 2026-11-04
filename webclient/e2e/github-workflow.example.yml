@@ -1,0 +1,40 @@
+# Optional: copy to .github/workflows/webclient-e2e.yml to run the web client e2e suite in CI.
+# It only uses the built bundle in public/rdclient and a mock worker: no secrets, no network
+# besides npm and the Playwright browser download. The real-host smoke test is skipped here
+# (no CD_E2E_* variables) and must never be configured in public CI.
+name: Web client e2e
+
+on:
+  pull_request:
+    paths: ['public/rdclient/**', 'webclient/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webclient/e2e
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright test
+        env:
+          CI: '1'
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: webclient-e2e
+          path: |
+            webclient/e2e/playwright-report
+            webclient/e2e/test-results
+          retention-days: 14
