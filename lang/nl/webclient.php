@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'Volledig scherm niet beschikbaar',
     'hide_hidden_files' => 'Verborgen bestanden verbergen',
     'hide_keyboard' => 'Toetsenbord verbergen',
+    'hide_suggestions' => 'Toetsenbordsuggesties verbergen (meer ruimte; autocorrectie uit)',
     'hold_alt_for_clicks_and' => 'Alt ingedrukt houden voor klikken en toetsen',
     'hold_ctrl_for_clicks_and' => 'Ctrl ingedrukt houden voor klikken en toetsen',
     'home' => 'thuismap',

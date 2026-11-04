@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'Schermo intero non disponibile',
     'hide_hidden_files' => 'Nascondi file nascosti',
     'hide_keyboard' => 'Nascondi tastiera',
+    'hide_suggestions' => 'Nascondi i suggerimenti della tastiera (più spazio; correzione automatica disattivata)',
     'hold_alt_for_clicks_and' => 'Tieni premuto Alt per clic e tasti',
     'hold_ctrl_for_clicks_and' => 'Tieni premuto Ctrl per clic e tasti',
     'home' => 'home',

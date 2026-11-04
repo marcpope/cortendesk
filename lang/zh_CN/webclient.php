@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => '无法全屏',
     'hide_hidden_files' => '不显示隐藏文件',
     'hide_keyboard' => '隐藏键盘',
+    'hide_suggestions' => '隐藏键盘建议（更多空间；关闭自动更正）',
     'hold_alt_for_clicks_and' => '按住 Alt 进行点击和按键',
     'hold_ctrl_for_clicks_and' => '按住 Ctrl 进行点击和按键',
     'home' => '主目录',

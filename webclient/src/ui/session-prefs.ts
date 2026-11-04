@@ -53,6 +53,8 @@ export type SessionPrefs = {
   barLandscape: 'left' | 'right';
   /** In landscape, the Keyboard button opens the compact in-page keyboard instead of the phone's. */
   compactKeyboard: boolean;
+  /** Ask the on-screen keyboard for no suggestions / autocorrect (more room; soft-keyboard.ts sinkAttributes). */
+  hideSuggestions: boolean;
 };
 
 export const INPUT_MODES = ['auto', 'pointer', 'touch', 'trackpad'] as const;
@@ -88,6 +90,7 @@ export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   barPortrait: 'bottom',
   barLandscape: 'right',
   compactKeyboard: false,
+  hideSuggestions: true,
 });
 
 export const PREFS_KEY = 'cortendesk.rdprefs.v1';
@@ -144,6 +147,7 @@ export function validatePrefs(raw: unknown): SessionPrefs {
     barPortrait: r.barPortrait === 'top' || r.barPortrait === 'bottom' ? r.barPortrait : d.barPortrait,
     barLandscape: r.barLandscape === 'left' || r.barLandscape === 'right' ? r.barLandscape : d.barLandscape,
     compactKeyboard: bool(r.compactKeyboard, d.compactKeyboard),
+    hideSuggestions: bool(r.hideSuggestions, d.hideSuggestions),
   };
 }
 

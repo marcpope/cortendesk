@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { SENTINEL, SoftKeyboardInput, isHardwareKey, type SoftKeyAction } from './soft-keyboard';
+import { SENTINEL, SoftKeyboardInput, isHardwareKey, sinkAttributes, type SoftKeyAction } from './soft-keyboard';
 
 class FakeSink {
   value = '';
@@ -171,5 +171,18 @@ describe('SoftKeyboardInput', () => {
     kb.keyup(key({ key: 'Shift', code: 'ShiftLeft', keyCode: 16 }));
     expect(got()).toEqual(['hw:ShiftLeft:down']);
     expect(sink.value).toBe(SENTINEL);
+  });
+});
+
+describe('sinkAttributes', () => {
+  it('hidden suggestions: everything the keyboards read is off, nothing that changes the keyboard itself', () => {
+    const a = sinkAttributes(true);
+    expect(a).toMatchObject({ autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', writingsuggestions: 'false' });
+    expect(a.inputmode).toBe('text'); // never none / numeric / url: those swap the keyboard
+    expect(a).not.toHaveProperty('type');
+  });
+
+  it('shown suggestions: autocorrect and predictions back on, still no capitalisation', () => {
+    expect(sinkAttributes(false)).toMatchObject({ autocorrect: 'on', spellcheck: 'true', writingsuggestions: 'true', autocapitalize: 'off' });
   });
 });

@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'Fullscreen unavailable',
     'hide_hidden_files' => 'Hide hidden files',
     'hide_keyboard' => 'Hide keyboard',
+    'hide_suggestions' => 'Hide keyboard suggestions (more room; turns autocorrect off)',
     'hold_alt_for_clicks_and' => 'Hold Alt for clicks and keys',
     'hold_ctrl_for_clicks_and' => 'Hold Ctrl for clicks and keys',
     'home' => 'home',

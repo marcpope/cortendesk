@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'Plein écran indisponible',
     'hide_hidden_files' => 'Masquer les fichiers cachés',
     'hide_keyboard' => 'Masquer le clavier',
+    'hide_suggestions' => 'Masquer les suggestions du clavier (plus de place ; sans correction automatique)',
     'hold_alt_for_clicks_and' => 'Maintenir Alt pour les clics et touches',
     'hold_ctrl_for_clicks_and' => 'Maintenir Ctrl pour les clics et touches',
     'home' => 'dossier personnel',

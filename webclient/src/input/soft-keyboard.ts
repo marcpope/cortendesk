@@ -25,6 +25,33 @@ import { diffText } from './text-diff';
 
 export type SoftKey = 'Backspace' | 'Enter' | 'Delete' | 'Tab';
 
+/**
+ * Attributes for the hidden field. With suggestions hidden (the default)
+ * the keyboard is asked for no autocorrect, no capitalisation, no spell
+ * check, no word suggestions and no inline predictions, which is what saves
+ * height where the platform allows it:
+ *
+ * - Android Chrome passes these to the keyboard as input-type flags (no
+ *   suggestions, no auto-correct). Whether the suggestion strip actually
+ *   goes away is the keyboard's choice: Gboard keeps a toolbar row of the
+ *   same height; others drop the row.
+ * - iOS / iPadOS WebKit maps them to UIKit's autocorrection / spell
+ *   checking / inline-prediction traits; with autocorrection off the
+ *   QuickType bar shows no word predictions.
+ *
+ * None of this changes which keyboard or language is used, so Dhivehi and
+ * other IMEs keep working. `type="password"` would hide more, but it forces
+ * Latin-only keyboards and calls up password managers, so it is not used.
+ * Showing suggestions turns autocorrect and predictions back on (handy for
+ * long text); the diff engine handles the corrections either way.
+ */
+export function sinkAttributes(hideSuggestions: boolean): Record<string, string> {
+  const common = { autocomplete: 'off', autocapitalize: 'off', inputmode: 'text', enterkeyhint: 'enter' };
+  return hideSuggestions
+    ? { ...common, autocorrect: 'off', spellcheck: 'false', writingsuggestions: 'false' }
+    : { ...common, autocorrect: 'on', spellcheck: 'true', writingsuggestions: 'true' };
+}
+
 export type SoftKeyAction =
   | { k: 'text'; text: string }
   | { k: 'key'; key: SoftKey; ctrl?: boolean }

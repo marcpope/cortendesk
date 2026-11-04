@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'Pełny ekran niedostępny',
     'hide_hidden_files' => 'Ukryj ukryte pliki',
     'hide_keyboard' => 'Ukryj klawiaturę',
+    'hide_suggestions' => 'Ukryj podpowiedzi klawiatury (więcej miejsca; bez autokorekty)',
     'hold_alt_for_clicks_and' => 'Przytrzymaj Alt dla kliknięć i klawiszy',
     'hold_ctrl_for_clicks_and' => 'Przytrzymaj Ctrl dla kliknięć i klawiszy',
     'home' => 'katalog domowy',

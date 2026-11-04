@@ -37,7 +37,7 @@ import {
   type KeyHandler,
   type KeyTarget,
 } from '../input/mouse-keyboard';
-import { SoftKeyboardInput, type SoftKeyAction, type SoftKey } from '../input/soft-keyboard';
+import { SoftKeyboardInput, sinkAttributes, type SoftKeyAction, type SoftKey } from '../input/soft-keyboard';
 import { trackVisualViewport, type ViewportState } from './viewport';
 import { ExtraKeysBar } from './extra-keys-bar';
 import { haptic, setHapticsEnabled } from './haptics';
@@ -1748,6 +1748,7 @@ export class RdApp {
       barPortrait: loadPrefs().barPortrait,
       barLandscape: loadPrefs().barLandscape,
       compactKeyboard: loadPrefs().compactKeyboard,
+      hideSuggestions: loadPrefs().hideSuggestions,
     };
   }
 
@@ -1841,11 +1842,7 @@ export class RdApp {
   private setupSoftKeyboard(): void {
     const sink = document.createElement('textarea');
     sink.id = 'rd-kbd-sink';
-    sink.setAttribute('autocapitalize', 'off');
-    sink.setAttribute('autocomplete', 'off');
-    sink.setAttribute('autocorrect', 'off');
-    sink.setAttribute('spellcheck', 'false');
-    sink.setAttribute('enterkeyhint', 'enter');
+    for (const [k, v] of Object.entries(sinkAttributes(loadPrefs().hideSuggestions))) sink.setAttribute(k, v);
     sink.setAttribute('aria-label', tl('on_screen_keyboard'));
     sink.tabIndex = -1;
     this.el.root.appendChild(sink);
@@ -1909,6 +1906,16 @@ export class RdApp {
   private hideKeyboards(): void {
     if (this.ckbd?.shown) this.showCompactKeyboard(false);
     if (this.softKeyboardFocused()) this.kbdSink.blur();
+  }
+
+  /** More sheet option. The keyboard reads the attributes when the field gains focus: refocus it. */
+  private setHideSuggestions(hide: boolean): void {
+    this.rememberPrefs({ hideSuggestions: hide });
+    for (const [k, v] of Object.entries(sinkAttributes(hide))) this.kbdSink.setAttribute(k, v);
+    if (this.softKeyboardFocused()) {
+      this.kbdSink.blur();
+      this.focusSoftKeyboard();
+    }
   }
 
   private focusSoftKeyboard(): void {
@@ -2198,6 +2205,7 @@ export class RdApp {
           .join('') +
         '</div><div class="rd-pop-sep"></div>' +
         this.menuItem('pointer', tl('pointer'), this.inputMode === 'pointer', 'opt:pointer') +
+        this.menuItem(null, tl('hide_suggestions'), prefs.hideSuggestions, 'opt:suggestions') +
         this.menuItem(null, tl('compact_keyboard_landscape'), prefs.compactKeyboard, 'opt:compactKbd') +
         ('vibrate' in navigator ? this.menuItem(null, tl('vibrate_on_touch_actions'), prefs.haptics, 'opt:haptics') : '') +
         '<div class="rd-pop-sep"></div>' +
@@ -2212,6 +2220,7 @@ export class RdApp {
         fullscreen: () => void this.toggleFullscreen(),
         swap: () => this.swapBarSide(),
         'opt:pointer': () => this.chooseInputMode(this.inputMode === 'pointer' ? 'touch' : 'pointer'),
+        'opt:suggestions': () => this.setHideSuggestions(!loadPrefs().hideSuggestions),
         'opt:compactKbd': () => {
           const on = !loadPrefs().compactKeyboard;
           this.rememberPrefs({ compactKeyboard: on });

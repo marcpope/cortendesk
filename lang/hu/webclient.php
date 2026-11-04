@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'A teljes képernyő nem érhető el',
     'hide_hidden_files' => 'Rejtett fájlok elrejtése',
     'hide_keyboard' => 'Billentyűzet elrejtése',
+    'hide_suggestions' => 'Billentyűzet-javaslatok elrejtése (több hely; automatikus javítás ki)',
     'hold_alt_for_clicks_and' => 'Alt nyomva tartása kattintásokhoz és billentyűkhöz',
     'hold_ctrl_for_clicks_and' => 'Ctrl nyomva tartása kattintásokhoz és billentyűkhöz',
     'home' => 'saját könyvtár',

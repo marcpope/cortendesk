@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'Tela cheia indisponível',
     'hide_hidden_files' => 'Ocultar arquivos ocultos',
     'hide_keyboard' => 'Ocultar teclado',
+    'hide_suggestions' => 'Ocultar sugestões do teclado (mais espaço; sem correção automática)',
     'hold_alt_for_clicks_and' => 'Segure Alt para cliques e teclas',
     'hold_ctrl_for_clicks_and' => 'Segure Ctrl para cliques e teclas',
     'home' => 'pasta pessoal',

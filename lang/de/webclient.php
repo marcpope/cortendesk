@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'Vollbild nicht verfügbar',
     'hide_hidden_files' => 'Versteckte Dateien ausblenden',
     'hide_keyboard' => 'Tastatur ausblenden',
+    'hide_suggestions' => 'Tastaturvorschläge ausblenden (mehr Platz; Autokorrektur aus)',
     'hold_alt_for_clicks_and' => 'Alt für Klicks und Tasten gedrückt halten',
     'hold_ctrl_for_clicks_and' => 'Strg für Klicks und Tasten gedrückt halten',
     'home' => 'Home',

@@ -150,6 +150,7 @@ return [
     'fullscreen_unavailable' => 'Полноэкранный режим недоступен',
     'hide_hidden_files' => 'Скрыть скрытые файлы',
     'hide_keyboard' => 'Скрыть клавиатуру',
+    'hide_suggestions' => 'Скрыть подсказки клавиатуры (больше места; без автоисправления)',
     'hold_alt_for_clicks_and' => 'Удерживать Alt для щелчков и клавиш',
     'hold_ctrl_for_clicks_and' => 'Удерживать Ctrl для щелчков и клавиш',
     'home' => 'домашняя папка',
