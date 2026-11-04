@@ -1,0 +1,25 @@
+<?php
+
+return [
+    '1_point_client_at_this' => '1. Pripojte klienta k tejto konzole',
+    '2_confirm_first_heartbeat' => '2. Potvrďte prvé hlásenie zariadenia',
+    '3_recommended_security' => '3. Odporúčané zabezpečenie',
+    'administrator_2fa' => '2FA správcu',
+    'and_enter_your_id_server' => 'a zadajte server ID, sprostredkujúci server, kľúč a API server.',
+    'complete_server_settings' => 'Dokončiť nastavenia servera',
+    'copy_them_from_client_setup' => 'Skopírovať z nastavenia klienta',
+    'device_approval' => 'Schvaľovanie zariadení',
+    'device_has_checked_in' => 'Zariadenie sa prihlásilo.',
+    'do_this_later' => 'Urobiť neskôr',
+    'finish_setup' => 'Dokončiť nastavenie',
+    'first' => 'najskôr.',
+    'first_run_setup' => 'Nastavte prvé zariadenie RustDesk',
+    'hold_new_devices_for_review' => 'Skontrolujte nové zariadenia skôr, než sa zobrazia medzi ostatnými.',
+    'in_rustdesk_open' => 'V RustDesk otvorte',
+    'one_or_more_of_those' => 'Jedna alebo viac hodnôt ešte nie je nastavených.',
+    'protect_console_access_with_authenticato' => 'Chráňte prístup ku konzole autentifikátorom a obnovovacími kódmi.',
+    'review_security_settings' => 'Skontrolovať nastavenia zabezpečenia',
+    'set_up_your_first_rustdesk' => 'Nastavte prvé zariadenie RustDesk',
+    'two_steps_configure_client_then' => 'Dva kroky: nastavte klienta a potom potvrďte, že sa pripojil.',
+    'waiting_for_device_to_check' => 'Čaká sa na prihlásenie zariadenia. Stránka kontroluje stav každých 10 sekúnd.',
+];

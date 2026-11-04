@@ -30,7 +30,7 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - **Dashboard** — live stat tiles, active sessions, 14-day connection charts, platform and version breakdowns.
 - **Importer** — one artisan command migrates everything (users with passwords intact, devices, address books, audit history) from a `lejianwen/rustdesk-api` database.
 - **Mobile-first** — every screen works on a phone; wide tables degrade to card lists. Dark and light themes.
-- **11 languages** — English, Deutsch, Español, Français, Italiano, Magyar, Nederlands, Polski, Português (Brasil), Русский and 简体中文, including emails and the web client. Each user picks their own; without a choice the console follows the browser.
+- **12 languages** — English, Deutsch, Español, Français, Italiano, Magyar, Nederlands, Polski, Português (Brasil), Русский, Slovenčina and 简体中文, including emails and the web client. Each user picks their own; without a choice the console follows the browser.
 
 **Client API**
 - Implements the RustDesk client HTTP API: login/tokens, heartbeat and sysinfo presence, address books, group tab, audit ingestion. Point stock RustDesk clients at CortenDesk as their **API Server** — no client patches needed.
