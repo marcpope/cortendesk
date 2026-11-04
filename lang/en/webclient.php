@@ -388,4 +388,8 @@ return [
     'windows_key' => 'Windows key',
     'wrong_2fa_code' => 'Wrong 2FA code',
     'wrong_password' => 'Wrong password',
+    'share_help' => 'You have been invited to this screen. The person at the device accepts the connection. Press the arrow to connect again.',
+    'share_refused' => 'The device did not let you in. Ask the person at the device to accept the connection.',
+    'share_waiting_long' => 'Still not accepted. If nobody sees a request on the device, it probably only accepts passwords: in RustDesk, under Settings → Security, allow accepting sessions by click.',
+    'share_ended' => 'This share link has ended.',
 ];

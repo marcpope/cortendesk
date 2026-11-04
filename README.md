@@ -35,6 +35,9 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 **Client API**
 - Implements the RustDesk client HTTP API: login/tokens, heartbeat and sysinfo presence, address books, group tab, audit ingestion. Point stock RustDesk clients at CortenDesk as their **API Server** — no client patches needed.
 
+**Share links**
+- Send someone a secret link to one device. It opens the web client in their browser: no account, no RustDesk. The person at the device accepts the connection in RustDesk's own accept window. You choose how many people may connect at once and how long the link works (15 minutes to 7 days); ending a link disconnects open share pages within half a minute. See [docs/share-links.md](docs/share-links.md).
+
 **Native web client**
 - A from-scratch TypeScript implementation of the RustDesk wire protocol (rendezvous → relay → NaCl handshake → login), running entirely in the browser over WebSocket relays. Not a WASM port — readable, auditable source.
 - **WebRTC** — to devices running RustDesk 1.5 or later, the web client also offers a WebRTC connection and goes straight to the device when it can, with the relay as fallback. A TURN server of your own (coturn works) gets it through mobile and carrier NAT.

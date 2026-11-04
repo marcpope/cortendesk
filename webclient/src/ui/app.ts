@@ -65,6 +65,7 @@ import {
   setLoggedOutParam,
   type IconName,
   type RdGlobalConfig,
+  type ShareInfo,
 } from './common';
 import { FilePanel } from './file-panel';
 import { TerminalPanel } from './terminal-panel';
@@ -203,6 +204,8 @@ export class RdApp {
   private connectedWithSavedHash = false; // this attempt used a stored hash
   private connectedWithAddressBook = false; // this attempt signed in with an address-book password
   private addressBookRefused = false; // the device refused it: ask for the password instead
+  private shareEnded = false; // share page: the console ended the link
+  private shareWaitTimer: ReturnType<typeof setTimeout> | undefined; // share page: hint after a long wait
   private sessionHashHex: string | undefined; // h1 of the live session — lets the file panel log in silently
   /** Peer-advertised permissions for THIS session; absent means granted. */
   private permissions: Record<string, boolean> = {};
@@ -291,7 +294,9 @@ export class RdApp {
 
     this.fixedPeerId =
       normalizePeerId(this.cfg?.peerId ?? '') || peerIdFromSearch(location.search) || '';
-    if (this.fixedPeerId) {
+    if (this.share) {
+      this.applyShareMode(this.share);
+    } else if (this.fixedPeerId) {
       this.el.fieldId.hidden = true;
       this.el.overlayTarget.hidden = false;
       this.el.overlayPeer.textContent = this.fixedPeerId;
@@ -315,8 +320,10 @@ export class RdApp {
 
     // Saved password (or an address-book password) + fixed peer -> sign
     // straight in. Skipped when ?lo=1 (the user logged out on purpose) so the
-    // connect screen stays put.
-    if (
+    // connect screen stays put. Share links always connect at once.
+    if (this.share) {
+      if (!this.secureContextProblem()) this.onConnectClick();
+    } else if (
       this.fixedPeerId &&
       !loggedOutFromSearch(location.search) &&
       (loadSavedHash(this.fixedPeerId) || addressBookReady(this.cfg, this.fixedPeerId))
@@ -599,6 +606,90 @@ export class RdApp {
       this.post({ c: 'disconnect' });
       this.setState('closed');
     });
+  }
+
+  /** Share-link page: present when opened from a share link. */
+  private get share(): ShareInfo | undefined {
+    return this.cfg?.share ?? undefined;
+  }
+
+  /**
+   * Share-link page: no ID or password to type, and the device's name instead
+   * of its ID. The viewer signs in with an empty password, so the device
+   * opens its accept window; what the viewer may do is decided there.
+   */
+  private applyShareMode(share: ShareInfo): void {
+    this.el.overlayTarget.hidden = false;
+    this.el.overlayPeer.textContent = share.deviceName || share.label;
+    this.el.peerLabel.textContent = share.deviceName || share.label;
+    this.voiceCallSupported = false;
+    this.syncShareCard();
+    this.startSharePing(share);
+  }
+
+  /**
+   * Keep the console's viewer slot while the page is open. When the link
+   * ends (revoked, expired) the console answers 410 and the page disconnects.
+   */
+  private startSharePing(share: ShareInfo): void {
+    const post = (url: string, keepalive = false): Promise<Response> =>
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': share.csrfToken },
+        body: JSON.stringify({ token: share.token, session: share.session }),
+      });
+    const timer = setInterval(() => {
+      post(share.pingUrl)
+        .then((r) => {
+          if (r.status !== 410) return;
+          clearInterval(timer);
+          this.endShare();
+        })
+        .catch(() => undefined); // a missed ping is retried; the slot lapses on its own
+    }, Math.max(5, share.pingSeconds) * 1000);
+    window.addEventListener('pagehide', () => {
+      if (!this.shareEnded) void post(share.endUrl, true).catch(() => undefined);
+    });
+  }
+
+  private endShare(): void {
+    this.shareEnded = true;
+    this.clearRestartFlow();
+    this.endVoiceCall(true);
+    this.releaseRemoteSecurityState();
+    this.destroyAdvancedPanels();
+    this.post({ c: 'disconnect' });
+    this.setState('closed', tl('share_ended'));
+  }
+
+  /**
+   * A device set to password-only answers an empty password exactly like one
+   * that is showing its accept window: with silence. So after a while the
+   * share page says what may be wrong instead of waiting without a word.
+   */
+  private watchShareWait(state: SessionState): void {
+    if (!this.share) return;
+    if (state !== 'needAccept') {
+      clearTimeout(this.shareWaitTimer);
+      this.shareWaitTimer = undefined;
+      return;
+    }
+    if (this.shareWaitTimer) return;
+    this.shareWaitTimer = setTimeout(() => {
+      if (this.state === 'needAccept') this.setOverlayError(tl('share_waiting_long'));
+    }, 45_000);
+  }
+
+  /** The connect card never asks a share viewer for an ID or password. */
+  private syncShareCard(): void {
+    if (!this.share) return;
+    this.el.fieldId.hidden = true;
+    this.el.passwordRow.hidden = true;
+    this.el.saveRow.hidden = true;
+    const help = this.el.overlay.querySelector<HTMLElement>('.rd-help');
+    if (help) help.textContent = tl('share_help');
   }
 
   private toggleViewOnly(): void {
@@ -1698,6 +1789,7 @@ export class RdApp {
 
   private hideTwoFactor(): void {
     if (this.el) showTwoFactor(this.el, false, !!this.fixedPeerId);
+    this.syncShareCard();
   }
 
   // --- session lifecycle -----------------------------------------------------
@@ -1747,6 +1839,10 @@ export class RdApp {
 
   private onConnectClick(): void {
     if (this.worker && this.state !== 'error' && this.state !== 'closed') return;
+    if (this.shareEnded) {
+      this.setOverlayError(tl('share_ended'));
+      return;
+    }
     const peerId = normalizePeerId(this.el.peerIdInput.value || this.fixedPeerId);
     if (!peerId) {
       this.setOverlayError(tl('enter_device_id'));
@@ -1937,8 +2033,9 @@ export class RdApp {
       isTouchMode: () => this.inputMode === 'touch',
       keyboardTarget: () => this.keyboardTarget(),
     });
-    this.el.peerLabel.textContent = this.peerId;
-    this.el.statDevice.textContent = this.peerId;
+    const shown = this.share ? this.share.deviceName || this.share.label : this.peerId;
+    this.el.peerLabel.textContent = shown;
+    this.el.statDevice.textContent = shown;
     this.el.statTransport.textContent = '—';
     this.resetPermissions();
     this.setState('connecting');
@@ -2090,7 +2187,7 @@ export class RdApp {
         if (!canUseRemoteCursor(this.peerPlatform, this.displays[this.current])) {
           this.el.remoteCursor.hidden = true;
         }
-        this.el.peerLabel.textContent = this.peerWho || this.peerId;
+        this.el.peerLabel.textContent = this.peerWho || (this.share ? this.share.deviceName || this.share.label : this.peerId);
         this.refreshPeerSub();
         this.el.statVersion.textContent = ev.version || '—';
         this.el.statUser.textContent = this.peerWho || '—';
@@ -2235,6 +2332,8 @@ export class RdApp {
           this.el.passwordInput.placeholder = tl('enter_password');
           loginMessage = `${tl('address_book_password_refused')} (${loginMessage})`;
         }
+        // A share viewer has no password to try: only the person at the device can let them in.
+        if (this.share) loginMessage = `${tl('share_refused')} (${ev.message || tl('login_failed')})`;
         this.showOverlay();
         this.setOverlayBusy(false);
         this.setOverlayError(loginMessage);
@@ -2266,6 +2365,7 @@ export class RdApp {
 
   private setState(state: SessionState, detail?: string): void {
     this.state = state;
+    this.watchShareWait(state);
     this.renderVoiceCall();
     this.el.root.dataset.state = state;
     this.refreshPeerSub();
@@ -2313,13 +2413,15 @@ export class RdApp {
         this.closePop();
         this.showOverlay();
         this.setOverlayBusy(false);
-        this.setOverlayStatusText(tl('disconnected'));
+        // A share viewer is told why (the link ended).
+        this.setOverlayStatusText(this.share && detail ? detail : tl('disconnected'));
         break;
       default:
         this.showOverlay();
         this.setOverlayBusy(true);
         this.setOverlayStatusText(STATE_LABEL[state] + (detail ? ` — ${detail}` : '') + '…');
     }
+    this.syncShareCard();
   }
 
   private onStats(s: SessionStats): void {

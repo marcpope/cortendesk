@@ -388,4 +388,8 @@ return [
     'windows_key' => 'Windows-toets',
     'wrong_2fa_code' => 'Onjuiste 2FA-code',
     'wrong_password' => 'Onjuist wachtwoord',
+    'share_help' => 'Je bent uitgenodigd voor dit scherm. Wie bij het apparaat zit, accepteert de verbinding. Druk op de pijl om opnieuw te verbinden.',
+    'share_refused' => 'Het apparaat heeft je niet toegelaten. Vraag wie bij het apparaat zit de verbinding te accepteren.',
+    'share_waiting_long' => 'Nog steeds niet geaccepteerd. Ziet niemand een verzoek op het apparaat, dan accepteert het waarschijnlijk alleen wachtwoorden: zet in RustDesk onder Instellingen → Beveiliging accepteren via klik aan.',
+    'share_ended' => 'Deze deellink is beëindigd.',
 ];

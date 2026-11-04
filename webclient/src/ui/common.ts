@@ -20,12 +20,26 @@ export type RdGlobalConfig = {
   workerUrl?: string;
   /** RustDesk 1.5 WebRTC: present when the console allows it; iceServers in the client option's format, "" for the defaults. */
   webrtc?: { iceServers: string } | null;
+  /** Share-link page (share.blade.php): the console's viewer slot for this page. */
+  share?: ShareInfo;
   /**
    * Sign-in with a password from an address book the user can read; null when
    * the console has it off. `available`: the page's own device has an entry,
    * so the page may connect without asking.
    */
   addressBook?: { url: string; csrfToken: string; available: boolean } | null;
+};
+
+export type ShareInfo = {
+  token: string;
+  session: string;
+  label: string;
+  deviceName: string;
+  expiresAt: number;
+  pingSeconds: number;
+  pingUrl: string;
+  endUrl: string;
+  csrfToken: string;
 };
 
 export const QUALITY = { best: 4, balanced: 3, speed: 2 } as const; // ImageQuality enum values

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Support\Label;
 use App\Models\ClientToken;
 use App\Models\Device;
+use App\Models\DeviceShare;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -116,7 +117,22 @@ class ServerLink
             return '';
         }
 
-        $signed = 'cdw1.'.(time() + self::TICKET_TTL_SECONDS).'.web-'.$user->id;
+        return self::ticket('web-'.$user->id, time() + self::TICKET_TTL_SECONDS);
+    }
+
+    /** The same ticket for a share link's viewer, good until the link expires. */
+    public static function shareTicket(DeviceShare $share): string
+    {
+        if (! self::configured()) {
+            return '';
+        }
+
+        return self::ticket('share-'.$share->id, $share->expires_at->getTimestamp());
+    }
+
+    private static function ticket(string $subject, int $expiresAt): string
+    {
+        $signed = 'cdw1.'.$expiresAt.'.'.$subject;
 
         return $signed.'.'.hash_hmac('sha256', $signed, self::secret());
     }

@@ -359,6 +359,10 @@
                                            title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line me-1"></i>{{ __('devices.terminal') }}</a>
                                     @endunless
                                 @endif
+                                @if (config('cortendesk.share_links') && $device->canBeControlled() && auth()->user()?->consoleAllows('device', 'rw'))
+                                    <a href="{{ route('devices.show', $device->id) }}?share=1#share" class="rd-act me-2"
+                                       title="{{ __('shares.share_button') }}"><i class="ri-share-forward-line me-1"></i>{{ __('shares.share_button') }}</a>
+                                @endif
                                 @if (config('cortendesk.webclient_url') && $device->canBeControlled())
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"
                                        target="cortendesk-webclient" rel="noopener" class="rd-act me-2"
@@ -464,6 +468,10 @@
                                            target="cortendesk-terminal" rel="noopener" class="rd-iconbtn"
                                            title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line"></i></a>
                                     @endunless
+                                @endif
+                                @if (config('cortendesk.share_links') && $device->canBeControlled() && auth()->user()?->consoleAllows('device', 'rw'))
+                                    <a href="{{ route('devices.show', $device->id) }}?share=1#share" class="rd-iconbtn"
+                                       title="{{ __('shares.share_button') }}"><i class="ri-share-forward-line"></i></a>
                                 @endif
                                 @if (config('cortendesk.webclient_url') && $device->canBeControlled())
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"
