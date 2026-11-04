@@ -207,6 +207,32 @@ export function stickyTextCommands(text: string, mods: readonly Mod[], target: K
   return out;
 }
 
+/**
+ * Text as real key presses (Map-mode scancodes, US layout), for screens
+ * where Windows may ignore Unicode input: the sign-in / lock screen and UAC
+ * prompts on the secure desktop. `seq` is typed with KEYEVENTF_UNICODE
+ * (VK_PACKET); a scancode is what a physical keyboard sends. Characters
+ * with no US key (Thaana, emoji, accents) cannot be typed this way and are
+ * skipped and counted.
+ */
+export function textAsKeyPresses(text: string, target: KeyTarget): { cmds: UiCommand[]; skipped: number } {
+  const cmds: UiCommand[] = [];
+  let skipped = 0;
+  for (const ch of text.replace(/\r\n?/g, '\n')) {
+    if (ch === '\n' || ch === '\t') {
+      cmds.push(...keyComboCommands(ch === '\n' ? { code: 'Enter', key: 'Enter' } : { code: 'Tab', key: 'Tab' }, [], target));
+      continue;
+    }
+    const hit = charToKey(ch);
+    if (!hit) {
+      skipped++;
+      continue;
+    }
+    cmds.push(...keyComboCommands(hit.key, hit.shift ? ['shift'] : [], target));
+  }
+  return { cmds, skipped };
+}
+
 export type LatchState = 'off' | 'once' | 'locked';
 
 /**

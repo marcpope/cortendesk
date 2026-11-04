@@ -47,7 +47,7 @@ import { MobileBar, barSide, fullscreenButtonMode, currentOrientation, swappedPr
 import { TrackpadMapper } from '../input/touch-trackpad';
 import type { TouchOutput } from '../input/touch-direct';
 import type { Pt } from '../input/gesture';
-import { keyComboCommands, modControlKeys, stickyTextCommands } from '../input/extra-keys';
+import { keyComboCommands, modControlKeys, stickyTextCommands, textAsKeyPresses } from '../input/extra-keys';
 import { readLocalClipboardText } from '../input/clipboard-cursor';
 import {
   BackNotification_BlockInputState,
@@ -351,6 +351,15 @@ export class RdApp {
   private viewBeforeReconnect: View | undefined;
   /** The on-screen keyboard was open when the connection dropped. */
   private keyboardBeforeReconnect = false;
+  /**
+   * Type as key presses instead of Unicode text (sign-in / lock screen, UAC):
+   * on by the user (More sheet, or the offer after a reconnect), or while the
+   * host reports a UAC prompt (only portable, non-elevated hosts send that).
+   */
+  private typeAsKeys = false;
+  private hostUac = false;
+  private keysChip!: HTMLElement;
+  private keysChipTimer: ReturnType<typeof setTimeout> | undefined;
   /** The user pressed Disconnect: whatever ends the session now is not a drop. */
   private userClosing = false;
   /** Last touched point on the remote screen (fraction of the image), kept in view when a keyboard opens. */
@@ -368,6 +377,7 @@ export class RdApp {
     this.renderOverlay();
     this.setupSoftKeyboard();
     this.setupExtraKeys();
+    this.setupKeysChip();
     if (coarsePointer()) {
       this.setupMobileBar();
       trackVisualViewport(this.el.root, (s) => this.onViewportChange(s));
@@ -1826,7 +1836,9 @@ export class RdApp {
           const text = ta.value;
           if (!text) return;
           const latched = this.latchCtrl || this.latchAlt;
-          for (const cmd of latched ? buildKeyPressCommands(text) : buildTypeCommands(text)) this.post(cmd);
+          if (latched) for (const cmd of buildKeyPressCommands(text)) this.post(cmd);
+          else if (this.typeAsKeys || this.hostUac) this.postText(text);
+          else for (const cmd of buildTypeCommands(text)) this.post(cmd);
           this.toast(tn('typed_chars', text.length));
           this.closePop();
         });
@@ -1963,10 +1975,68 @@ export class RdApp {
           // Latched Ctrl/Alt turn letters into shortcuts: those need keys, not text.
           for (const cmd of buildKeyPressCommands(a.text)) this.post(cmd);
         } else {
-          this.post({ c: 'text', text: a.text });
+          this.postText(a.text);
         }
         return;
       }
+    }
+  }
+
+  /** Typed text: as `seq`, or as real key presses while that mode is on. */
+  private postText(text: string): void {
+    const target = mapKeyboardTarget(this.peerPlatform, this.peerVersion);
+    if (!(this.typeAsKeys || this.hostUac) || !target) {
+      this.post({ c: 'text', text });
+      return;
+    }
+    const { cmds, skipped } = textAsKeyPresses(text, target);
+    for (const cmd of cmds) this.post(cmd);
+    if (skipped) this.toast(tl('characters_not_typed_as_keys', { count: skipped }));
+  }
+
+  // --- typing as key presses (sign-in screen, UAC) ------------------------------
+
+  private setupKeysChip(): void {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.id = 'rd-keys-chip';
+    chip.className = 'rd-stream-only';
+    chip.hidden = true;
+    chip.addEventListener('pointerdown', (e) => e.preventDefault()); // keep the keyboard open
+    chip.addEventListener('click', () => {
+      if (chip.dataset.kind === 'offer') this.setTypeAsKeys(true);
+      else if (this.typeAsKeys) this.setTypeAsKeys(false);
+      else this.syncKeysChip();
+    });
+    this.el.viewport.appendChild(chip);
+    this.keysChip = chip;
+  }
+
+  private setTypeAsKeys(on: boolean): void {
+    this.typeAsKeys = on;
+    clearTimeout(this.keysChipTimer);
+    this.syncKeysChip();
+  }
+
+  /** Active: "typing as key presses" (tap to stop). */
+  private syncKeysChip(offer = false): void {
+    const chip = this.keysChip;
+    if (!chip) return;
+    const active = this.typeAsKeys || this.hostUac;
+    if (active) {
+      chip.dataset.kind = 'active';
+      chip.textContent = this.hostUac && !this.typeAsKeys ? tl('secure_screen_typing_as_keys') : tl('typing_as_key_presses');
+      chip.hidden = false;
+    } else if (offer) {
+      chip.dataset.kind = 'offer';
+      chip.textContent = tl('signing_in_type_as_keys');
+      chip.hidden = false;
+      clearTimeout(this.keysChipTimer);
+      this.keysChipTimer = setTimeout(() => {
+        if (this.keysChip.dataset.kind === 'offer') this.keysChip.hidden = true;
+      }, 20_000);
+    } else {
+      chip.hidden = true;
     }
   }
 
@@ -2232,6 +2302,7 @@ export class RdApp {
           .join('') +
         '</div><div class="rd-pop-sep"></div>' +
         this.menuItem('pointer', tl('pointer'), this.inputMode === 'pointer', 'opt:pointer') +
+        this.menuItem(null, tl('type_as_key_presses'), this.typeAsKeys, 'opt:typeKeys') +
         this.menuItem(null, tl('hide_suggestions'), prefs.hideSuggestions, 'opt:suggestions') +
         this.menuItem(null, tl('compact_keyboard_landscape'), prefs.compactKeyboard, 'opt:compactKbd') +
         ('vibrate' in navigator ? this.menuItem(null, tl('vibrate_on_touch_actions'), prefs.haptics, 'opt:haptics') : '') +
@@ -2248,6 +2319,7 @@ export class RdApp {
         swap: () => this.swapBarSide(),
         'opt:pointer': () => this.chooseInputMode(this.inputMode === 'pointer' ? 'touch' : 'pointer'),
         'opt:suggestions': () => this.setHideSuggestions(!loadPrefs().hideSuggestions),
+        'opt:typeKeys': () => this.setTypeAsKeys(!this.typeAsKeys),
         'opt:compactKbd': () => {
           const on = !loadPrefs().compactKeyboard;
           this.rememberPrefs({ compactKeyboard: on });
@@ -2525,6 +2597,7 @@ export class RdApp {
 
   private startSession(config: SessionConfig): void {
     this.userClosing = false;
+    this.hostUac = false;
     this.teardown();
     // Retain only the challenge-independent password hash for reconnects. The
     // typed plaintext is transferred to the worker and never kept in UI state.
@@ -2982,6 +3055,9 @@ export class RdApp {
         if (this.reconnectConfig) this.reconnectConfig.savedHashHex = ev.hashHex;
         break;
       case 'uac':
+        // Phones and tablets only: desktop typing (physical keys) is unchanged.
+        this.hostUac = ev.on && coarsePointer();
+        this.syncKeysChip();
         if (ev.on) {
           this.toast(tl('uac_prompt_is_open_on'), true);
         } else {
@@ -3060,6 +3136,7 @@ export class RdApp {
           this.el.reconnectCancel.hidden = true;
           clearTimeout(flow.stableTimer);
           this.toast(tl('reconnected'));
+          if (coarsePointer() && !this.typeAsKeys) this.syncKeysChip(true);
           if (this.keyboardBeforeReconnect) this.kbdSink.focus({ preventScroll: true });
           flow.stableTimer = setTimeout(() => {
             if (this.restartFlow === flow && this.state === 'streaming') this.clearRestartFlow();

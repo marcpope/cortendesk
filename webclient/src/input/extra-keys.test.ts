@@ -8,6 +8,7 @@ import {
   keyComboCommands,
   modControlKeys,
   stickyTextCommands,
+  textAsKeyPresses,
   xkeyCommands,
   type XKey,
 } from './extra-keys';
@@ -157,5 +158,25 @@ describe('ModifierLatches', () => {
 
   it('mouse modifiers for sticky keys', () => {
     expect(modControlKeys(['ctrl', 'shift'])).toEqual([ControlKey.Control, ControlKey.Shift]);
+  });
+});
+
+describe('text as key presses (secure desktop)', () => {
+  it('US scancodes, Shift around capitals and shifted symbols, Enter for a new line', () => {
+    const { cmds, skipped } = textAsKeyPresses('aB!\n', 'windows');
+    expect(skipped).toBe(0);
+    expect(keys(cmds)).toEqual([
+      ['map', 0x1e, 'down', []], ['map', 0x1e, 'up', []],
+      ['map', 0x2a, 'down', []], ['map', 0x30, 'down', []], ['map', 0x30, 'up', []], ['map', 0x2a, 'up', []],
+      ['map', 0x2a, 'down', []], ['map', 0x02, 'down', []], ['map', 0x02, 'up', []], ['map', 0x2a, 'up', []],
+      ['map', 0x1c, 'down', []], ['map', 0x1c, 'up', []],
+    ]);
+    expect(cmds.every((c) => c.c === 'key' && c.keyKind === 'map')).toBe(true); // never seq
+  });
+
+  it('characters with no US key are skipped and counted', () => {
+    const { cmds, skipped } = textAsKeyPresses('pass ދ👍', 'windows');
+    expect(skipped).toBe(2);
+    expect(cmds.filter((c) => c.c === 'key' && c.down).length).toBe(5); // p a s s space
   });
 });

@@ -765,6 +765,33 @@
   min-height: 44px;
 }
 
+/* "Typing as key presses" chip (sign-in screen / UAC), top centre of the remote screen. */
+#rd-keys-chip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 23;
+  max-width: calc(100% - 24px);
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--rd-accent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--rd-surface) 92%, transparent);
+  color: var(--rd-fg);
+  font: inherit;
+  font-size: 12.5px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#rd-keys-chip[hidden] {
+  display: none;
+}
+#rd-keys-chip[data-kind='offer'] {
+  border-color: var(--rd-border);
+}
+
 /* Hide-keyboard key: only while a keyboard is open. */
 .rd-xk-hide {
   display: none;
