@@ -87,8 +87,8 @@ further configuration.
 **Desktop clients over port 443.** RustDesk 1.4.9 and newer can run entirely
 over WebSocket, for networks that block the 2111x ports. Set the client's ID
 server to the console's hostname (no port), its API server to
-`https://<that host>`, and turn on `allow-websocket` (by hand, or pushed with a
-strategy). It then connects to `wss://<host>/ws/id` and `/ws/relay` through
+`https://<that host>`, and turn on `allow-websocket` (Use WebSocket, in the
+client's network settings; strategies can't push it). It then connects to `wss://<host>/ws/id` and `/ws/relay` through
 the same proxy as the web client. Those sessions always go through the relay.
 
 **Bringing your own server.** Point CortenDesk at `hbbs`/`hbbr` you already run:
