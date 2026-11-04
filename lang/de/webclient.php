@@ -8,6 +8,8 @@ return [
     'add_files' => 'Dateien hinzufügen…',
     'add_files_stage' => 'Dateien vormerken',
     'add_virtual_display' => 'Virtuellen Bildschirm hinzufügen',
+    'address_book_password_ready' => 'Passwort aus dem Adressbuch – zum Ersetzen eingeben',
+    'address_book_password_refused' => 'Das Passwort aus dem Adressbuch hat nicht funktioniert. Geben Sie das Passwort ein.',
     'apply_all_files_in_this' => 'Auf alle Dateien in dieser Übertragung anwenden',
     'are_you_sure' => 'Sind Sie sicher?',
     'ask_remote_windows_user_approve' => 'Den entfernten Windows-Benutzer bitten, die Rechteerhöhung zu genehmigen?',

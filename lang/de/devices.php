@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => 'Im Papierkorb',
     'incoming_and_outgoing' => 'Eingehend und ausgehend',
     'incoming_only' => 'Nur eingehend',
+    'ios_cannot_be_controlled' => 'RustDesk unter iOS kann Sitzungen starten, aber nicht ferngesteuert werden.',
+    'outgoing_only' => 'Nur ausgehend',
     'inherit_owner_group_or_default' => 'Erben (Besitzer, Gruppe oder Standard)',
     'it_is_already_in_every' => 'Es ist bereits in jedem Adressbuch, das Sie bearbeiten können.',
     'it_is_in_no_address' => 'Es ist in keinem Adressbuch.',

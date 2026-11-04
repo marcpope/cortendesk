@@ -90,6 +90,9 @@ export interface SessionSinks {
   webrtcClose?(): void; // WebRTC lost the race or failed: close the peer connection
   selectTransport?(t: 'relay' | 'webrtc'): void; // where sendRelay() goes from now on
   closeRelay?(): void; // WebRTC is secured; the raced relay is no longer needed
+  // Address-book sign-in: h1 (hex) for this device's salt from the console, or
+  // null when there is none. Only wired when config.addressBook is set.
+  addressBookHash?(salt: string): Promise<string | null>;
 }
 
 /** An offer made by the page before start(): its envelope and session key. */
@@ -646,6 +649,18 @@ export class Session {
           const h1 = await computeLoginH1(plaintextPassword, u.hash.salt);
           this.sinks.emit({ t: 'credentials', hashHex: bytesToHex(h1) });
           passwordHash = await loginHashFromH1(h1, u.hash.challenge);
+        } else if (this.config.addressBook && this.sinks.addressBookHash) {
+          // The console turns the device's salt into h1 from an address book
+          // entry; the password itself never reaches the browser. No entry,
+          // or no answer: fall through to the empty password, as before.
+          const h1Hex = await this.sinks.addressBookHash(u.hash.salt).catch(() => null);
+          if (this.state === 'error' || this.state === 'closed') return;
+          if (h1Hex && /^[0-9a-f]{64}$/i.test(h1Hex)) {
+            this.sinks.emit({ t: 'credentials', hashHex: h1Hex.toLowerCase(), fromAddressBook: true });
+            passwordHash = await loginHashFromH1(hexToBytes(h1Hex), u.hash.challenge);
+          } else {
+            passwordHash = new Uint8Array(0);
+          }
         } else {
           passwordHash = new Uint8Array(0); // empty password -> interactive accept
         }

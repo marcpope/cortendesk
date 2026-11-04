@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\SerializesUsers;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\RequireTwoFactor;
 use App\Mail\LoginVerificationCode;
@@ -223,6 +224,13 @@ class ClientAuthController extends Controller
             return response()->json(['error' => 'Too many attempts. Try again in '.RateLimiter::availableIn($throttleKey).' seconds.']);
         }
 
+        // One code budget per account across the console and the client,
+        // whatever the address (AuthController::MAX_CODES_PER_USER).
+        $userKey = AuthController::codeUserKey($user);
+        if (RateLimiter::tooManyAttempts($userKey, AuthController::MAX_CODES_PER_USER)) {
+            return response()->json(['error' => 'Too many attempts. Try again in '.RateLimiter::availableIn($userKey).' seconds.']);
+        }
+
         // Flutter sends the TOTP in both fields, the email code in
         // verificationCode only; Sciter sends an empty tfaCode.
         $code = preg_replace('/\D/', '', (string) ($request->input('tfaCode') ?: $request->input('verificationCode', ''))) ?? '';
@@ -234,6 +242,7 @@ class ClientAuthController extends Controller
 
         if ($error !== null) {
             RateLimiter::hit($throttleKey, self::DECAY);
+            RateLimiter::hit($userKey, AuthController::CODE_DECAY);
             $this->log($request, $user->username, null, false, 'wrong verification code');
 
             // A prompt takes a few wrong codes in total, whatever the rate.
@@ -252,6 +261,7 @@ class ClientAuthController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
+        RateLimiter::clear($userKey);
 
         return $this->signIn($request, $user);
     }

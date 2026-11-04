@@ -290,7 +290,7 @@ class DeviceDetail extends Component
             'deleteState' => $this->deleteConfirmState(),
             'twins' => $this->twins($device),
             'connections' => $canAudit
-                ? AuditConnection::where('rustdesk_id', $device->rustdesk_id)->with('noteUser')->latest()->limit(10)->get()
+                ? AuditConnection::where('rustdesk_id', $device->rustdesk_id)->with(['noteUser', 'relaySession'])->latest()->limit(10)->get()
                 : collect(),
             'transfers' => $canAudit
                 ? AuditFileTransfer::where('rustdesk_id', $device->rustdesk_id)->latest()->limit(10)->get()

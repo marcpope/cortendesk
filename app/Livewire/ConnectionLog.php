@@ -29,6 +29,10 @@ class ConnectionLog extends Component
     #[Url(except: '')]
     public string $dateTo = '';
 
+    /** relay, direct, lan, unknown, or '' for all (issue #130). */
+    #[Url(except: '')]
+    public string $path = '';
+
     public int $perPage = 20;
 
     /**
@@ -56,6 +60,11 @@ class ConnectionLog extends Component
         $this->resetPage();
     }
 
+    public function updatedPath(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatedPerPage(): void
     {
         $this->resetPage();
@@ -63,7 +72,7 @@ class ConnectionLog extends Component
 
     public function resetFilters(): void
     {
-        $this->reset('search', 'dateFrom', 'dateTo');
+        $this->reset('search', 'dateFrom', 'dateTo', 'path');
         $this->resetPage();
     }
 
@@ -88,17 +97,18 @@ class ConnectionLog extends Component
             })
             ->when($this->dateFrom !== '', fn (Builder $q) => $q->whereDate('created_at', '>=', $this->dateFrom))
             ->when($this->dateTo !== '', fn (Builder $q) => $q->whereDate('created_at', '<=', $this->dateTo))
+            ->when($this->path !== '', fn (Builder $q) => AuditConnection::whereTransport($q, $this->path))
             ->orderByDesc('created_at')
             ->orderByDesc('id');
     }
 
     public function export(): StreamedResponse
     {
-        $rows = $this->query()->with('noteUser')->limit(10000)->get();
+        $rows = $this->query()->with(['noteUser', 'relaySession'])->limit(10000)->get();
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['When', 'Controlled Device', 'From ID', 'From Name', 'Type', 'IP', 'Closed At', 'Duration (s)', 'Note', 'Note By']);
+            fputcsv($out, ['When', 'Controlled Device', 'From ID', 'From Name', 'Type', 'Path', 'Relayed Bytes', 'IP', 'Closed At', 'Duration (s)', 'Note', 'Note By']);
             foreach ($rows as $row) {
                 fputcsv($out, Csv::row([
                     $row->created_at?->toDateTimeString(),
@@ -106,6 +116,8 @@ class ConnectionLog extends Component
                     $row->from_peer,
                     $row->from_name,
                     AuditConnection::englishTypeLabel((int) $row->conn_type),
+                    $row->transport() ?? '',
+                    $row->relaySession?->bytes ?? '',
                     $row->ip,
                     $row->closed_at?->toDateTimeString() ?? 'active',
                     $row->closed_at ? $row->created_at->diffInSeconds($row->closed_at) : '',
@@ -120,7 +132,7 @@ class ConnectionLog extends Component
     public function render()
     {
         return view('livewire.connection-log', [
-            'connections' => $this->query()->with('noteUser')->paginate($this->perPage),
+            'connections' => $this->query()->with(['noteUser', 'relaySession'])->paginate($this->perPage),
         ]);
     }
 }

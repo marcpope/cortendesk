@@ -73,6 +73,14 @@ if [ -n "${CORTENDESK_LOG_LEVEL:-}" ]; then
     fi
 fi
 
+# --- /data ownership ----------------------------------------------------------
+# A named volume starts out with the image's ownership (www-data). A host
+# folder mounted at /data does not: Docker creates it root-owned. SQLite keeps
+# its journal beside the database, so every write then failed with "attempt to
+# write a readonly database" and login returned a 500 (issue #131).
+mkdir -p /data
+chown www-data:www-data /data
+
 # --- the embedded ID server and relay ----------------------------------------
 # hbbs and hbbr run in this container by default. Set
 # CORTENDESK_EMBEDDED_SERVER=false to leave them out and point the console at
@@ -167,6 +175,9 @@ if [ "$EMBEDDED" = 1 ]; then
     export RUSTDESK_RELAY_ADVERTISED="$CORTENDESK_RELAY_SERVER"
     # The ws bridge is a loopback hop now, not a network one.
     export RUSTDESK_WS_HOST="${RUSTDESK_WS_HOST:-127.0.0.1}"
+    # Whose X-Forwarded-For hbbs and hbbr believe for a WebSocket client: this
+    # container's nginx. Add your proxy if it reaches 21118/21119 directly.
+    export CORTENDESK_WS_TRUSTED_PROXIES="${CORTENDESK_WS_TRUSTED_PROXIES:-127.0.0.1/32}"
 
     cp /etc/cortendesk/rustdesk-server.conf /etc/supervisor.d/rustdesk-server.conf
 
@@ -300,7 +311,13 @@ fi
 
 # --- database ----------------------------------------------------------------
 if [ "${DB_CONNECTION:-sqlite}" = "sqlite" ]; then
-    [ -f "$DB_DATABASE" ] || { touch "$DB_DATABASE" && chown www-data:www-data "$DB_DATABASE"; }
+    [ -f "$DB_DATABASE" ] || touch "$DB_DATABASE"
+    # Every boot, not just the first: a database copied into a host folder
+    # arrives owned by whoever copied it. The journal files may not exist.
+    chown www-data:www-data "$DB_DATABASE"
+    for _f in "$DB_DATABASE-journal" "$DB_DATABASE-wal" "$DB_DATABASE-shm"; do
+        if [ -e "$_f" ]; then chown www-data:www-data "$_f"; fi
+    done
 fi
 
 # Wait for an external database to accept connections (MySQL etc.).

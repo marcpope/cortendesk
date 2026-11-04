@@ -99,14 +99,16 @@ Route::middleware('auth:client')->group(function () {
 |--------------------------------------------------------------------------
 | Server link (CortenDesk Server 1.1.0+)
 |--------------------------------------------------------------------------
-| Called by hbbs, not by clients: it pulls the device policy and reports LAN
-| addresses. Bearer = CORTENDESK_SERVER_SECRET. Spec: docs/server-link.md.
+| Called by hbbs and hbbr, not by clients: hbbs pulls the device policy and
+| reports LAN addresses, hbbr reports the sessions it relays.
+| Bearer = CORTENDESK_SERVER_SECRET. Spec: docs/server-link.md.
 */
 Route::middleware([VerifyServerSecret::class, 'throttle:600,1,server-link'])
     ->prefix('server')
     ->group(function () {
         Route::get('/policy', [ServerLinkController::class, 'policy']);
         Route::post('/local-addrs', [ServerLinkController::class, 'localAddrs']);
+        Route::post('/relay-sessions', [ServerLinkController::class, 'relaySessions']);
     });
 
 /*

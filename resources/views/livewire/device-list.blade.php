@@ -47,7 +47,7 @@
             <div class="rd-toolbar-search">
                 <div class="input-group">
                     <span class="input-group-text"><i class="ri-search-line"></i></span>
-                    <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control" placeholder="{{ __('devices.search_id_alias_hostname_user') }}"
+                    <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control" placeholder="{{ \App\Support\SearchHint::placeholder(__('devices.search_id_alias_hostname_user')) }}"
                            wire:model.live.debounce.300ms="search">
                 </div>
             </div>
@@ -247,6 +247,8 @@
                             <x-platform-icon :platform="$device->platform()" class="me-1"/>
                             @if ($trashed)
                                 <span class="fw-semibold">{{ $device->rustdesk_id }}</span>
+                            @elseif (! $device->canBeControlled())
+                                <span class="fw-semibold" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ $device->rustdesk_id }}</span>
                             @else
                                 <a href="{{ \App\Support\ClientLink::to($device->rustdesk_id) }}" class="fw-semibold"
                                    title="{{ __('common.connect_with_rustdesk') }}">{{ $device->rustdesk_id }}</a>
@@ -344,7 +346,9 @@
                                      takes a colour. Two full-colour ordinary actions
                                      side by side read louder than Edit and make this
                                      the only cell in the console with four colours. --}}
-                                @if (config('cortendesk.native_webclient'))
+                                @if (! $device->canBeControlled())
+                                    <span class="text-muted fs-12 me-2" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ __('devices.outgoing_only') }}</span>
+                                @elseif (config('cortendesk.native_webclient'))
                                     <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}"
                                        target="cortendesk-webclient" rel="noopener" class="rd-act me-2"
                                        title="{{ __('devices.connect_in_browser_native_client') }}"><i class="ri-remote-control-line me-1"></i>{{ __('devices.connect') }}</a>
@@ -355,7 +359,7 @@
                                            title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line me-1"></i>{{ __('devices.terminal') }}</a>
                                     @endunless
                                 @endif
-                                @if (config('cortendesk.webclient_url'))
+                                @if (config('cortendesk.webclient_url') && $device->canBeControlled())
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"
                                        target="cortendesk-webclient" rel="noopener" class="rd-act me-2"
                                        title="{{ __('devices.connect_in_browser') }}">{{ __('common.web_client') }}</a>
@@ -404,6 +408,8 @@
                             <div class="min-width-0">
                                 @if ($trashed)
                                     <span class="rd-mini-title text-truncate">{{ $device->rustdesk_id }}</span>
+                                @elseif (! $device->canBeControlled())
+                                    <span class="rd-mini-title text-truncate" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ $device->rustdesk_id }}</span>
                                 @else
                                     <a href="{{ \App\Support\ClientLink::to($device->rustdesk_id) }}" class="rd-mini-title text-truncate"
                                        title="{{ __('common.connect_with_rustdesk') }}">{{ $device->rustdesk_id }}</a>
@@ -449,7 +455,7 @@
                                        wire:confirm="{{ __('devices.permanently_delete_device_id', ['id' => $device->rustdesk_id]) }}"><i class="ri-close-circle-line"></i></a>
                                 @endif
                             @else
-                                @if (config('cortendesk.native_webclient'))
+                                @if (config('cortendesk.native_webclient') && $device->canBeControlled())
                                     <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}"
                                        target="cortendesk-webclient" rel="noopener" class="rd-iconbtn"
                                        title="{{ __('devices.connect_in_browser_native_client') }}"><i class="ri-remote-control-line"></i></a>
@@ -459,7 +465,7 @@
                                            title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line"></i></a>
                                     @endunless
                                 @endif
-                                @if (config('cortendesk.webclient_url'))
+                                @if (config('cortendesk.webclient_url') && $device->canBeControlled())
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"
                                        target="cortendesk-webclient" rel="noopener" class="rd-iconbtn"
                                        title="{{ __('devices.connect_in_browser') }}"><i class="ri-global-line"></i></a>

@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => 'In the recycle bin',
     'incoming_and_outgoing' => 'Incoming and outgoing',
     'incoming_only' => 'Incoming only',
+    'ios_cannot_be_controlled' => 'RustDesk on iOS can start sessions but cannot be controlled.',
+    'outgoing_only' => 'Outgoing only',
     'inherit_owner_group_or_default' => 'Inherit (owner, group, or default)',
     'it_is_already_in_every' => 'It is already in every book you can edit.',
     'it_is_in_no_address' => 'It is in no address book.',

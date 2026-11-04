@@ -6,12 +6,19 @@
             <div class="rd-toolbar-search">
                 <div class="input-group">
                     <span class="input-group-text"><i class="ri-search-line"></i></span>
-                    <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control" placeholder="{{ __('logs.search_device_id_from_ip') }}"
+                    <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control" placeholder="{{ \App\Support\SearchHint::placeholder(__('logs.search_device_id_from_ip')) }}"
                            wire:model.live.debounce.300ms="search">
                 </div>
             </div>
             <input type="date" class="form-control rd-toolbar-filter" wire:model.live="dateFrom" aria-label="{{ __('logs.from_date') }}">
             <input type="date" class="form-control rd-toolbar-filter" wire:model.live="dateTo" aria-label="{{ __('logs.to_date') }}">
+            <select class="form-select rd-toolbar-filter" wire:model.live="path" aria-label="{{ __('logs.conn_path') }}">
+                <option value="">{{ __('logs.all_paths') }}</option>
+                <option value="relay">{{ __('logs.path_relay') }}</option>
+                <option value="direct">{{ __('logs.path_direct') }}</option>
+                <option value="lan">{{ __('logs.path_lan') }}</option>
+                <option value="unknown">{{ __('logs.path_unknown') }}</option>
+            </select>
             <select class="form-select rd-toolbar-narrow" wire:model.live="perPage" aria-label="{{ __('logs.rows_per_page') }}">
                 <option value="20">20</option>
                 <option value="50">50</option>
@@ -34,6 +41,7 @@
                     <th>{{ __('logs.controlled_device') }}</th>
                     <th>{{ __('common.from') }}</th>
                     <th>{{ __('common.type') }}</th>
+                    <th>{{ __('logs.conn_path') }}</th>
                     <th>{{ __('common.ip') }}</th>
                     <th>{{ __('logs.duration') }}</th>
                     <th>{{ __('common.note') }}</th>
@@ -59,6 +67,7 @@
                                 <span class="badge bg-primary-subtle text-primary"><i class="{{ \App\Models\AuditConnection::typeIcon((int) $conn->conn_type) }} me-1"></i>{{ \App\Models\AuditConnection::typeLabel((int) $conn->conn_type) }}</span>
                             @endif
                         </td>
+                        <td><x-conn-path :conn="$conn"/></td>
                         <td class="rd-mono">{{ $conn->ip ?: '—' }}</td>
                         <td>
                             @if ($conn->closed_at)
@@ -82,7 +91,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="rd-empty-cell">
+                        <td colspan="8" class="rd-empty-cell">
                             <div class="rd-empty">
                                 <div class="rd-empty-icon"><i class="ri-remote-control-line"></i></div>
                                 <p class="rd-empty-title">{{ __('logs.no_connections_match_your_filters') }}</p>
@@ -123,6 +132,7 @@
                         @else
                             <span class="badge bg-primary-subtle text-primary">{{ \App\Models\AuditConnection::typeLabel((int) $conn->conn_type) }}</span>
                         @endif
+                        <x-conn-path :conn="$conn" hide-unknown/>
                         <span class="rd-mini-sub text-end">
                             {{ $conn->ip ?: '—' }} · {{ $conn->created_at?->diffForHumans(short: true) }}
                         </span>

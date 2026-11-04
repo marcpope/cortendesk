@@ -47,6 +47,36 @@
                 </div>
                 <div class="card-body">
                     <div id="chart-connections" style="min-height: 300px;"></div>
+                    @if ($pathMix)
+                        @php
+                            $pathTotal = array_sum($pathMix);
+                            $pathTones = ['relay' => 'rd-tone-amber', 'direct' => 'rd-tone-green', 'lan' => 'rd-tone-blue', 'unknown' => 'rd-tone-muted'];
+                        @endphp
+                        {{-- How those sessions got through (issue #130). --}}
+                        <div class="rd-pathmix">
+                            <div class="rd-pathmix-head">
+                                <span class="rd-card-sub">{{ __('overview.how_sessions_connected') }}</span>
+                                <a href="{{ route('logs.connections', ['path' => 'relay']) }}" class="fs-13">{{ __('overview.relayed_sessions') }}</a>
+                            </div>
+                            <div class="rd-split" role="img" aria-label="{{ __('overview.how_sessions_connected') }}">
+                                @foreach ($pathMix as $key => $count)
+                                    @if ($count > 0)
+                                        <span class="rd-split-part {{ $pathTones[$key] }}" style="width: {{ round($count / $pathTotal * 100, 1) }}%"></span>
+                                    @endif
+                                @endforeach
+                            </div>
+                            <ul class="rd-legend rd-legend-inline">
+                                @foreach ($pathMix as $key => $count)
+                                    <li class="rd-legend-item {{ $pathTones[$key] }}">
+                                        <span class="rd-legend-swatch"></span>
+                                        <span class="rd-legend-label">{{ __('logs.path_'.$key) }}</span>
+                                        <span class="rd-legend-count">{{ $count }}</span>
+                                        <span class="rd-legend-pct">{{ round($count / $pathTotal * 100) }}%</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

@@ -15,6 +15,7 @@ use App\Services\AppriseNotifications;
 use App\Services\DeviceEnrollment;
 use App\Services\MailSettings;
 use App\Services\OidcService;
+use App\Services\RelayLimits;
 use App\Services\ServerLink;
 use App\Support\ClientLink;
 use App\Support\IceServers;
@@ -77,6 +78,18 @@ class SettingsPage extends Component
 
     /** @var array<int, array{address: string, geo: string}> */
     public array $relayServers = [];
+
+    /** Bandwidth limits of the bundled relay (#128), in Mb/s, minutes and percent. */
+    public array $relayLimits = RelayLimits::DEFAULTS;
+
+    /** What the running relay reports; null when it does not answer. */
+    public ?array $relayLive = null;
+
+    /** Saved limits differ from what the relay runs (it was restored, or edited by hand). */
+    public bool $relayLimitsDrift = false;
+
+    /** Outcome of the last relay save: '', 'applied' or 'pending'. */
+    public string $relayLimitsResult = '';
 
     // ---- Single sign-on (PLAN D3) ----------------------------------------
 
@@ -272,11 +285,56 @@ class SettingsPage extends Component
             $this->appriseScopeDevices[$suffix] = json_decode((string) Setting::get('apprise_scope_devices_'.$suffix, '[]'), true) ?: [];
         }
 
+        $this->loadRelayLimits();
+
         $stored = json_decode(Setting::get('relay_servers', '') ?: '[]', true);
         $this->relayServers = is_array($stored) ? array_values(array_map(fn ($r) => [
             'address' => (string) ($r['address'] ?? ''),
             'geo' => (string) ($r['geo'] ?? ''),
         ], $stored)) : [];
+    }
+
+    private function loadRelayLimits(): void
+    {
+        if (! RelayLimits::available()) {
+            return;
+        }
+        $limits = app(RelayLimits::class);
+        $saved = $limits->saved();
+        $this->relayLive = $limits->live();
+        $this->relayLimits = $saved ?? $this->relayLive ?? RelayLimits::DEFAULTS;
+        $this->relayLimitsDrift = $saved !== null && $this->relayLive !== null && $saved != $this->relayLive;
+    }
+
+    public function saveRelayLimits(): void
+    {
+        $this->authorizeConsole('setting', 'rw');
+        if (! RelayLimits::available()) {
+            return;
+        }
+
+        $this->tab = 'server';
+        $this->validate(collect(RelayLimits::RULES)->mapWithKeys(fn ($rule, $field) => ['relayLimits.'.$field => $rule])->all());
+
+        $applied = app(RelayLimits::class)->save($this->relayLimits);
+        $l = RelayLimits::normalize($this->relayLimits);
+        ConsoleAudit::record('settings.relay-limits', sprintf(
+            'Relay limits set to %d Mb/s per session, %d Mb/s total, %s',
+            $l['single'], $l['total'],
+            $l['slowDown'] ? sprintf('%d Mb/s after %d min above %d%%', $l['slowTo'], $l['slowAfter'], $l['slowAbove']) : 'no slowdown',
+        ), 'settings', null);
+
+        $this->loadRelayLimits();
+        $this->relayLimitsResult = $applied ? 'applied' : 'pending';
+    }
+
+    /** Fill the form with hbbr's built-in values; nothing changes until Save. */
+    public function resetRelayLimits(): void
+    {
+        $this->authorizeConsole('setting', 'rw');
+
+        $this->relayLimits = RelayLimits::DEFAULTS;
+        $this->resetValidation();
     }
 
     /** Append a blank relay row for the operator to fill in. */
@@ -716,6 +774,7 @@ class SettingsPage extends Component
         return view('livewire.settings-page', [
             'apiUrl' => rtrim(config('app.url'), '/'),
             'serverLink' => ServerLink::status(),
+            'relayLimitsAvailable' => RelayLimits::available(),
             'userGroups' => UserGroup::query()->orderBy('name')->get(['id', 'name']),
             'oidcCallbackUrl' => route('login.oidc.callback'),
             // Sign-in from the RustDesk client returns here; the provider must

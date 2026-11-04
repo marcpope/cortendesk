@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Support\AuditLogStream;
 use App\Support\Label;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
-#[Fillable(['action', 'conn_id', 'rustdesk_id', 'from_peer', 'from_name', 'ip', 'session_id', 'conn_type', 'uuid', 'closed_at', 'guid', 'note', 'note_user_id', 'noted_at'])]
+#[Fillable(['action', 'conn_id', 'rustdesk_id', 'from_peer', 'from_name', 'ip', 'session_id', 'conn_type', 'path', 'uuid', 'closed_at', 'guid', 'note', 'note_user_id', 'noted_at'])]
 class AuditConnection extends Model
 {
     /** Longest end-of-session note kept. The Flutter client caps its field at 256. */
@@ -23,6 +25,54 @@ class AuditConnection extends Model
         static::creating(function (AuditConnection $row) {
             $row->guid ??= (string) Str::uuid();
         });
+    }
+
+    /** The relay session that carried this connection, if one did (issue #130). */
+    public function relaySession(): BelongsTo
+    {
+        return $this->belongsTo(RelaySession::class);
+    }
+
+    /**
+     * How the connection got through: relay, lan, direct, direct-webrtc
+     * (direct or WebRTC; hbbs offered both and only the controller knows
+     * which won), or null when nothing says. Relay is proven by our relay's
+     * own report; the rest comes from hbbs's tag, which 1.5+ devices echo.
+     */
+    public function transport(): ?string
+    {
+        if ($this->relay_session_id !== null) {
+            return 'relay';
+        }
+
+        return match ($this->path) {
+            'relay' => 'relay',
+            'lan' => 'lan',
+            'punch' => 'direct',
+            'punch-webrtc' => 'direct-webrtc',
+            default => null,
+        };
+    }
+
+    /**
+     * The same decision as transport(), in SQL, folded to the four the
+     * screens filter and count by: relay, direct, lan, unknown.
+     */
+    public const TRANSPORT_SQL = "CASE WHEN relay_session_id IS NOT NULL OR path = 'relay' THEN 'relay'"
+        ." WHEN path = 'lan' THEN 'lan'"
+        ." WHEN path IN ('punch', 'punch-webrtc') THEN 'direct'"
+        ." ELSE 'unknown' END";
+
+    /** Narrow a query to one of relay, direct, lan, unknown. */
+    public static function whereTransport(Builder $query, string $transport): Builder
+    {
+        return match ($transport) {
+            'relay' => $query->where(fn (Builder $q) => $q->whereNotNull('relay_session_id')->orWhere('path', 'relay')),
+            'lan' => $query->whereNull('relay_session_id')->where('path', 'lan'),
+            'direct' => $query->whereNull('relay_session_id')->whereIn('path', ['punch', 'punch-webrtc']),
+            'unknown' => $query->whereNull('relay_session_id')->whereNull('path'),
+            default => $query,
+        };
     }
 
     /** Who wrote the note; null for the tokenless in-session note. */
@@ -141,12 +191,11 @@ class AuditConnection extends Model
      */
     public static function reconcileFor(string $rustdeskId, array $liveConnIds): int
     {
-        return static::query()
+        return self::closeInBulk(static::query()
             ->where('rustdesk_id', $rustdeskId)
             ->whereNull('closed_at')
             ->where('created_at', '<', now()->subSeconds(self::RECONCILE_GRACE_SECONDS))
-            ->when($liveConnIds !== [], fn ($q) => $q->whereNotIn('conn_id', $liveConnIds))
-            ->update(['action' => 'close', 'closed_at' => now()]);
+            ->when($liveConnIds !== [], fn ($q) => $q->whereNotIn('conn_id', $liveConnIds)), 'reconciled');
     }
 
     /**
@@ -177,11 +226,37 @@ class AuditConnection extends Model
             ->where('last_online_at', '>=', $cutoff)
             ->pluck('rustdesk_id');
 
-        return static::query()
+        return self::closeInBulk(static::query()
             ->whereNull('closed_at')
             ->where('created_at', '<', $cutoff)
-            ->whereNotIn('rustdesk_id', $heartbeating)
-            ->update(['action' => 'close', 'closed_at' => now()]);
+            ->whereNotIn('rustdesk_id', $heartbeating), 'stale');
+    }
+
+    /**
+     * Close every session $query selects. A bulk update fires no model
+     * events, so with the audit log stream on the rows are read first and
+     * their closes written from here; with it off this stays one UPDATE.
+     */
+    private static function closeInBulk(Builder $query, string $reason): int
+    {
+        $close = ['action' => 'close', 'closed_at' => now()];
+
+        if (! AuditLogStream::enabled()) {
+            return $query->update($close);
+        }
+
+        $rows = $query->get();
+        if ($rows->isEmpty()) {
+            return 0;
+        }
+
+        $closed = static::query()->whereKey($rows->modelKeys())->whereNull('closed_at')->update($close);
+
+        foreach ($rows as $row) {
+            AuditLogStream::connection($row->forceFill($close), $reason);
+        }
+
+        return $closed;
     }
 
     /** Is an operator waiting for this session to close? */

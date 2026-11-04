@@ -8,6 +8,8 @@ return [
     'add_files' => 'Adicionar arquivos…',
     'add_files_stage' => 'Adicionar arquivos à fila',
     'add_virtual_display' => 'Adicionar tela virtual',
+    'address_book_password_ready' => 'Senha da lista de endereços — digite para substituir',
+    'address_book_password_refused' => 'A senha da lista de endereços não funcionou. Digite a senha.',
     'apply_all_files_in_this' => 'Aplicar a todos os arquivos desta transferência',
     'are_you_sure' => 'Tem certeza?',
     'ask_remote_windows_user_approve' => 'Pedir ao usuário remoto do Windows que aprove a elevação?',

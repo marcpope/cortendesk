@@ -39,6 +39,7 @@ class DashboardController extends Controller
             'range' => $range,
             'ranges' => self::RANGES,
             'connectionSeries' => $canAudit ? $this->connectionSeries($visibleIds, $range) : null,
+            'pathMix' => $canAudit ? $this->pathMix($visibleIds, $range) : null,
             'platformMix' => $this->platformMix($user),
             'versionCounts' => $this->versionCounts($user),
             // Alarm detail is an audit screen; the count tile is fleet-level but
@@ -93,6 +94,34 @@ class DashboardController extends Controller
                 ['name' => __('labels.misc_platform_other'), 'data' => $other],
             ],
         ];
+    }
+
+    /**
+     * How the sessions in the window got through (issue #130): relay, direct,
+     * lan, unknown. Only sessions that logged in count; the attempts that lost
+     * the race to them do not. null until any session has a known path, so
+     * the panel stays away on servers that do not report it.
+     *
+     * @param  array<int,string>|null  $visibleIds  null = all devices (admin)
+     * @return array<string,int>|null
+     */
+    private function pathMix(?array $visibleIds, int $days): ?array
+    {
+        $counts = AuditConnection::query()
+            ->when($visibleIds !== null, fn ($q) => $q->whereIn('rustdesk_id', $visibleIds))
+            ->where('created_at', '>=', now()->subDays($days - 1)->startOfDay())
+            ->whereNotNull('from_peer')
+            ->where('from_peer', '!=', '')
+            ->selectRaw(AuditConnection::TRANSPORT_SQL.' as transport, COUNT(*) as c')
+            ->groupBy('transport')
+            ->pluck('c', 'transport');
+
+        $mix = [];
+        foreach (['relay', 'direct', 'lan', 'unknown'] as $key) {
+            $mix[$key] = (int) ($counts[$key] ?? 0);
+        }
+
+        return $mix['relay'] + $mix['direct'] + $mix['lan'] > 0 ? $mix : null;
     }
 
     /** Device platform mix: top 3 platforms + Other (max 4 donut segments). */

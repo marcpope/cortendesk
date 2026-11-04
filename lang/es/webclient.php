@@ -8,6 +8,8 @@ return [
     'add_files' => 'Añadir archivos…',
     'add_files_stage' => 'Añadir archivos a la cola',
     'add_virtual_display' => 'Añadir pantalla virtual',
+    'address_book_password_ready' => 'Contraseña del directorio: escriba para reemplazarla',
+    'address_book_password_refused' => 'La contraseña del directorio no funcionó. Introduzca la contraseña.',
     'apply_all_files_in_this' => 'Aplicar a todos los archivos de esta transferencia',
     'are_you_sure' => '¿Estás seguro?',
     'ask_remote_windows_user_approve' => '¿Pedir al usuario remoto de Windows que apruebe la elevación?',

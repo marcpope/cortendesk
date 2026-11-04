@@ -54,6 +54,17 @@ class AuthController extends Controller
     /** Throttle window, in seconds. */
     private const DECAY = 60;
 
+    /**
+     * Wrong second-step codes (TOTP, recovery, email) allowed per account
+     * from ANY address, per CODE_DECAY. The per-address limit alone let
+     * anyone who can vary the address the console sees (a private-network
+     * client, or Docker's own proxy) guess codes without limit. Reaching
+     * this step takes the password, so the lockout is not open to strangers.
+     */
+    public const MAX_CODES_PER_USER = 10;
+
+    public const CODE_DECAY = 900;
+
     /** Don't re-raise the same alarm more often than this, in seconds. */
     private const ALARM_COOLDOWN = 300;
 
@@ -232,16 +243,20 @@ class AuthController extends Controller
             ['ip' => $request->ip(), 'username' => $user->username, 'step' => 'email-verification', 'attempts' => self::MAX_PER_ACCOUNT],
         ));
 
+        $this->ensureCodeBudget($user, 'email-verification', $request);
+
         $pending = $request->session()->get('email_verify');
         $hash = (string) ($pending['code_hash'] ?? '');
 
         if ($hash === '' || ! Hash::check($code, $hash)) {
             RateLimiter::hit($throttleKey, self::DECAY);
+            RateLimiter::hit(self::codeUserKey($user), self::CODE_DECAY);
 
             return back()->withErrors(['code' => __('messages.code_incorrect_or_expired')]);
         }
 
         RateLimiter::clear($throttleKey);
+        RateLimiter::clear(self::codeUserKey($user));
 
         // Trust this browser so the next sign-in from it is uninterrupted.
         TrustedDevice::remember($user, $request);
@@ -384,6 +399,8 @@ class AuthController extends Controller
             ['ip' => $request->ip(), 'username' => $user->username, 'step' => 'two-factor', 'attempts' => self::MAX_PER_ACCOUNT],
         ));
 
+        $this->ensureCodeBudget($user, 'two-factor', $request);
+
         $pending = $request->session()->get('2fa');
         $remember = (bool) ($pending['remember'] ?? false);
 
@@ -396,11 +413,13 @@ class AuthController extends Controller
 
         if (! $result['ok']) {
             RateLimiter::hit($throttleKey, self::DECAY);
+            RateLimiter::hit(self::codeUserKey($user), self::CODE_DECAY);
 
             return back()->withErrors(['code' => $result['message']]);
         }
 
         RateLimiter::clear($throttleKey);
+        RateLimiter::clear(self::codeUserKey($user));
 
         Auth::login($user, $remember);
         $request->session()->forget('2fa');
@@ -531,6 +550,21 @@ class AuthController extends Controller
      *
      * @param  callable|null  $alarm  Raises the alarm for this limiter.
      */
+    /** Shared with the RustDesk client's code step (ClientAuthController). */
+    public static function codeUserKey(User $user): string
+    {
+        return 'code-user:'.$user->id;
+    }
+
+    /** The per-account code budget (MAX_CODES_PER_USER), whatever the address. */
+    private function ensureCodeBudget(User $user, string $step, Request $request): void
+    {
+        $this->ensureNotRateLimited(self::codeUserKey($user), 'code', self::MAX_CODES_PER_USER, fn () => AlarmLog::console(
+            AlarmLog::TYP_BRUTE_FORCE,
+            ['ip' => $request->ip(), 'username' => $user->username, 'step' => $step, 'attempts' => self::MAX_CODES_PER_USER, 'window' => self::CODE_DECAY.'s'],
+        ));
+    }
+
     private function ensureNotRateLimited(string $key, string $field, int $max = self::MAX_PER_ACCOUNT, ?callable $alarm = null): void
     {
         if (! RateLimiter::tooManyAttempts($key, $max)) {

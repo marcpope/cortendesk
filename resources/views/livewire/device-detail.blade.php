@@ -23,13 +23,18 @@
                 @if ($device->isIncomingOnly())
                     <span class="badge bg-info-subtle text-info rd-status-block" title="{{ __('devices.can_be_controlled_cannot_start') }}">{{ __('devices.incoming_only') }}</span>
                 @endif
+                @unless ($device->canBeControlled())
+                    <span class="badge bg-info-subtle text-info rd-status-block" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ __('devices.outgoing_only') }}</span>
+                @endunless
                 @unless ($device->trashed())
-                    <a href="{{ \App\Support\ClientLink::to($device->rustdesk_id) }}" class="btn btn-sm btn-outline-light"
-                       title="{{ __('common.connect_with_rustdesk') }}"><i class="ri-links-line me-1"></i>{{ __('devices.rustdesk') }}</a>
-                    @if (config('cortendesk.native_webclient'))
-                        <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}"
-                           target="cortendesk-webclient" rel="noopener" class="btn btn-sm btn-primary">
-                            <i class="ri-remote-control-line me-1"></i>{{ __('devices.connect') }}</a>
+                    @if ($device->canBeControlled())
+                        <a href="{{ \App\Support\ClientLink::to($device->rustdesk_id) }}" class="btn btn-sm btn-outline-light"
+                           title="{{ __('common.connect_with_rustdesk') }}"><i class="ri-links-line me-1"></i>{{ __('devices.rustdesk') }}</a>
+                        @if (config('cortendesk.native_webclient'))
+                            <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}"
+                               target="cortendesk-webclient" rel="noopener" class="btn btn-sm btn-primary">
+                                <i class="ri-remote-control-line me-1"></i>{{ __('devices.connect') }}</a>
+                        @endif
                     @endif
                     @if ($canEdit)
                         <button type="button" class="btn btn-sm btn-outline-light" wire:click="editDevice">
@@ -231,6 +236,7 @@
                                     @endif
                                 </dt>
                                 <dd class="text-end text-muted mb-0">
+                                    <x-conn-path :conn="$c" hide-unknown class="me-1"/>
                                     {{ $c->created_at->diffForHumans() }}
                                     @if ($c->closed_at) · {{ $c->created_at->diffAsCarbonInterval($c->closed_at)->cascade()->forHumans(short: true) }} @endif
                                 </dd>

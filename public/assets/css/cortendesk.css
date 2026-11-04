@@ -1740,6 +1740,47 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     padding-bottom: 0;
 }
 
+/* How sessions connected, under the connections chart: one stacked bar and
+   its legend in a row. Each part takes its colour from a .rd-tone-* class. */
+.rd-pathmix {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rd-border);
+}
+
+.rd-pathmix-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.rd-split {
+    display: flex;
+    gap: 2px;
+    height: 8px;
+    border-radius: var(--rd-radius-pill);
+    overflow: hidden;
+    background-color: var(--rd-surface-2);
+}
+
+.rd-split-part {
+    min-width: 3px;
+    background-color: var(--rd-tone);
+}
+
+.rd-legend-inline {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin-top: 10px;
+}
+
+.rd-legend-inline .rd-legend-count {
+    margin-left: 4px;
+}
+
 
 /* =========================================================================
    16. LIST PANEL
@@ -1813,11 +1854,18 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
    in toolbars and anywhere else (Address Book). On focus the whole outline
    takes the accent, including the magnifier's edge; otherwise the field's
    left side stays grey because that border belongs to the icon (#125). */
+/* No vertical padding: the input sets the height and the icon stretches to
+   it. With padding the icon came out 1.4px taller than a 36px toolbar input,
+   so its bottom edge stepped below the input's. */
 .input-group-text:has(> .ri-search-line) {
     background-color: var(--rd-surface-2);
     color: var(--rd-ink-dim);
+    padding-top: 0;
+    padding-bottom: 0;
     padding-right: 0;
     border-right: 0;
+    border-top-left-radius: var(--rd-radius-sm);
+    border-bottom-left-radius: var(--rd-radius-sm);
 }
 
 .input-group-text:has(> .ri-search-line) + .form-control {

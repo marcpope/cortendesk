@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => 'В корзине',
     'incoming_and_outgoing' => 'Входящие и исходящие',
     'incoming_only' => 'Только входящие',
+    'ios_cannot_be_controlled' => 'RustDesk на iOS может начинать сеансы, но не может быть под управлением.',
+    'outgoing_only' => 'Только исходящие',
     'inherit_owner_group_or_default' => 'Наследовать (владелец, группа или по умолчанию)',
     'it_is_already_in_every' => 'Оно уже есть во всех книгах, которые вы можете изменять.',
     'it_is_in_no_address' => 'Его нет ни в одной адресной книге.',

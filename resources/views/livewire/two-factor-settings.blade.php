@@ -4,6 +4,8 @@
             <h4 class="header-title">{{ __('common.two_factor_authentication') }}</h4>
             @if ($enabled)
                 <span class="badge bg-success-subtle text-success"><i class="rd-dot"></i>{{ __('common.enabled') }}</span>
+            @elseif ($ssoOnly)
+                <span class="badge bg-success-subtle text-success">{{ __('account.two_factor_badge_sso') }}</span>
             @else
                 <span class="badge bg-secondary-subtle text-secondary">{{ __('common.disabled') }}</span>
             @endif
@@ -42,7 +44,14 @@
                 </div>
             @endif
 
-            @if ($enabled)
+            @if ($enabled && $ssoOnly)
+                {{-- Turned on before 1.19 (issue #129): nothing asks for the code,
+                     and there is no password to confirm turning it off with. --}}
+                <div class="alert alert-success py-2 fs-13"><i class="ri-shield-check-line me-1"></i>{{ __('account.two_factor_handled_by_sso') }}</div>
+                <button type="button" class="btn btn-outline-light" wire:click="disable">
+                    <i class="ri-shield-cross-line me-1"></i>{{ __('account.disable_2fa') }}
+                </button>
+            @elseif ($enabled)
                 {{-- Enabled state: status + recovery count + disable/regenerate --}}
                 @if (empty($recoveryCodes))
                     <p class="text-muted mb-3">
@@ -108,10 +117,15 @@
                     </div>
                 </div>
 
+            @elseif ($ssoOnly)
+                {{-- Signs in only through the identity provider (issue #129). --}}
+                <div class="alert alert-success py-2 fs-13 mb-0"><i class="ri-shield-check-line me-1"></i>{{ __('account.two_factor_handled_by_sso') }}</div>
             @else
                 {{-- Off, not yet setting up --}}
                 <p class="text-muted">{{ __('account.add_second_step_to_your') }}</p>
-                @if ($required)
+                @if ($required && $ssoSession)
+                    <div class="alert alert-info py-2 fs-13"><i class="ri-information-line me-1"></i>{{ __('account.two_factor_required_for_password') }}</div>
+                @elseif ($required)
                     <div class="alert alert-warning py-2 fs-13"><i class="ri-error-warning-line me-1"></i>{{ __('account.two_factor_authentication_is_required') }}</div>
                 @endif
                 <button type="button" class="btn btn-primary" wire:click="startSetup">

@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => 'W koszu',
     'incoming_and_outgoing' => 'Przychodzące i wychodzące',
     'incoming_only' => 'Tylko przychodzące',
+    'ios_cannot_be_controlled' => 'RustDesk na iOS może rozpoczynać sesje, ale nie można nim sterować.',
+    'outgoing_only' => 'Tylko wychodzące',
     'inherit_owner_group_or_default' => 'Dziedzicz (właściciel, grupa lub domyślna)',
     'it_is_already_in_every' => 'Jest już w każdej książce, którą możesz edytować.',
     'it_is_in_no_address' => 'Nie ma go w żadnej książce adresowej.',

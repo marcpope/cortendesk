@@ -8,6 +8,8 @@ return [
     'add_files' => 'Dodaj pliki…',
     'add_files_stage' => 'Dodaj pliki do przygotowania',
     'add_virtual_display' => 'Dodaj wirtualny ekran',
+    'address_book_password_ready' => 'Hasło z książki adresowej — wpisz, aby zastąpić',
+    'address_book_password_refused' => 'Hasło z książki adresowej nie zadziałało. Wpisz hasło.',
     'apply_all_files_in_this' => 'Zastosuj do wszystkich plików w tym transferze',
     'are_you_sure' => 'Czy na pewno?',
     'ask_remote_windows_user_approve' => 'Poprosić zdalnego użytkownika Windows o zatwierdzenie podniesienia uprawnień?',

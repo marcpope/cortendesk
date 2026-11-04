@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Services\ServerLink;
+use App\Services\WebClientAddressBookPassword;
 use App\Support\IceServers;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -35,9 +36,20 @@ class WebClientPageController extends Controller
             (array) trans('webclient'),
         );
 
+        $peerId = (string) $request->query('id', '');
+
+        // Address-book sign-in (WebClientAddressBookPassword): the page learns
+        // only where to ask and whether this device has a usable entry, so it
+        // can connect without a prompt. The password stays on the server.
+        $addressBook = WebClientAddressBookPassword::enabled() ? [
+            'url' => route('webclient.address-book-password', [], false),
+            'csrfToken' => csrf_token(),
+            'available' => WebClientAddressBookPassword::entryFor($user, (string) preg_replace('/\s+/', '', $peerId)) !== null,
+        ] : null;
+
         return view('webclient', [
             'messages' => $messages,
-            'peerId' => (string) $request->query('id', ''),
+            'peerId' => $peerId,
             'serverKeyB64' => Setting::server('public_key'),
             'wsIdUrl' => $wsIdUrl,
             'wsRelayUrl' => $wsRelayUrl,
@@ -48,6 +60,7 @@ class WebClientPageController extends Controller
             'signalToken' => ServerLink::webTicket($user),
             // RustDesk 1.5 WebRTC: null when the console has it off.
             'webrtc' => IceServers::forWebClient(),
+            'addressBook' => $addressBook,
         ]);
     }
 

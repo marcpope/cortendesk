@@ -20,6 +20,7 @@ class PruneLogs extends Command
     /** Tables covered by retention; each has a created_at column. */
     public const TABLES = [
         'audit_connections',
+        'relay_sessions',
         'audit_file_transfers',
         'login_logs',
         'alarm_logs',

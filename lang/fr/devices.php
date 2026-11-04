@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => 'Dans la corbeille',
     'incoming_and_outgoing' => 'Entrantes et sortantes',
     'incoming_only' => 'Entrantes uniquement',
+    'ios_cannot_be_controlled' => 'RustDesk sur iOS peut ouvrir des sessions, mais ne peut pas être contrôlé.',
+    'outgoing_only' => 'Sortantes uniquement',
     'inherit_owner_group_or_default' => 'Hériter (propriétaire, groupe ou défaut)',
     'it_is_already_in_every' => 'Il est déjà dans chaque carnet que vous pouvez modifier.',
     'it_is_in_no_address' => 'Il n’est dans aucun carnet d’adresses.',

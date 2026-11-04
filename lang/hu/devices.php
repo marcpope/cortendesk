@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => 'A lomtárban',
     'incoming_and_outgoing' => 'Bejövő és kimenő',
     'incoming_only' => 'Csak bejövő',
+    'ios_cannot_be_controlled' => 'Az iOS-es RustDesk indíthat munkameneteket, de nem vezérelhető távolról.',
+    'outgoing_only' => 'Csak kimenő',
     'inherit_owner_group_or_default' => 'Öröklés (tulajdonos, csoport vagy alapérték)',
     'it_is_already_in_every' => 'Már benne van az összes címjegyzékben, amelyet szerkeszthet.',
     'it_is_in_no_address' => 'Egyik címjegyzékben sincs.',

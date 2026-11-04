@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => 'Na lixeira',
     'incoming_and_outgoing' => 'Entrada e saída',
     'incoming_only' => 'Somente entrada',
+    'ios_cannot_be_controlled' => 'O RustDesk no iOS pode iniciar sessões, mas não pode ser controlado.',
+    'outgoing_only' => 'Somente saída',
     'inherit_owner_group_or_default' => 'Herdar (proprietário, grupo ou padrão)',
     'it_is_already_in_every' => 'Ele já está em todas as listas que você pode editar.',
     'it_is_in_no_address' => 'Ele não está em nenhuma lista de endereços.',

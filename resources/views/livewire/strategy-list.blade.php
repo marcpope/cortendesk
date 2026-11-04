@@ -399,7 +399,7 @@
                         </ul>
 
                         @if ($assignTab === 'devices')
-                            <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control mb-2" placeholder="{{ __('common.search_id_alias_hostname') }}"
+                            <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control mb-2" placeholder="{{ \App\Support\SearchHint::placeholder(__('common.search_id_alias_hostname')) }}"
                                    wire:model.live.debounce.300ms="assignSearch">
                             <div class="rd-scrollbox" style="max-height: 340px; overflow-y: auto;">
                                 <table class="table table-sm table-hover mb-0">

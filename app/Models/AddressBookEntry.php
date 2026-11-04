@@ -21,4 +21,10 @@ class AddressBookEntry extends Model
     {
         return $this->belongsTo(AddressBook::class);
     }
+
+    /** See Device::canBeControlled(). Clients sync the platform as "iOS". */
+    public function canBeControlled(): bool
+    {
+        return strtolower(trim((string) $this->platform)) !== 'ios';
+    }
 }

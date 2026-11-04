@@ -75,8 +75,10 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // The web client's address-book sign-in is fetched by the session
+        // worker: a sign-in redirect or an HTML error page means nothing there.
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->is('api/*', 'webclient/address-book-password'),
         );
 
         // HTTPS-only cookies over plain HTTP: the browser drops the session

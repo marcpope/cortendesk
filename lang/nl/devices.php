@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => 'In de prullenbak',
     'incoming_and_outgoing' => 'Inkomend en uitgaand',
     'incoming_only' => 'Alleen inkomend',
+    'ios_cannot_be_controlled' => 'RustDesk op iOS kan sessies starten, maar kan niet worden overgenomen.',
+    'outgoing_only' => 'Alleen uitgaand',
     'inherit_owner_group_or_default' => 'Overnemen (eigenaar, groep of standaard)',
     'it_is_already_in_every' => 'Het staat al in elk adresboek dat u kunt bewerken.',
     'it_is_in_no_address' => 'Het staat in geen enkel adresboek.',

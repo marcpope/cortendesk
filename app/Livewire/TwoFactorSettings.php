@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Http\Middleware\RequireTwoFactor;
 use App\Models\ConsoleAudit;
 use App\Models\User;
+use App\Services\OidcService;
 use App\Support\TwoFactor;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Locked;
@@ -41,6 +42,13 @@ class TwoFactorSettings extends Component
 
     public function startSetup(): void
     {
+        // Nothing would ever ask for the code (issue #129): these accounts
+        // cannot sign in with a password, and without one 2FA could not be
+        // turned off again either.
+        if ($this->user()->isSsoProvisioned()) {
+            return;
+        }
+
         $this->reset('confirmCode', 'recoveryCodes');
         session()->put(self::SESSION_SECRET, TwoFactor::generateSecret());
         $this->settingUp = true;
@@ -120,6 +128,16 @@ class TwoFactorSettings extends Component
             return;
         }
 
+        // An SSO account never uses it and has no password to confirm with
+        // (issue #129). Its second factor is the identity provider's.
+        if ($user->isSsoProvisioned()) {
+            $user->clearTwoFactor();
+            $this->reset('disablePassword', 'recoveryCodes');
+            ConsoleAudit::record('user.2fa-disable', 'Disabled two-factor authentication', 'user', $user->username);
+
+            return;
+        }
+
         // Never let an enforced user disable their way out of the requirement.
         if (RequireTwoFactor::isRequiredFor($user)) {
             $this->addError('disablePassword', __('messages.twofactor_cannot_disable'));
@@ -178,6 +196,11 @@ class TwoFactorSettings extends Component
             'confirmedAt' => $user->totp_confirmed_at,
             'remaining' => $user->hasTwoFactorEnabled() ? $user->unusedRecoveryCodesCount() : 0,
             'required' => RequireTwoFactor::isRequiredFor($user),
+            // Issue #129: an SSO account's second factor is the identity
+            // provider's. A local account signed in through SSO still needs
+            // 2FA for its password sign-in.
+            'ssoOnly' => $user->isSsoProvisioned(),
+            'ssoSession' => (bool) session(OidcService::SESSION_PROVIDER),
             'secret' => $secret,
             'qrSvg' => $secret !== '' ? TwoFactor::qrSvg($secret, $user->username) : null,
         ]);

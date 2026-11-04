@@ -70,6 +70,8 @@ return [
     'in_recycle_bin' => '在回收站中',
     'incoming_and_outgoing' => '主控和被控',
     'incoming_only' => '仅被控',
+    'ios_cannot_be_controlled' => 'iOS 上的 RustDesk 只能发起会话，不能被控制。',
+    'outgoing_only' => '仅主控',
     'inherit_owner_group_or_default' => '继承（所有者、组或默认）',
     'it_is_already_in_every' => '它已在你可编辑的所有地址簿中。',
     'it_is_in_no_address' => '它不在任何地址簿中。',

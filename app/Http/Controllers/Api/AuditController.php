@@ -9,6 +9,7 @@ use App\Models\AuditFileTransfer;
 use App\Models\ClientToken;
 use App\Models\Device;
 use App\Services\AppriseNotifications;
+use App\Services\ConnectionPath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -58,14 +59,17 @@ class AuditController extends Controller
         return $this->once($request, 'conn', $id, function () use ($request, $action, $id, $connId, $sessionId) {
             if ($action === 'new') {
                 if (! $this->isRetriedNew($id, $connId)) {
-                    AuditConnection::create([
+                    $row = AuditConnection::create([
                         'action' => 'new',
                         'conn_id' => $connId,
                         'rustdesk_id' => $id,
                         'ip' => (string) $request->input('ip', $request->ip()),
                         'session_id' => $sessionId,
                         'uuid' => (string) $request->input('uuid', ''),
+                        // How hbbs set it up, echoed by 1.5+ devices (issue #130).
+                        'path' => ConnectionPath::fromTag($request->input('conn_audit_ref')),
                     ]);
+                    ConnectionPath::refresh($row);
                 }
 
                 return;
@@ -78,7 +82,10 @@ class AuditController extends Controller
                 ->first();
 
             if ($action === 'close') {
-                $open?->update(['action' => 'close', 'closed_at' => now()]);
+                if ($open !== null) {
+                    $open->update(['action' => 'close', 'closed_at' => now()]);
+                    ConnectionPath::refresh($open);
+                }
 
                 return;
             }
@@ -100,7 +107,7 @@ class AuditController extends Controller
             if ($open !== null) {
                 $open->update($attributes);
             } else {
-                AuditConnection::create($attributes + [
+                $open = AuditConnection::create($attributes + [
                     'conn_id' => $connId,
                     'rustdesk_id' => $id,
                     'session_id' => $sessionId,
@@ -108,6 +115,7 @@ class AuditController extends Controller
                     'ip' => $request->ip(),
                 ]);
             }
+            ConnectionPath::refresh($open);
         });
     }
 

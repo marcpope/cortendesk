@@ -8,6 +8,8 @@ return [
     'add_files' => 'Ajouter des fichiers…',
     'add_files_stage' => 'Ajouter des fichiers à préparer',
     'add_virtual_display' => 'Ajouter un affichage virtuel',
+    'address_book_password_ready' => 'Mot de passe du carnet d’adresses — saisissez-en un pour le remplacer',
+    'address_book_password_refused' => 'Le mot de passe du carnet d’adresses n’a pas fonctionné. Saisissez le mot de passe.',
     'apply_all_files_in_this' => 'Appliquer à tous les fichiers de ce transfert',
     'are_you_sure' => 'Êtes-vous sûr ?',
     'ask_remote_windows_user_approve' => 'Demander à l’utilisateur Windows distant d’approuver l’élévation des privilèges ?',

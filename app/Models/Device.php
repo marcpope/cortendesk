@@ -133,6 +133,15 @@ class Device extends Model
         return $this->can_initiate === false;
     }
 
+    /**
+     * RustDesk on iOS only starts sessions; nothing can connect to it, so
+     * the console offers no way to (issue #133).
+     */
+    public function canBeControlled(): bool
+    {
+        return $this->platform() !== 'ios';
+    }
+
     /** Approved (visible) devices only. */
     public function scopeApproved(Builder $query): Builder
     {

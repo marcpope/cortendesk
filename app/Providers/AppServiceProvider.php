@@ -3,11 +3,19 @@
 namespace App\Providers;
 
 use App\Contracts\HealthProbeLimiter;
+use App\Contracts\RelayConsole;
 use App\Contracts\TcpProbe;
+use App\Models\AlarmLog;
 use App\Models\ApiToken;
+use App\Models\AuditConnection;
+use App\Models\AuditFileTransfer;
 use App\Models\ClientToken;
+use App\Models\ConsoleAudit;
+use App\Models\LoginLog;
 use App\Services\FileHealthProbeLimiter;
+use App\Services\HbbrConsole;
 use App\Services\SocketTcpProbe;
+use App\Support\AuditLogStream;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +31,27 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(TcpProbe::class, SocketTcpProbe::class);
         $this->app->bind(HealthProbeLimiter::class, FileHealthProbeLimiter::class);
+        $this->app->bind(RelayConsole::class, HbbrConsole::class);
+    }
+
+    /**
+     * Copy each audit row to the audit log stream once it is saved
+     * (AuditLogStream; a no-op unless CORTENDESK_AUDIT_LOG is on).
+     * Sessions are written again when their state changes; closes done in
+     * bulk are written by AuditConnection itself.
+     */
+    private function streamAuditRecords(): void
+    {
+        ConsoleAudit::created(fn (ConsoleAudit $row) => AuditLogStream::consoleAudit($row));
+        LoginLog::created(fn (LoginLog $row) => AuditLogStream::login($row));
+        AlarmLog::created(fn (AlarmLog $row) => AuditLogStream::alarm($row));
+        AuditFileTransfer::created(fn (AuditFileTransfer $row) => AuditLogStream::fileTransfer($row));
+        AuditConnection::created(fn (AuditConnection $row) => AuditLogStream::connection($row, created: true));
+        AuditConnection::updated(function (AuditConnection $row) {
+            if ($row->wasChanged('action')) {
+                AuditLogStream::connection($row);
+            }
+        });
     }
 
     /**
@@ -30,6 +59,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->streamAuditRecords();
+
         // Heartbeat, sysinfo and audit posts from RustDesk clients. A device
         // heartbeats every 15 s, every 3 s during a session (20 a minute), so
         // 120 leaves room. The per-address ceiling is for a whole fleet

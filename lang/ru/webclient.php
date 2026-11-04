@@ -8,6 +8,8 @@ return [
     'add_files' => 'Добавить файлы…',
     'add_files_stage' => 'Добавить файлы к отправке',
     'add_virtual_display' => 'Добавить виртуальный дисплей',
+    'address_book_password_ready' => 'Пароль из адресной книги — введите, чтобы заменить',
+    'address_book_password_refused' => 'Пароль из адресной книги не подошёл. Введите пароль.',
     'apply_all_files_in_this' => 'Применить ко всем файлам в этой передаче',
     'are_you_sure' => 'Вы уверены?',
     'ask_remote_windows_user_approve' => 'Попросить удалённого пользователя Windows разрешить повышение прав?',

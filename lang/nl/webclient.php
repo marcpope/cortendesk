@@ -8,6 +8,8 @@ return [
     'add_files' => 'Bestanden toevoegen…',
     'add_files_stage' => 'Bestanden klaarzetten',
     'add_virtual_display' => 'Virtueel scherm toevoegen',
+    'address_book_password_ready' => 'Wachtwoord uit het adresboek — typ om te vervangen',
+    'address_book_password_refused' => 'Het wachtwoord uit het adresboek werkte niet. Voer het wachtwoord in.',
     'apply_all_files_in_this' => 'Toepassen op alle bestanden in deze overdracht',
     'are_you_sure' => 'Weet u het zeker?',
     'ask_remote_windows_user_approve' => 'De externe Windows-gebruiker vragen de verhoging van rechten goed te keuren?',

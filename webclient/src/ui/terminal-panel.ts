@@ -114,7 +114,8 @@ export type TerminalPageHooks = {
   /** Logged in; the terminal is opening. */
   onLive(): void;
   onTwoFactor(wrong: boolean): void;
-  onCredentials(hashHex: string): void;
+  /** fromAddressBook: the console's credential for this connection only, never to be saved. */
+  onCredentials(hashHex: string, fromAddressBook?: boolean): void;
   /** The device refused the login. The connection is closed. */
   onLoginError(message: string): void;
   /** The connection ended, with the reason; byUser for the Disconnect button. */
@@ -303,7 +304,7 @@ export class TerminalPanel {
         this.peerUnsupported = !event.terminalSupported;
         break;
       case 'credentials':
-        page?.onCredentials(event.hashHex);
+        page?.onCredentials(event.hashHex, event.fromAddressBook);
         break;
       case 'twoFactor':
         if (page) page.onTwoFactor(event.wrong);

@@ -5,6 +5,7 @@ import type { SessionConfig, SessionState } from '../core/contracts';
 import { htl, tl } from '../i18n';
 import {
   STATE_LABEL,
+  addressBookReady,
   buildSessionConfig,
   clearSavedHash,
   loadSavedHash,
@@ -65,6 +66,8 @@ export class TerminalApp {
   private pendingConfig: SessionConfig | null = null;
   private pendingHashHex: string | undefined;
   private connectedWithSavedHash = false;
+  private connectedWithAddressBook = false;
+  private addressBookRefused = false;
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
 
   mount(): void {
@@ -122,8 +125,12 @@ export class TerminalApp {
       this.el.peerIdInput.focus();
     }
 
-    // Saved password: sign straight in, as the desktop page does.
-    if (this.fixedPeerId && !loggedOutFromSearch(location.search) && loadSavedHash(this.fixedPeerId)) {
+    // Saved password (or an address-book password): sign straight in, as the desktop page does.
+    if (
+      this.fixedPeerId &&
+      !loggedOutFromSearch(location.search) &&
+      (loadSavedHash(this.fixedPeerId) || addressBookReady(this.cfg, this.fixedPeerId))
+    ) {
       this.onConnectClick();
     }
 
@@ -165,7 +172,11 @@ export class TerminalApp {
     const has = !!peerId && loadSavedHash(peerId) !== null;
     this.el.saveCheckbox.checked = has;
     this.el.passwordInput.value = '';
-    this.el.passwordInput.placeholder = has ? tl('saved_password_click_change') : tl('enter_password');
+    this.el.passwordInput.placeholder = has
+      ? tl('saved_password_click_change')
+      : !this.addressBookRefused && addressBookReady(this.cfg, peerId)
+        ? tl('address_book_password_ready')
+        : tl('enter_password');
     this.el.keepCheckbox.checked = !!peerId && hasStoredService(peerId);
   }
 
@@ -175,8 +186,10 @@ export class TerminalApp {
       onProgress: (state, detail) => this.onProgress(state, detail),
       onLive: () => this.onLive(),
       onTwoFactor: (wrong) => this.onTwoFactor(wrong),
-      onCredentials: (hashHex) => {
-        this.pendingHashHex = hashHex;
+      onCredentials: (hashHex, fromAddressBook) => {
+        // An address-book credential is never offered to "Save password".
+        if (fromAddressBook) this.connectedWithAddressBook = true;
+        else this.pendingHashHex = hashHex;
       },
       onLoginError: (message) => this.onLoginError(message),
       onEnded: (message, byUser) => this.onEnded(message, byUser),
@@ -203,10 +216,11 @@ export class TerminalApp {
     const saved = loadSavedHash(peerId);
     if (!this.el.saveCheckbox.checked) clearSavedHash(peerId);
     this.pendingHashHex = undefined;
+    this.connectedWithAddressBook = false;
     this.connectedWithSavedHash = !typed && !!saved;
     const config = this.connectedWithSavedHash
       ? buildSessionConfig(this.cfg, peerId, '', saved!, 'terminal')
-      : buildSessionConfig(this.cfg, peerId, typed, undefined, 'terminal');
+      : buildSessionConfig(this.cfg, peerId, typed, undefined, 'terminal', !this.addressBookRefused);
 
     this.panel.setTitle(peerId);
     document.title = `${peerId} · ${tl('remote_terminal')} · CortenDesk`;
@@ -271,8 +285,16 @@ export class TerminalApp {
       this.el.passwordInput.placeholder = tl('enter_password');
       this.connectedWithSavedHash = false;
     }
+    let text = loginErrorText(message);
+    if (this.connectedWithAddressBook) {
+      // Out of date in the address book: the next Connect asks instead.
+      this.addressBookRefused = true;
+      this.connectedWithAddressBook = false;
+      this.el.passwordInput.placeholder = tl('enter_password');
+      text = `${tl('address_book_password_refused')} (${text})`;
+    }
     this.backToCard();
-    this.setError(loginErrorText(message));
+    this.setError(text);
     this.el.passwordInput.focus();
   }
 

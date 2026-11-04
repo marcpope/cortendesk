@@ -10,7 +10,12 @@ import type { SupportedDecoding_PreferCodec } from '../gen/message';
 // LoginRequest so the peer starts the session with them (issue #92). Absent
 // fields leave the peer's own default in place.
 export type InitialSessionOptions = { imageQuality?:number; customImageQuality?:number; customFps?:number; preferCodec?:SupportedDecoding_PreferCodec; showRemoteCursor?:boolean; followRemoteCursor?:boolean; followRemoteWindow?:boolean; disableClipboard?:boolean; disableAudio?:boolean };
-export type SessionConfig = { peerId:string; serverKeyB64:string; wsIdUrl:string; wsRelayUrl:string; password:string; myId:string; myName:string; signalToken?:string; savedHashHex?:string; sessionId?:string; videoAck?:boolean; connType?:'default'|'fileTransfer'|'viewCamera'|'terminal'; terminalServiceId?:string; terminalPersistent?:boolean; initialOptions?:InitialSessionOptions; messages?:Record<string,string>; webrtc?:{ iceServers:{ urls:string; username?:string; credential?:string }[]; relayHoldMs?:number } };
+// Sign-in with a password from an address book the user can read: on the
+// device's login challenge the worker POSTs the salt to `url` (same origin,
+// console session cookie + this CSRF token) and gets h1 back. Only set when
+// there is neither a typed password nor a saved/session hash.
+export type AddressBookSignIn = { url:string; csrfToken:string };
+export type SessionConfig = { peerId:string; serverKeyB64:string; wsIdUrl:string; wsRelayUrl:string; password:string; myId:string; myName:string; signalToken?:string; savedHashHex?:string; addressBook?:AddressBookSignIn; sessionId?:string; videoAck?:boolean; connType?:'default'|'fileTransfer'|'viewCamera'|'terminal'; terminalServiceId?:string; terminalPersistent?:boolean; initialOptions?:InitialSessionOptions; messages?:Record<string,string>; webrtc?:{ iceServers:{ urls:string; username?:string; credential?:string }[]; relayHoldMs?:number } };
 export type ResolutionInfo = { width:number; height:number };
 export type DisplayInfo = { index:number; x:number; y:number; width:number; height:number; name:string; scale:number; online:boolean; cursorEmbedded:boolean; originalResolution?:ResolutionInfo; resolutions:ResolutionInfo[] };
 export type SessionStats = { codec:string; width:number; height:number; fps:number; mbps:number; framesDropped:number; startedAtMs:number };
@@ -44,7 +49,9 @@ export type SessionEvent =                       // worker -> main
   // Fallback video: raw H.264 Annex B forwarded for main-thread MSE playback.
   // Only emitted when WebCodecs is unavailable (insecure origin).
   | { t:'h264'; data:Uint8Array; key:boolean }
-  | { t:'credentials'; hashHex:string }   // h1 = SHA256(pw||salt); UI may persist for "save password"
+  // h1 = SHA256(pw||salt); UI may persist for "save password". fromAddressBook:
+  // it came from the console for this session only and must never be persisted.
+  | { t:'credentials'; hashHex:string; fromAddressBook?:boolean }
   | { t:'loginError'; message:string }
   // The device wants its 2FA code; wrong=true after a code it refused. The connection stays open for the answer.
   | { t:'twoFactor'; wrong:boolean }

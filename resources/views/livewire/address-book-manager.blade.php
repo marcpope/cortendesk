@@ -197,7 +197,7 @@
                             <div class="input-group" style="max-width: 320px;">
                                 <span class="input-group-text"><i class="ri-search-line"></i></span>
                                 <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control"
-                                       placeholder="{{ __('address_books.search_device_id_or_alias') }}"
+                                       placeholder="{{ \App\Support\SearchHint::placeholder(__('address_books.search_device_id_or_alias')) }}"
                                        wire:model.live.debounce.300ms="entrySearch">
                             </div>
                         </div>
@@ -222,9 +222,14 @@
                                             <div class="rd-cell">
                                                 <x-platform-icon :platform="$entry->platform ?: 'unknown'" size="fs-20"/>
                                                 <div class="min-width-0">
-                                                    <a href="{{ \App\Support\ClientLink::to($entry->rustdesk_id) }}"
-                                                       class="rd-cell-title text-truncate"
-                                                       title="{{ __('common.connect_with_rustdesk') }}">{{ $entry->hostname ?: $entry->rustdesk_id }}</a>
+                                                    @if ($entry->canBeControlled())
+                                                        <a href="{{ \App\Support\ClientLink::to($entry->rustdesk_id) }}"
+                                                           class="rd-cell-title text-truncate"
+                                                           title="{{ __('common.connect_with_rustdesk') }}">{{ $entry->hostname ?: $entry->rustdesk_id }}</a>
+                                                    @else
+                                                        <span class="rd-cell-title text-truncate"
+                                                              title="{{ __('devices.ios_cannot_be_controlled') }}">{{ $entry->hostname ?: $entry->rustdesk_id }}</span>
+                                                    @endif
                                                     <span class="rd-cell-sub">
                                                         {{ $entry->rustdesk_id }}@if ($entry->platform) · {{ ucfirst($entry->platform) }}@endif
                                                     </span>
@@ -279,8 +284,13 @@
                                             <div class="d-flex align-items-center gap-2 min-width-0">
                                                 <x-platform-icon :platform="$entry->platform ?: 'unknown'" size="fs-22"/>
                                                 <div class="min-width-0">
-                                                    <a href="{{ \App\Support\ClientLink::to($entry->rustdesk_id) }}" class="rd-mini-title text-truncate"
-                                                       title="{{ __('common.connect_with_rustdesk') }}">{{ $entry->hostname ?: $entry->rustdesk_id }}</a>
+                                                    @if ($entry->canBeControlled())
+                                                        <a href="{{ \App\Support\ClientLink::to($entry->rustdesk_id) }}" class="rd-mini-title text-truncate"
+                                                           title="{{ __('common.connect_with_rustdesk') }}">{{ $entry->hostname ?: $entry->rustdesk_id }}</a>
+                                                    @else
+                                                        <span class="rd-mini-title text-truncate"
+                                                              title="{{ __('devices.ios_cannot_be_controlled') }}">{{ $entry->hostname ?: $entry->rustdesk_id }}</span>
+                                                    @endif
                                                     <span class="rd-mini-sub text-truncate">
                                                         {{ $entry->rustdesk_id }}@if ($entry->alias) · {{ $entry->alias }}@endif
                                                     </span>

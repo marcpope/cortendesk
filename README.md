@@ -19,7 +19,7 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - **Server access control** — with the embedded ID server (or CortenDesk Server 1.1.0+), limit the server to devices you approved, and mark devices incoming only so they can be controlled but cannot start sessions. New devices can land in a default group, and a pending device can be approved automatically when its user signs in. The ID server enforces both. It also reports each device's LAN address seen during connection setup, shown as an optional LAN IP column. See [CortenDesk Server](https://github.com/marcpope/cortendesk-server#device-policy-from-a-cortendesk-console).
 - **Users & access scoping** — a detail page per user shows their devices, address books, sign-ins, console actions and connections. Admins see everything; regular users see only their own devices plus device groups granted to them or their user groups. The RustDesk client API is scoped with the same rules.
 - **Address books** — full support for the modern multi-address-book API *and* the legacy API: shared books, share rules (everyone / user / group), tags with colors.
-- **Audit logs** — connections (with the note RustDesk clients can leave at the end of a session), file transfers, console logins, and security alarms (brute-force/blocked-access events); filterable, exportable to CSV, with configurable retention and automatic nightly pruning.
+- **Audit logs** — connections (with the note RustDesk clients can leave at the end of a session, and how each one got through: LAN, direct, WebRTC or relay), file transfers, console logins, and security alarms (brute-force/blocked-access events); filterable, exportable to CSV, with configurable retention and automatic nightly pruning. Optionally every record also goes to the container log as one JSON line, for a log shipper.
 - **Single sign-on (OIDC)** — sign in with Keycloak, Authentik, Entra ID, Okta, Google Workspace or any OpenID Connect provider. Authorization-code flow with PKCE, verified ID tokens, just-in-time account creation with optional approval, an email-domain allowlist, and optional provider sign-out. Password sign-in can be switched off, on the console and in the RustDesk client — and returns by itself if SSO is disabled or left incompletely configured. For a provider that is unreachable while still configured, `CORTENDESK_OIDC_DISABLED=true` forces it off and brings the password form back.
 - **Device policies (strategies)** — push client settings to devices from the console: permissions, security and password rules, capture options, and the STUN/TURN servers RustDesk 1.5 uses for WebRTC. Assign to a device, a user or a device group, with the most specific assignment winning. Optionally enforced, so a local change is reverted on the next heartbeat. The ID whitelist can take whole device groups, and follows their membership as devices come and go.
 - **Two-factor authentication** — TOTP with single-use recovery codes, optionally required for everyone or for administrators only, with an administrator reset and a break-glass command. The RustDesk client asks for the same code when it signs in with a password.
@@ -64,7 +64,7 @@ docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
   -p 8080:8080 -p 21115-21117:21115-21117 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.18.0
+  ghcr.io/marcpope/cortendesk:1.19.0
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and
@@ -81,10 +81,15 @@ each client's **Key** field.
 Ports: 8080 console and client API; 21115 NAT test; 21116 signalling, TCP **and
 UDP**; 21117 relay; 21118/21119 the WebSocket pair. Leave those two
 unpublished: nginx here already bridges `/ws/id` and `/ws/relay` over loopback.
-Publish them only for RustDesk clients set to WebSocket mode, and then behind a
-proxy that sets `X-Real-IP`, because hbbs and hbbr trust that header on those
-ports. Put a TLS reverse proxy in front of
-8080 and the web client works with no further configuration.
+Put a TLS reverse proxy in front of 8080 and the web client works with no
+further configuration.
+
+**Desktop clients over port 443.** RustDesk 1.4.9 and newer can run entirely
+over WebSocket, for networks that block the 2111x ports. Set the client's ID
+server to the console's hostname (no port), its API server to
+`https://<that host>`, and turn on `allow-websocket` (by hand, or pushed with a
+strategy). It then connects to `wss://<host>/ws/id` and `/ws/relay` through
+the same proxy as the web client. Those sessions always go through the relay.
 
 **Bringing your own server.** Point CortenDesk at `hbbs`/`hbbr` you already run:
 
@@ -117,6 +122,10 @@ and must allow the same size.
 | `CORTENDESK_HTTP_PORT` | `8080` | Port nginx listens on inside the container. The healthcheck and the embedded hbbs follow it. Publish it with `-p <host>:<port>`. |
 | `CORTENDESK_UPDATE_CHECK` | `true` | `false` stops the request to GitHub every 6 hours and hides the "update available" badge and status line. |
 | `CORTENDESK_LOG_LEVEL` | unset | One level for everything: `debug`, `info`, `notice`, `warning`, `error` or `critical`. Sets Laravel's `LOG_LEVEL` and hbbs/hbbr's `RUST_LOG`; `warning` and above also turn off php-fpm's line per request. `LOG_LEVEL` or `RUST_LOG` set on their own still win. |
+| `CORTENDESK_AUDIT_LOG` | `false` | `true` also writes every audit record as one JSON line to the container log, for a log shipper. Lines start with `{"cortendesk_audit":1,`. |
+| `CORTENDESK_AUDIT_LOG_STREAM` | `php://stderr` | Where those lines go. A file path writes there instead. |
+| `CORTENDESK_WS_TRUSTED_PROXIES` | `127.0.0.1/32` | Proxies whose `X-Forwarded-For` the embedded hbbs and hbbr believe for a WebSocket client (web client, or a desktop client set to WebSocket). The default is the container's own nginx. If your proxy sends `/ws/id` and `/ws/relay` straight to published ports 21118/21119, add its address as the container sees it, e.g. `127.0.0.1/32,172.16.0.0/12`. Comma-separated CIDRs. |
+| `CORTENDESK_WEBCLIENT_AB_PASSWORDS` | `true` | The web client signs in to a device with a password from an address book the user can read, as the desktop client does. `false` always asks. |
 | `CORTENDESK_FPM_MAX_CHILDREN` | `24` | PHP workers. See sizing below. |
 | `CORTENDESK_NGINX_WORKER_CONNECTIONS` | `4096` | Connections per nginx worker. See sizing below. |
 | `CORTENDESK_NOTIFY_TIMEOUT` | `15` | Seconds (1 to 60) a scheduled notification, or a retry of one, waits for Apprise. Sends made while handling a request wait 3. |

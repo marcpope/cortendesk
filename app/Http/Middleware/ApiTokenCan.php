@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\ApiToken;
+use App\Support\AuditLogStream;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,6 +33,8 @@ class ApiTokenCan
         // unchanged for every token issued before delegated roles existed.
         if (! $token || ! $token->user || ! $token->user->is_active
             || ! $token->user->consoleAllows('token', 'rw')) {
+            AuditLogStream::apiToken($request, $token, $resource, $level, 401);
+
             return response()->json([
                 'code' => 401,
                 'data' => null,
@@ -40,6 +43,8 @@ class ApiTokenCan
         }
 
         if (! $token->allows($resource, $level)) {
+            AuditLogStream::apiToken($request, $token, $resource, $level, 403);
+
             return response()->json([
                 'code' => 403,
                 'data' => null,
@@ -49,6 +54,7 @@ class ApiTokenCan
 
         // Stamp usage and expose the token to controllers (AdminApiController::token()).
         $token->markUsed();
+        AuditLogStream::apiToken($request, $token, $resource, $level);
         $request->attributes->set('api_token', $token);
 
         return $next($request);

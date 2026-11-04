@@ -243,6 +243,98 @@
                             </form>
                         </div>
                     </div>
+
+                    {{-- Relay bandwidth (#128). Only the relay bundled in this container
+                         can be reached over its loopback console; a relay run elsewhere
+                         takes the same values as environment variables. --}}
+                    <div class="card" id="relay-limits">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">{{ __('settings.relay_bandwidth') }}</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (! $relayLimitsAvailable)
+                                <p class="text-muted fs-13 mb-0">{{ __('settings.relay_bandwidth_external') }} <code>SINGLE_BANDWIDTH</code>, <code>TOTAL_BANDWIDTH</code>, <code>LIMIT_SPEED</code>, <code>DOWNGRADE_THRESHOLD</code>, <code>DOWNGRADE_START_CHECK</code>.</p>
+                            @else
+                                <p class="text-muted fs-13 mb-3">{{ __('settings.relay_bandwidth_help') }}</p>
+
+                                @if ($relayLimitsResult === 'applied')
+                                    <div class="alert alert-success py-2 fs-13"><i class="ri-check-line me-1"></i>{{ __('settings.relay_bandwidth_applied') }}</div>
+                                @elseif ($relayLimitsResult === 'pending')
+                                    <div class="alert alert-warning py-2 fs-13"><i class="ri-time-line me-1"></i>{{ __('settings.relay_bandwidth_pending') }}</div>
+                                @elseif ($relayLive === null)
+                                    <div class="alert alert-warning py-2 fs-13"><i class="ri-error-warning-line me-1"></i>{{ __('settings.relay_bandwidth_unreachable') }}</div>
+                                @elseif ($relayLimitsDrift)
+                                    <div class="alert alert-warning py-2 fs-13"><i class="ri-error-warning-line me-1"></i>{{ __('settings.relay_bandwidth_drift', ['single' => $relayLive['single'], 'total' => $relayLive['total']]) }}</div>
+                                @endif
+
+                                <form wire:submit="saveRelayLimits">
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-sm-6">
+                                            <label class="form-label" for="relaySingle">{{ __('settings.relay_per_session') }}</label>
+                                            <div class="input-group has-validation">
+                                                <input type="number" id="relaySingle" class="form-control @error('relayLimits.single') is-invalid @enderror"
+                                                       wire:model="relayLimits.single" min="1" max="100000">
+                                                <span class="input-group-text">Mb/s</span>
+                                                @error('relayLimits.single') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label class="form-label" for="relayTotal">{{ __('settings.relay_total') }}</label>
+                                            <div class="input-group has-validation">
+                                                <input type="number" id="relayTotal" class="form-control @error('relayLimits.total') is-invalid @enderror"
+                                                       wire:model="relayLimits.total" min="1" max="100000">
+                                                <span class="input-group-text">Mb/s</span>
+                                                @error('relayLimits.total') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-text mt-n2 mb-3">{{ __('settings.relay_total_help') }}</div>
+
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="relaySlowDown" wire:model.live="relayLimits.slowDown">
+                                        <label class="form-check-label" for="relaySlowDown">{{ __('settings.relay_slow_down') }}</label>
+                                    </div>
+                                    @if ($relayLimits['slowDown'] ?? true)
+                                        <div class="row g-3 mb-2">
+                                            <div class="col-sm-4">
+                                                <label class="form-label" for="relaySlowAfter">{{ __('settings.relay_slow_after') }}</label>
+                                                <div class="input-group has-validation">
+                                                    <input type="number" id="relaySlowAfter" class="form-control @error('relayLimits.slowAfter') is-invalid @enderror"
+                                                           wire:model="relayLimits.slowAfter" min="1" max="10080">
+                                                    <span class="input-group-text">{{ __('settings.relay_minutes') }}</span>
+                                                    @error('relayLimits.slowAfter') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-4">
+                                                <label class="form-label" for="relaySlowAbove">{{ __('settings.relay_slow_above') }}</label>
+                                                <div class="input-group has-validation">
+                                                    <input type="number" id="relaySlowAbove" class="form-control @error('relayLimits.slowAbove') is-invalid @enderror"
+                                                           wire:model="relayLimits.slowAbove" min="1" max="100">
+                                                    <span class="input-group-text">%</span>
+                                                    @error('relayLimits.slowAbove') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-4">
+                                                <label class="form-label" for="relaySlowTo">{{ __('settings.relay_slow_to') }}</label>
+                                                <div class="input-group has-validation">
+                                                    <input type="number" id="relaySlowTo" class="form-control @error('relayLimits.slowTo') is-invalid @enderror"
+                                                           wire:model="relayLimits.slowTo" min="1" max="100000">
+                                                    <span class="input-group-text">Mb/s</span>
+                                                    @error('relayLimits.slowTo') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+                                    <div class="form-text mb-3">{{ __('settings.relay_slow_down_help') }}</div>
+
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="submit" class="btn btn-primary" @disabled(! $canManageSettings)><i class="ri-save-line me-1"></i>{{ __('settings.relay_bandwidth_save') }}</button>
+                                        <button type="button" class="btn btn-light" wire:click="resetRelayLimits" @disabled(! $canManageSettings)>{{ __('settings.relay_bandwidth_defaults') }}</button>
+                                    </div>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
