@@ -188,6 +188,18 @@ class Device extends Model
     }
 
     /**
+     * visibleTo, plus soft-deleted rows whatever their status. Rejecting a
+     * pending device soft-deletes it but leaves status='pending', so plain
+     * visibleTo hid it from the recycle bin while it still held its unique ID.
+     */
+    public function scopeVisibleWithTrashed(Builder $query, User $user): Builder
+    {
+        return $query->ownershipVisibleTo($user)->where(function (Builder $q) {
+            $q->where('status', self::STATUS_ACTIVE)->orWhereNotNull('deleted_at');
+        });
+    }
+
+    /**
      * The ownership/group half of visibility, WITHOUT the approval filter.
      * Use directly only for the pending-approval queue; everywhere else wants
      * scopeVisibleTo so quarantined devices stay hidden.

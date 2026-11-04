@@ -38,7 +38,7 @@ trait EditsDevices
     /** Load a device the current user is allowed to see, or fail. */
     private function scopedDevice(int $id): Device
     {
-        return Device::withTrashed()->visibleTo(auth()->user())->findOrFail($id);
+        return Device::withTrashed()->visibleWithTrashed(auth()->user())->findOrFail($id);
     }
 
     public function edit(int $id): void
@@ -85,7 +85,18 @@ trait EditsDevices
         ];
 
         if ($this->editingId === 0) {
-            $this->validate(['formRustdeskId' => 'unique:devices,rustdesk_id']);
+            // withTrashed: the DB unique index also covers rejected/removed rows,
+            // which the list hides. Say so instead of a bare "already taken".
+            $existing = Device::withTrashed()->where('rustdesk_id', $data['formRustdeskId'])->first();
+            if ($existing) {
+                $this->addError('formRustdeskId', match (true) {
+                    $existing->trashed() => 'This ID belongs to a rejected/removed device. Restore or permanently delete it first.',
+                    $existing->isPending() => 'This ID is already waiting in the Pending tab. Approve or reject it there.',
+                    default => 'This ID is already registered (it may belong to another user or group).',
+                });
+
+                return;
+            }
             Device::create($attributes + [
                 'rustdesk_id' => $data['formRustdeskId'],
                 'uuid' => '',
