@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barSide, currentOrientation, swappedPrefs } from './mobile-bar';
+import { barSide, currentOrientation, fullscreenButtonMode, swappedPrefs } from './mobile-bar';
 import { validatePrefs } from './session-prefs';
 
 describe('docked controls', () => {
@@ -26,5 +26,14 @@ describe('docked controls', () => {
 
   it('prefs: invalid edges fall back to the defaults', () => {
     expect(validatePrefs({ barPortrait: 'left', barLandscape: 'top' })).toMatchObject({ barPortrait: 'bottom', barLandscape: 'right' });
+  });
+});
+
+describe('bar Fullscreen button', () => {
+  it('toggles where the browser has fullscreen, explains Add to Home Screen on iPhone, hides in the Home Screen app', () => {
+    expect(fullscreenButtonMode(true, false)).toBe('toggle');
+    expect(fullscreenButtonMode(true, true)).toBe('toggle');
+    expect(fullscreenButtonMode(false, false)).toBe('hint');
+    expect(fullscreenButtonMode(false, true)).toBe('hidden');
   });
 });

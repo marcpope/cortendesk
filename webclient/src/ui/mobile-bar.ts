@@ -39,6 +39,17 @@ export function currentOrientation(
   return width > height ? 'landscape' : 'portrait';
 }
 
+/**
+ * The bar's Fullscreen button: toggles element fullscreen where the browser
+ * has it (Android, iPad); on iPhone Safari, which has none, it explains Add
+ * to Home Screen instead; already running from the Home Screen there is
+ * nothing to do, so it is hidden.
+ */
+export function fullscreenButtonMode(fullscreenEnabled: boolean, standalone: boolean): 'toggle' | 'hint' | 'hidden' {
+  if (fullscreenEnabled) return 'toggle';
+  return standalone ? 'hidden' : 'hint';
+}
+
 export function barSide(o: Orientation, p: BarPrefs): BarSide {
   return o === 'landscape' ? p.barLandscape : p.barPortrait;
 }

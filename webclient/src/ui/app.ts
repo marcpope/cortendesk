@@ -43,7 +43,7 @@ import { ExtraKeysBar } from './extra-keys-bar';
 import { haptic, setHapticsEnabled } from './haptics';
 import { ViewTransformer, containRect, type Rect, type View } from '../input/view-transform';
 import { CompactKeyboard } from './compact-keyboard';
-import { MobileBar, barSide, currentOrientation, swappedPrefs, type Orientation } from './mobile-bar';
+import { MobileBar, barSide, fullscreenButtonMode, currentOrientation, swappedPrefs, type Orientation } from './mobile-bar';
 import { TrackpadMapper } from '../input/touch-trackpad';
 import type { TouchOutput } from '../input/touch-direct';
 import type { Pt } from '../input/gesture';
@@ -2100,6 +2100,7 @@ export class RdApp {
       { id: 'xkeys', icon: 'keyCombo', label: tl('extra_keys'), attrs: 'data-xkeys-toggle aria-pressed="false"', onClick: () => this.toggleExtraKeys() },
       { id: 'mode', icon: this.inputModeIcon(), label: tl('touch_or_trackpad'), onClick: () => this.cycleTouchMode() },
       { id: 'zoom', icon: 'zoom', label: tl('fit_or_actual_size'), attrs: 'aria-pressed="false"', onClick: () => this.toggleZoom() },
+      { id: 'fullscreen', icon: 'fullscreen', label: tl('fullscreen'), attrs: 'aria-pressed="false"', onClick: () => this.barFullscreen() },
       // Only with more than one monitor (syncBar).
       { id: 'monitors', icon: 'monitor', label: tl('select_monitor'), attrs: 'aria-haspopup="true"', onClick: (b: HTMLButtonElement) => this.openMonitorPop(b) },
       { id: 'more', icon: 'more', label: tl('more_options'), attrs: 'aria-haspopup="true"', pinned: true, onClick: (b: HTMLButtonElement) => this.openMoreSheet(b) },
@@ -2115,6 +2116,7 @@ export class RdApp {
     this.el.root.insertBefore(this.ckbd.el, this.el.dock);
     this.syncOrientation();
     this.syncBar();
+    document.addEventListener('fullscreenchange', () => this.syncBar());
     const onRotate = (): void => this.syncOrientation();
     screen.orientation?.addEventListener?.('change', onRotate);
     window.addEventListener('orientationchange', onRotate);
@@ -2152,12 +2154,38 @@ export class RdApp {
     if (monitors) monitors.hidden = this.displays.length < 2;
     bar.setIcon('mode', this.inputModeIcon());
     bar.setOn('zoom', this.view.zoomed);
+    const fs = bar.button('fullscreen');
+    if (fs) {
+      fs.hidden = this.fullscreenMode() === 'hidden';
+      const on = !!document.fullscreenElement;
+      bar.setIcon('fullscreen', on ? 'fullscreenExit' : 'fullscreen');
+      bar.setOn('fullscreen', on);
+      const label = on ? tl('exit_fullscreen') : tl('fullscreen');
+      fs.title = label;
+      fs.setAttribute('aria-label', label);
+    }
     this.syncSoftKeyboardButton();
     this.syncExtraKeysButton();
   }
 
   private inputModeIcon(): IconName {
     return this.inputMode === 'trackpad' ? 'trackpad' : this.inputMode === 'touch' ? 'touch' : 'pointer';
+  }
+
+  private fullscreenMode(): 'toggle' | 'hint' | 'hidden' {
+    const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+      (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches);
+    return fullscreenButtonMode(document.fullscreenEnabled === true, standalone);
+  }
+
+  /** Bar Fullscreen button (see fullscreenButtonMode). */
+  private barFullscreen(): void {
+    if (this.fullscreenMode() === 'toggle') {
+      void this.toggleFullscreen();
+      return;
+    }
+    this.toast(tl('add_to_home_screen_hint'), true);
+    this.toastTimer = setTimeout(() => this.hideToast(), 9000);
   }
 
   /** Mode button: Touch <-> Trackpad (Pointer lives in the More sheet). */
@@ -2190,7 +2218,6 @@ export class RdApp {
         ['chat', 'chat', tl('chat'), true, false],
         ['details', 'info', tl('session_details'), true, false],
         ['viewonly', 'eye', tl('view_only'), true, this.viewOnly],
-        ['fullscreen', document.fullscreenElement ? 'fullscreenExit' : 'fullscreen', document.fullscreenElement ? tl('exit_fullscreen') : tl('fullscreen'), document.fullscreenEnabled === true, false],
         ['swap', 'swap', tl('swap_side'), true, false],
       ];
       const prefs = loadPrefs();
