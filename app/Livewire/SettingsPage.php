@@ -484,7 +484,9 @@ class SettingsPage extends Component
         // Pasting a key through an editor commonly drags in a trailing newline
         // or space. The comparison is exact, so an untrimmed key fails exactly
         // like a wrong one and there is nothing on screen to hint at why.
-        Setting::put('public_key', trim($this->publicKey));
+        if (Setting::bundledServerKey() === '') {
+            Setting::put('public_key', trim($this->publicKey));
+        }
         Setting::put('online_window', (string) $this->onlineWindow);
         Setting::put('rdgen_url', rtrim($this->rdgenUrl, '/'));
         $this->clientUrlScheme = ClientLink::normalize($this->clientUrlScheme) ?: ClientLink::DEFAULT;
@@ -775,6 +777,7 @@ class SettingsPage extends Component
             'apiUrl' => rtrim(config('app.url'), '/'),
             'serverLink' => ServerLink::status(),
             'relayLimitsAvailable' => RelayLimits::available(),
+            'bundledKey' => Setting::bundledServerKey() !== '',
             'userGroups' => UserGroup::query()->orderBy('name')->get(['id', 'name']),
             'oidcCallbackUrl' => route('login.oidc.callback'),
             // Sign-in from the RustDesk client returns here; the provider must

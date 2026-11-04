@@ -15,7 +15,7 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 ## Features
 
 **Console**
-- **Devices** — live fleet with presence, platform icons, aliases, device groups ("folders"), pre-registration, and a recycle bin. One-click connect via `rustdesk://` deep links (the scheme is a setting, for clients built with rdgen) or the built-in web client. Pick your own table columns (CPU, memory, IP, UUID and more — saved per user), export the current view to CSV, and multi-select rows to bulk-delete or add devices to an address book. Each device has a detail page with its connections, file transfers, notifications and address books.
+- **Devices** — live fleet with presence, platform icons, aliases, device groups ("folders"), pre-registration, and a recycle bin. One-click connect via `rustdesk://` deep links (the scheme is a setting, for clients built with rdgen) or the built-in web client. Pick your own table columns (CPU, memory, IP, UUID and more — saved per user), export the current view to CSV, and multi-select rows to bulk-delete or add devices to an address book. Each device has a detail page with its connections, file transfers, notifications and address books, and a button that frees its ID on the bundled ID server so a reinstalled machine can take it back.
 - **Server access control** — with the embedded ID server (or CortenDesk Server 1.1.0+), limit the server to devices you approved, and mark devices incoming only so they can be controlled but cannot start sessions. New devices can land in a default group, and a pending device can be approved automatically when its user signs in. The ID server enforces both. It also reports each device's LAN address seen during connection setup, shown as an optional LAN IP column. See [CortenDesk Server](https://github.com/marcpope/cortendesk-server#device-policy-from-a-cortendesk-console).
 - **Users & access scoping** — a detail page per user shows their devices, address books, sign-ins, console actions and connections. Admins see everything; regular users see only their own devices plus device groups granted to them or their user groups. The RustDesk client API is scoped with the same rules.
 - **Address books** — full support for the modern multi-address-book API *and* the legacy API: shared books, share rules (everyone / user / group), tags with colors.
@@ -64,7 +64,7 @@ docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
   -p 8080:8080 -p 21115-21117:21115-21117 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.19.0
+  ghcr.io/marcpope/cortendesk:1.20.0
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and
@@ -124,7 +124,9 @@ and must allow the same size.
 | `CORTENDESK_LOG_LEVEL` | unset | One level for everything: `debug`, `info`, `notice`, `warning`, `error` or `critical`. Sets Laravel's `LOG_LEVEL` and hbbs/hbbr's `RUST_LOG`; `warning` and above also turn off php-fpm's line per request. `LOG_LEVEL` or `RUST_LOG` set on their own still win. |
 | `CORTENDESK_AUDIT_LOG` | `false` | `true` also writes every audit record as one JSON line to the container log, for a log shipper. Lines start with `{"cortendesk_audit":1,`. |
 | `CORTENDESK_AUDIT_LOG_STREAM` | `php://stderr` | Where those lines go. A file path writes there instead. |
+| `CORTENDESK_PRIVATE_KEY_FILE` | unset | A file holding the server's private key (the content of `id_ed25519`), e.g. a Docker secret at `/run/secrets/rustdesk_key`. Installed as the bundled server's key on every start; the public key is derived from it. |
 | `CORTENDESK_WS_TRUSTED_PROXIES` | `127.0.0.1/32` | Proxies whose `X-Forwarded-For` the embedded hbbs and hbbr believe for a WebSocket client (web client, or a desktop client set to WebSocket). The default is the container's own nginx. If your proxy sends `/ws/id` and `/ws/relay` straight to published ports 21118/21119, add its address as the container sees it, e.g. `127.0.0.1/32,172.16.0.0/12`. Comma-separated CIDRs. |
+| `UDP_PUNCH`, `IPV6_PUNCH` | `Y` | UDP hole punching and IPv6 peer-to-peer for RustDesk 1.5 clients that turn on `enable-udp-punch` or `enable-ipv6-punch`: those sessions can connect directly instead of through the relay. UDP 21116 must be published. `N` turns either off. |
 | `CORTENDESK_WEBCLIENT_AB_PASSWORDS` | `true` | The web client signs in to a device with a password from an address book the user can read, as the desktop client does. `false` always asks. |
 | `CORTENDESK_FPM_MAX_CHILDREN` | `24` | PHP workers. See sizing below. |
 | `CORTENDESK_NGINX_WORKER_CONNECTIONS` | `4096` | Connections per nginx worker. See sizing below. |

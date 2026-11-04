@@ -50,6 +50,7 @@ return [
     'audit_action_device_group_move' => 'Dispositivos movidos a un grupo',
     'audit_action_device_initiate' => 'Permiso para iniciar sesiones cambiado',
     'audit_action_device_reject' => 'Dispositivo rechazado',
+    'audit_action_device_release_id' => 'ID liberado en el servidor de ID',
     'audit_action_device_restore' => 'Dispositivo restaurado',
     'audit_action_device_update' => 'Dispositivo actualizado',
     'audit_action_group_create' => 'Grupo creado',

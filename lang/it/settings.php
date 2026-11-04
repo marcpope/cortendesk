@@ -121,6 +121,7 @@ return [
     'provider_url' => 'URL del provider',
     'prune_now' => 'Sfoltisci ora',
     'public_key' => 'Chiave pubblica',
+    'public_key_from_bundled_server' => 'Ricavata dalla chiave privata del server incluso. Non si può modificare qui.',
     'recent_deliveries' => 'Invii recenti',
     'relay_pool_hbbr_your_rendezvous' => 'Il pool di relay (hbbr) che il server rendezvous fornisce ai client. La scelta del relay viene fatta da hbbs al momento della connessione: la console salva questo elenco per poter gestire la configurazione',
     'relay_server' => 'Server relay',

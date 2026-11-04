@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\HealthProbeLimiter;
+use App\Contracts\IdServerConsole;
 use App\Contracts\RelayConsole;
 use App\Contracts\TcpProbe;
 use App\Models\AlarmLog;
@@ -14,6 +15,7 @@ use App\Models\ConsoleAudit;
 use App\Models\LoginLog;
 use App\Services\FileHealthProbeLimiter;
 use App\Services\HbbrConsole;
+use App\Services\HbbsConsole;
 use App\Services\SocketTcpProbe;
 use App\Support\AuditLogStream;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TcpProbe::class, SocketTcpProbe::class);
         $this->app->bind(HealthProbeLimiter::class, FileHealthProbeLimiter::class);
         $this->app->bind(RelayConsole::class, HbbrConsole::class);
+        $this->app->bind(IdServerConsole::class, HbbsConsole::class);
     }
 
     /**

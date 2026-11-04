@@ -121,6 +121,7 @@ return [
     'provider_url' => '提供商 URL',
     'prune_now' => '立即清理',
     'public_key' => '公钥',
+    'public_key_from_bundled_server' => '取自内置服务器的私钥，无法在此处修改。',
     'recent_deliveries' => '最近投递',
     'relay_pool_hbbr_your_rendezvous' => '你的注册服务器分发给客户端的中继服务器池（hbbr）。选用哪个中继由 hbbs 在连接时决定——控制台保存此列表，以便管理服务器的',
     'relay_server' => '中继服务器',

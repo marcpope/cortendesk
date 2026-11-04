@@ -124,6 +124,26 @@ if [ "$EMBEDDED" = 1 ]; then
         fi
     done
 
+    # The private key from a Docker secret or any mounted file (#138). It
+    # wins over the one in the volume, restored ones included, on every boot.
+    if [ -n "${CORTENDESK_PRIVATE_KEY_FILE:-}" ]; then
+        if [ ! -r "$CORTENDESK_PRIVATE_KEY_FILE" ]; then
+            echo "[cortendesk] CORTENDESK_PRIVATE_KEY_FILE=$CORTENDESK_PRIVATE_KEY_FILE is not readable" >&2
+            exit 1
+        fi
+        _sk="$(tr -d ' \r\n' < "$CORTENDESK_PRIVATE_KEY_FILE")"
+        if [ "$(printf '%s' "$_sk" | base64 -d 2>/dev/null | wc -c)" -ne 64 ]; then
+            echo "[cortendesk] CORTENDESK_PRIVATE_KEY_FILE does not hold a RustDesk private key (base64 of 64 bytes, the content of id_ed25519)" >&2
+            exit 1
+        fi
+        if [ "$(tr -d ' \r\n' 2>/dev/null < "$RD_DIR/id_ed25519")" != "$_sk" ]; then
+            printf '%s' "$_sk" > "$RD_DIR/id_ed25519"
+            echo "[cortendesk] server private key taken from CORTENDESK_PRIVATE_KEY_FILE"
+        fi
+        chmod 600 "$RD_DIR/id_ed25519"
+        unset _sk
+    fi
+
     # Generate the key pair before anything reads it. hbbs would do this on its
     # own first start, but the console caches its config before supervisord runs
     # anything, so the key has to exist by now or the first boot ships an empty
@@ -146,6 +166,20 @@ if [ "$EMBEDDED" = 1 ]; then
         printf '%s' "$_pub" > "$RD_DIR/id_ed25519.pub"
         chmod 600 "$RD_DIR/id_ed25519"
         echo "[cortendesk] generated the server key pair in $RD_DIR"
+    fi
+
+    # hbbs takes its public key from the private key (the last 32 of its 64
+    # bytes) and never reads id_ed25519.pub. An adopted or restored directory
+    # can carry a .pub that doesn't match, and clients set up with it get
+    # "Key mismatch" (issue #137). Derive the key, and fix the file if needed.
+    _derived="$(tr -d ' \r\n' < "$RD_DIR/id_ed25519" | base64 -d 2>/dev/null | tail -c 32 | base64 | tr -d '\n')"
+    if [ "$(tr -d ' \r\n' < "$RD_DIR/id_ed25519" | base64 -d 2>/dev/null | wc -c)" -eq 64 ]; then
+        if [ "$(tr -d ' \r\n' 2>/dev/null < "$RD_DIR/id_ed25519.pub")" != "$_derived" ]; then
+            [ -f "$RD_DIR/id_ed25519.pub" ] && echo "[cortendesk] WARNING: id_ed25519.pub did not match the private key; replaced it with the key hbbs uses"
+            printf '%s' "$_derived" > "$RD_DIR/id_ed25519.pub"
+        fi
+    else
+        echo "[cortendesk] WARNING: $RD_DIR/id_ed25519 is not a valid private key; hbbs will refuse to start"
     fi
 
     # Adopting a data directory from a separate hbbs/hbbr install: the files

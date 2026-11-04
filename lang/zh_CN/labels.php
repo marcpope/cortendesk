@@ -50,6 +50,7 @@ return [
     'audit_action_device_group_move' => '设备已移动到组',
     'audit_action_device_initiate' => '发起会话权限已更改',
     'audit_action_device_reject' => '设备已拒绝',
+    'audit_action_device_release_id' => '已在 ID 服务器上释放 ID',
     'audit_action_device_restore' => '设备已恢复',
     'audit_action_device_update' => '设备已更新',
     'audit_action_group_create' => '组已创建',

@@ -121,6 +121,7 @@ return [
     'provider_url' => 'Provider URL',
     'prune_now' => 'Prune now',
     'public_key' => 'Public Key',
+    'public_key_from_bundled_server' => 'Taken from the bundled server\'s private key. It can\'t be changed here.',
     'recent_deliveries' => 'Recent deliveries',
     'relay_pool_hbbr_your_rendezvous' => 'The relay pool (hbbr) your rendezvous server hands to clients. Relay selection is decided by hbbs at connect time — the console stores this list so it can manage the server\'s',
     'relay_server' => 'Relay Server',

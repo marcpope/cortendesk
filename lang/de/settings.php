@@ -121,6 +121,7 @@ return [
     'provider_url' => 'Anbieter-URL',
     'prune_now' => 'Jetzt bereinigen',
     'public_key' => 'Öffentlicher Schlüssel',
+    'public_key_from_bundled_server' => 'Stammt aus dem privaten Schlüssel des mitgelieferten Servers. Er kann hier nicht geändert werden.',
     'recent_deliveries' => 'Letzte Zustellungen',
     'relay_pool_hbbr_your_rendezvous' => 'Der Relay-Pool (hbbr), den Ihr Rendezvous-Server an Clients weitergibt. Die Relay-Auswahl trifft hbbs beim Verbindungsaufbau – die Konsole speichert diese Liste, um die Serveroption',
     'relay_server' => 'Relay-Server',

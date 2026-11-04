@@ -121,6 +121,7 @@ return [
     'provider_url' => 'Szolgáltató URL-je',
     'prune_now' => 'Tisztítás most',
     'public_key' => 'Nyilvános kulcs',
+    'public_key_from_bundled_server' => 'A beépített szerver privát kulcsából származik. Itt nem módosítható.',
     'recent_deliveries' => 'Legutóbbi kézbesítések',
     'relay_pool_hbbr_your_rendezvous' => 'A továbbítókészlet (hbbr), amelyet a rendezvous kiszolgáló átad a klienseknek. A továbbító kiválasztásáról kapcsolódáskor a hbbs dönt — a konzol azért tárolja ezt a listát, hogy kezelhesse a kiszolgáló',
     'relay_server' => 'Továbbító-kiszolgáló',

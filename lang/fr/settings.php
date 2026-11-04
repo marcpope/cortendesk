@@ -121,6 +121,7 @@ return [
     'provider_url' => 'URL du fournisseur',
     'prune_now' => 'Élaguer',
     'public_key' => 'Clé publique',
+    'public_key_from_bundled_server' => 'Issue de la clé privée du serveur intégré. Elle ne peut pas être modifiée ici.',
     'recent_deliveries' => 'Envois récents',
     'relay_pool_hbbr_your_rendezvous' => 'Le pool de relais (hbbr) que votre serveur de rendez-vous fournit aux clients. Le choix du relais est fait par hbbs au moment de la connexion ; la console stocke cette liste pour pouvoir gérer la configuration',
     'relay_server' => 'Serveur relais',

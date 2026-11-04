@@ -50,6 +50,7 @@ return [
     'audit_action_device_group_move' => 'Przeniesiono urządzenia do grupy',
     'audit_action_device_initiate' => 'Zmieniono uprawnienie do rozpoczynania sesji',
     'audit_action_device_reject' => 'Odrzucono urządzenie',
+    'audit_action_device_release_id' => 'ID zwolniony na serwerze ID',
     'audit_action_device_restore' => 'Przywrócono urządzenie',
     'audit_action_device_update' => 'Zaktualizowano urządzenie',
     'audit_action_group_create' => 'Utworzono grupę',

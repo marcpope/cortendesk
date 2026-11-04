@@ -63,6 +63,7 @@ class ConsoleAuditList extends Component
         'device.assign' => 'Device assigned',
         'device.group-move' => 'Devices moved to a group',
         'device.duplicate-dismiss' => 'Duplicate flag dismissed',
+        'device.release-id' => 'ID released on the ID server',
         'device.export' => 'Devices exported',
         'device.delete' => 'Device deleted',
         'device.restore' => 'Device restored',

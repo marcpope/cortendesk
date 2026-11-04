@@ -121,6 +121,7 @@ return [
     'provider_url' => 'Provider-URL',
     'prune_now' => 'Nu opschonen',
     'public_key' => 'Openbare sleutel',
+    'public_key_from_bundled_server' => 'Afgeleid van de privésleutel van de meegeleverde server. Je kunt hem hier niet wijzigen.',
     'recent_deliveries' => 'Recente bezorgingen',
     'relay_pool_hbbr_your_rendezvous' => 'De relaypool (hbbr) die uw rendezvous-server aan clients doorgeeft. Welke relay wordt gekozen, bepaalt hbbs bij het verbinden — de console bewaart deze lijst zodat hij de serverinstelling',
     'relay_server' => 'Relay-server',

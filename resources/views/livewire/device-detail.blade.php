@@ -39,6 +39,12 @@
                     @if ($canEdit)
                         <button type="button" class="btn btn-sm btn-outline-light" wire:click="editDevice">
                             <i class="ri-pencil-line me-1"></i>{{ __('common.edit') }}</button>
+                        @if ($canReleaseId)
+                            <button type="button" class="btn btn-sm btn-outline-light" wire:click="releaseId"
+                                    wire:confirm="{{ __('devices.release_id_confirm', ['id' => $device->rustdesk_id]) }}"
+                                    title="{{ __('devices.release_id_hint') }}">
+                                <i class="ri-price-tag-3-line me-1"></i>{{ __('devices.release_id') }}</button>
+                        @endif
                         <button type="button" class="btn btn-sm btn-outline-danger" wire:click="confirmDelete">
                             <i class="ri-delete-bin-line me-1"></i>{{ __('common.delete') }}</button>
                     @endif
@@ -98,6 +104,11 @@
             </div>
         </div>
     @endif
+    @if ($releaseResult !== '')
+        <div class="fs-13 {{ $releaseOk ? 'text-success' : 'text-danger' }} mb-3" role="status">
+            <i class="{{ $releaseOk ? 'ri-check-line' : 'ri-error-warning-line' }} me-1"></i>{{ $releaseResult }}</div>
+    @endif
+
     @if ($duplicateResult !== '')
         <div class="fs-13 text-success mb-3"><i class="ri-check-line me-1"></i>{{ $duplicateResult }}</div>
     @endif

@@ -50,6 +50,7 @@ return [
     'audit_action_device_group_move' => 'Eszközök csoportba áthelyezve',
     'audit_action_device_initiate' => 'Munkamenet-indítási jog módosítva',
     'audit_action_device_reject' => 'Eszköz elutasítva',
+    'audit_action_device_release_id' => 'Azonosító felszabadítva az azonosítószerveren',
     'audit_action_device_restore' => 'Eszköz visszaállítva',
     'audit_action_device_update' => 'Eszköz módosítva',
     'audit_action_group_create' => 'Csoport létrehozva',

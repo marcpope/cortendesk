@@ -93,8 +93,8 @@
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">{{ __('settings.public_key') }}</label>
-                                    <input type="text" class="form-control rd-mono" wire:model="publicKey" placeholder="{{ __('settings.contents_of_id_ed25519_pub') }}">
-                                    <div class="form-text">{{ __('settings.servers_ed25519_public_key_clients') }} <code>ENCRYPTED_ONLY</code> {{ __('settings.is_enabled') }}</div>
+                                    <input type="text" class="form-control rd-mono" wire:model="publicKey" placeholder="{{ __('settings.contents_of_id_ed25519_pub') }}" @readonly($bundledKey)>
+                                    <div class="form-text">{{ __('settings.servers_ed25519_public_key_clients') }} <code>ENCRYPTED_ONLY</code> {{ __('settings.is_enabled') }}@if ($bundledKey) {{ __('settings.public_key_from_bundled_server') }}@endif</div>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">{{ __('settings.build_installers_url') }}</label>

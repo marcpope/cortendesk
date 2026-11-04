@@ -3,6 +3,9 @@ import type { AddressBookSignIn } from '../core/contracts';
 /** How long the console gets to answer before we sign in without it. */
 const ADDRESS_BOOK_TIMEOUT_MS = 8000;
 
+/** A path on the console's own origin: no scheme, no host, no `//`. */
+const SAME_ORIGIN_PATH = /^\/(?!\/)[A-Za-z0-9._~\-/]*$/;
+
 /**
  * Ask the console for h1 = SHA256(password || salt) of an address-book entry
  * for this device (POST, same origin, session cookie + CSRF token). The
@@ -18,6 +21,10 @@ export async function fetchAddressBookHash(
   salt: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<string | null> {
+  // The console hands the page this path; never send the session cookie,
+  // CSRF token or salt anywhere else, whatever ends up in the config.
+  if (!SAME_ORIGIN_PATH.test(signIn.url)) return null;
+
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ADDRESS_BOOK_TIMEOUT_MS);
   try {

@@ -15,6 +15,7 @@ use App\Models\DeviceDuplicateDismissal;
 use App\Models\NotificationDelivery;
 use App\Services\DeviceAddressBooks;
 use App\Services\DuplicateDevices;
+use App\Services\ReleaseId;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 
@@ -45,6 +46,11 @@ class DeviceDetail extends Component
 
     /** Outcome of the last action on a possible duplicate. */
     public string $duplicateResult = '';
+
+    /** Outcome of the last Release ID, and whether it worked. */
+    public string $releaseResult = '';
+
+    public bool $releaseOk = false;
 
     /** Per-request memo of the viewer's scope; resolving it costs queries. */
     private ?Builder $visibleScope = null;
@@ -99,6 +105,31 @@ class DeviceDetail extends Component
     {
         $this->note = (string) $this->device()->note;
         $this->editingNote = false;
+    }
+
+    /**
+     * Header "Release ID" (cortendesk-server #19): free this device's ID on
+     * the bundled ID server, so a reinstalled machine can take it again.
+     */
+    public function releaseId(ReleaseId $releaser): void
+    {
+        $this->authorizeConsole('device', 'rw');
+        $device = $this->device();
+
+        $outcome = $releaser->release($device->rustdesk_id);
+        $this->releaseOk = in_array($outcome, [ReleaseId::RELEASED, ReleaseId::RELEASED_ONLINE], true);
+        $id = ['id' => $device->rustdesk_id];
+        $this->releaseResult = match ($outcome) {
+            ReleaseId::RELEASED => __('devices.release_id_released', $id),
+            ReleaseId::RELEASED_ONLINE => __('devices.release_id_released_online', $id),
+            ReleaseId::NOT_FOUND => __('devices.release_id_not_found', $id),
+            ReleaseId::UNAVAILABLE => __('devices.release_id_unavailable'),
+            default => __('devices.release_id_failed', $id),
+        };
+
+        if ($this->releaseOk) {
+            ConsoleAudit::record('device.release-id', 'Released ID '.$device->rustdesk_id.' on the ID server', 'device', $device->rustdesk_id);
+        }
     }
 
     /** Header "Edit": the list's editor, for this device only. */
@@ -286,6 +317,7 @@ class DeviceDetail extends Component
             'addableBooks' => $addableBooks,
             'canAudit' => $canAudit,
             'canEdit' => $user->consoleAllows('device', 'rw'),
+            'canReleaseId' => ReleaseId::available(),
             'canWriteBooks' => $canWriteBooks,
             'deleteState' => $this->deleteConfirmState(),
             'twins' => $this->twins($device),

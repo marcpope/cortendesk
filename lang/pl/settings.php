@@ -121,6 +121,7 @@ return [
     'provider_url' => 'Adres URL dostawcy',
     'prune_now' => 'Wyczyść teraz',
     'public_key' => 'Klucz publiczny',
+    'public_key_from_bundled_server' => 'Pochodzi z klucza prywatnego wbudowanego serwera. Nie można go tu zmienić.',
     'recent_deliveries' => 'Ostatnie dostarczenia',
     'relay_pool_hbbr_your_rendezvous' => 'Pula serwerów pośredniczących (hbbr), którą serwer rendezvous przekazuje klientom. O wyborze serwera pośredniczącego decyduje hbbs w chwili połączenia — konsola przechowuje tę listę, aby zarządzać konfiguracją',
     'relay_server' => 'Serwer pośredniczący',

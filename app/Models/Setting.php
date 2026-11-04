@@ -44,9 +44,22 @@ class Setting extends Model
      */
     public static function server(string $name): string
     {
+        // The bundled server's key is whatever its private key says: the
+        // entrypoint derives it at boot (#137). A key saved on Settings
+        // earlier must not override it.
+        if ($name === 'public_key' && static::bundledServerKey() !== '') {
+            return static::bundledServerKey();
+        }
+
         $saved = trim((string) static::get($name));
 
         return $saved !== '' ? $saved : trim((string) config('cortendesk.'.$name));
+    }
+
+    /** The bundled server's public key, or '' when hbbs runs elsewhere. */
+    public static function bundledServerKey(): string
+    {
+        return config('cortendesk.embedded_server') ? trim((string) config('cortendesk.public_key')) : '';
     }
 
     /**

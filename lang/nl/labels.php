@@ -50,6 +50,7 @@ return [
     'audit_action_device_group_move' => 'Apparaten naar een groep verplaatst',
     'audit_action_device_initiate' => 'Recht om sessies te starten gewijzigd',
     'audit_action_device_reject' => 'Apparaat geweigerd',
+    'audit_action_device_release_id' => 'ID vrijgegeven op de ID-server',
     'audit_action_device_restore' => 'Apparaat hersteld',
     'audit_action_device_update' => 'Apparaat bijgewerkt',
     'audit_action_group_create' => 'Groep aangemaakt',
