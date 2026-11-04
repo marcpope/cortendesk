@@ -689,6 +689,82 @@
   color: var(--rd-danger);
 }
 
+/* More sheet (app.ts openMoreSheet): from the bottom in portrait, beside the
+   bar in landscape. Positioned inside the root, which follows the visible
+   viewport, so it stays above an open keyboard. */
+.rd-pop.rd-sheet {
+  position: absolute;
+  z-index: 43; /* over the clipboard-sync offer (42) */
+  max-width: none;
+  max-height: 70%;
+  padding: 8px;
+}
+.rd-pop.rd-sheet[data-sheet='bottom'] {
+  left: calc(env(safe-area-inset-left) + 6px);
+  right: calc(env(safe-area-inset-right) + 6px);
+  bottom: calc(env(safe-area-inset-bottom) + 54px);
+}
+.rd-pop.rd-sheet[data-sheet='top'] {
+  left: calc(env(safe-area-inset-left) + 6px);
+  right: calc(env(safe-area-inset-right) + 6px);
+  top: calc(env(safe-area-inset-top) + 54px);
+}
+.rd-pop.rd-sheet[data-sheet='right'],
+.rd-pop.rd-sheet[data-sheet='left'] {
+  top: calc(env(safe-area-inset-top) + 6px);
+  bottom: 6px;
+  width: min(380px, 62%);
+  max-height: none;
+}
+.rd-pop.rd-sheet[data-sheet='right'] {
+  right: calc(env(safe-area-inset-right) + 54px);
+}
+.rd-pop.rd-sheet[data-sheet='left'] {
+  left: calc(env(safe-area-inset-left) + 54px);
+}
+.rd-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+  padding: 2px;
+}
+.rd-sheet-tile {
+  appearance: none;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  border: 1px solid var(--rd-border);
+  border-radius: 10px;
+  background: var(--rd-surface-2);
+  color: var(--rd-fg);
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rd-sheet-tile span {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.rd-sheet-tile:active {
+  background: var(--rd-surface-3);
+}
+.rd-sheet-tile.rd-on {
+  border-color: var(--rd-accent);
+  color: var(--rd-accent);
+}
+.rd-pop.rd-sheet .rd-mi {
+  min-height: 44px;
+}
+
 /* Hide-keyboard key: only while a keyboard is open. */
 .rd-xk-hide {
   display: none;

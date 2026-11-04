@@ -2091,17 +2091,11 @@ export class RdApp {
     const items = [
       { id: 'kbd', icon: 'keyboard', label: tl('show_hide_on_screen_keyboard'), attrs: 'data-kbd-toggle aria-pressed="false"', onClick: () => this.toggleSoftKeyboard() },
       { id: 'xkeys', icon: 'keyCombo', label: tl('extra_keys'), attrs: 'data-xkeys-toggle aria-pressed="false"', onClick: () => this.toggleExtraKeys() },
-      { id: 'mode', icon: this.inputModeIcon(), label: tl('input_mode'), attrs: 'aria-haspopup="true"', onClick: (b: HTMLButtonElement) => this.openModePop(b) },
-      { id: 'zoom', icon: 'zoom', label: tl('scale_mode'), attrs: 'aria-haspopup="true"', onClick: (b: HTMLButtonElement) => this.openZoomPop(b) },
+      { id: 'mode', icon: this.inputModeIcon(), label: tl('touch_or_trackpad'), onClick: () => this.cycleTouchMode() },
+      { id: 'zoom', icon: 'zoom', label: tl('fit_or_actual_size'), attrs: 'aria-pressed="false"', onClick: () => this.toggleZoom() },
+      // Only with more than one monitor (syncBar).
       { id: 'monitors', icon: 'monitor', label: tl('select_monitor'), attrs: 'aria-haspopup="true"', onClick: (b: HTMLButtonElement) => this.openMonitorPop(b) },
-      { id: 'clipboard', icon: 'clipboard', label: tl('send_clipboard_remote'), onClick: () => void this.sendClipboard() },
-      { id: 'files', icon: 'folderTransfer', label: tl('file_transfer_2'), onClick: () => this.openSide('files') },
-      { id: 'chat', icon: 'chat', label: tl('chat'), onClick: () => this.openSide('chat') },
-      { id: 'details', icon: 'info', label: tl('session_details'), onClick: () => this.openSide('details') },
-      { id: 'viewonly', icon: 'eye', label: tl('view_only'), attrs: 'aria-pressed="false"', onClick: () => { this.toggleViewOnly(); this.syncBar(); } },
-      { id: 'fullscreen', icon: 'fullscreen', label: tl('fullscreen'), onClick: () => void this.toggleFullscreen() },
-      { id: 'swap', icon: 'swap', label: tl('move_controls_other_side'), onClick: () => this.swapBarSide() },
-      { id: 'settings', icon: 'more', label: tl('more_options'), attrs: 'aria-haspopup="true"', pinned: true, onClick: (b: HTMLButtonElement) => this.openMorePop(b) },
+      { id: 'more', icon: 'more', label: tl('more_options'), attrs: 'aria-haspopup="true"', pinned: true, onClick: (b: HTMLButtonElement) => this.openMoreSheet(b) },
       { id: 'disconnect', icon: 'power', label: tl('disconnect'), pinned: true, onClick: () => this.disconnectByUser() },
     ] satisfies import('./mobile-bar').BarItem[];
     this.bar = new MobileBar(items, tl('session_controls'));
@@ -2112,8 +2106,6 @@ export class RdApp {
       tl('hide_keyboard'),
     );
     this.el.root.insertBefore(this.ckbd.el, this.el.dock);
-    const fs = this.bar.button('fullscreen');
-    if (fs) fs.hidden = document.fullscreenEnabled !== true;
     this.syncOrientation();
     this.syncBar();
     const onRotate = (): void => this.syncOrientation();
@@ -2150,13 +2142,9 @@ export class RdApp {
     const bar = this.bar;
     if (!bar) return;
     const monitors = bar.button('monitors');
-    if (monitors) monitors.hidden = this.el.btnMonitors.hidden;
+    if (monitors) monitors.hidden = this.displays.length < 2;
     bar.setIcon('mode', this.inputModeIcon());
-    bar.setOn('viewonly', this.viewOnly);
-    const files = bar.button('files');
-    if (files) files.disabled = this.permissions.File === false;
-    const clip = bar.button('clipboard');
-    if (clip) clip.disabled = this.permissions.Clipboard === false;
+    bar.setOn('zoom', this.view.zoomed);
     this.syncSoftKeyboardButton();
     this.syncExtraKeysButton();
   }
@@ -2165,62 +2153,94 @@ export class RdApp {
     return this.inputMode === 'trackpad' ? 'trackpad' : this.inputMode === 'touch' ? 'touch' : 'pointer';
   }
 
-  private openModePop(anchor: HTMLElement): void {
-    this.openPop(anchor, (pop) => {
-      const note = this.inputMode === 'trackpad'
-        ? tl('trackpad_mode_move_cursor')
-        : this.inputMode === 'touch' ? tl('touch_mode_tap_drag_scroll') : tl('pointer_mode_touch_acts_as');
-      pop.innerHTML =
-        '<div class="rd-pop-title">' + htl('input_mode') + '</div>' +
-        this.menuItem('touch', tl('touch'), this.inputMode === 'touch', 'input:touch') +
-        this.menuItem('trackpad', tl('trackpad'), this.inputMode === 'trackpad', 'input:trackpad') +
-        this.menuItem('pointer', tl('pointer'), this.inputMode === 'pointer', 'input:pointer') +
-        ('vibrate' in navigator
-          ? '<div class="rd-pop-sep"></div>' + this.menuItem(null, tl('vibrate_on_touch_actions'), loadPrefs().haptics, 'haptics')
-          : '') +
-        '<div class="rd-pop-sep"></div>' +
-        this.menuItem(null, tl('compact_keyboard_landscape'), loadPrefs().compactKeyboard, 'compactKbd') +
-        '<div class="rd-pop-note">' + escapeHtml(note) + '</div>';
-      for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-action^="input:"]')) {
-        b.addEventListener('click', () => {
-          const mode = b.dataset.action?.slice('input:'.length);
-          this.chooseInputMode(mode === 'pointer' || mode === 'trackpad' ? mode : 'touch');
-          this.closePop();
-        });
-      }
-      pop.querySelector<HTMLButtonElement>('[data-action="haptics"]')?.addEventListener('click', () => {
-        const on = !loadPrefs().haptics;
-        setHapticsEnabled(on);
-        this.rememberPrefs({ haptics: on });
-        haptic();
-        this.closePop();
-      });
-      pop.querySelector<HTMLButtonElement>('[data-action="compactKbd"]')?.addEventListener('click', () => {
-        const on = !loadPrefs().compactKeyboard;
-        this.rememberPrefs({ compactKeyboard: on });
-        if (!on) this.showCompactKeyboard(false);
-        this.closePop();
-      });
-    });
+  /** Mode button: Touch <-> Trackpad (Pointer lives in the More sheet). */
+  private cycleTouchMode(): void {
+    const next: InputMode = this.inputMode === 'touch' ? 'trackpad' : 'touch';
+    this.chooseInputMode(next);
+    this.toast(next === 'trackpad' ? tl('trackpad_mode_move_cursor') : tl('touch_mode_tap_drag_scroll'));
   }
 
-  private openZoomPop(anchor: HTMLElement): void {
+  /** Zoom button: Fit <-> Actual size (1:1). */
+  private toggleZoom(): void {
+    const mode: FitMode = this.view.zoomed ? 'fit' : 'actual';
+    this.setFitMode(mode);
+    this.rememberPrefs({ fitMode: mode });
+  }
+
+  /**
+   * More: everything that is not on the bar, as a sheet — from the bottom in
+   * portrait, beside the bar in landscape. Tiles for actions, then the
+   * options, then the full settings menu.
+   */
+  private openMoreSheet(anchor: HTMLElement): void {
     this.openPop(anchor, (pop) => {
-      const zoomed = this.view.zoomed;
+      pop.classList.add('rd-sheet');
+      const can = (perm: string): boolean => this.permissions[perm] !== false;
+      const tiles: [string, IconName, string, boolean, boolean][] = [
+        ['monitors', 'monitor', tl('select_monitor'), !this.el.btnMonitors.hidden, false],
+        ['clipboard', 'clipboard', tl('send_clipboard'), can('Clipboard') && remoteInputAllowed(this.viewOnly, 'clipboard'), false],
+        ['files', 'folderTransfer', tl('file_transfer_2'), can('File'), false],
+        ['chat', 'chat', tl('chat'), true, false],
+        ['details', 'info', tl('session_details'), true, false],
+        ['viewonly', 'eye', tl('view_only'), true, this.viewOnly],
+        ['fullscreen', document.fullscreenElement ? 'fullscreenExit' : 'fullscreen', document.fullscreenElement ? tl('exit_fullscreen') : tl('fullscreen'), document.fullscreenEnabled === true, false],
+        ['swap', 'swap', tl('swap_side'), true, false],
+      ];
+      const prefs = loadPrefs();
       pop.innerHTML =
-        '<div class="rd-pop-title">' + htl('scale_mode') + '</div>' +
-        this.menuItem(null, tl('fit_screen'), !zoomed, 'fit:fit') +
-        this.menuItem(null, tl('actual_size'), zoomed && this.fitMode === 'actual', 'fit:actual');
-      for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-action^="fit:"]')) {
+        '<div class="rd-sheet-grid">' +
+        tiles
+          .filter(([, , , show]) => show)
+          .map(([id, icon, label, , on]) =>
+            `<button type="button" class="rd-sheet-tile${on ? ' rd-on' : ''}" data-tile="${id}" title="${escapeHtml(label)}" aria-pressed="${on}">` +
+            `${iconHtml(icon)}<span>${escapeHtml(label)}</span></button>`,
+          )
+          .join('') +
+        '</div><div class="rd-pop-sep"></div>' +
+        this.menuItem('pointer', tl('pointer'), this.inputMode === 'pointer', 'opt:pointer') +
+        this.menuItem(null, tl('compact_keyboard_landscape'), prefs.compactKeyboard, 'opt:compactKbd') +
+        ('vibrate' in navigator ? this.menuItem(null, tl('vibrate_on_touch_actions'), prefs.haptics, 'opt:haptics') : '') +
+        '<div class="rd-pop-sep"></div>' +
+        this.menuItem('more', tl('more_options'), false, 'opt:settings');
+      const act: Record<string, () => void> = {
+        monitors: () => this.openMonitorPop(anchor),
+        clipboard: () => void this.sendClipboard(),
+        files: () => this.openSide('files'),
+        chat: () => this.openSide('chat'),
+        details: () => this.openSide('details'),
+        viewonly: () => this.toggleViewOnly(),
+        fullscreen: () => void this.toggleFullscreen(),
+        swap: () => this.swapBarSide(),
+        'opt:pointer': () => this.chooseInputMode(this.inputMode === 'pointer' ? 'touch' : 'pointer'),
+        'opt:compactKbd': () => {
+          const on = !loadPrefs().compactKeyboard;
+          this.rememberPrefs({ compactKeyboard: on });
+          if (!on) this.showCompactKeyboard(false);
+        },
+        'opt:haptics': () => {
+          const on = !loadPrefs().haptics;
+          setHapticsEnabled(on);
+          this.rememberPrefs({ haptics: on });
+          haptic();
+        },
+        'opt:settings': () => this.openMorePop(anchor),
+      };
+      for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-tile], [data-action^="opt:"]')) {
         b.addEventListener('click', () => {
-          const mode: FitMode = b.dataset.action === 'fit:actual' ? 'actual' : 'fit';
-          this.setFitMode(mode);
-          this.rememberPrefs({ fitMode: mode });
-          this.closePop();
+          const id = b.dataset.tile ?? b.dataset.action!;
+          this.closePop(); // follow-up popovers anchor on the same button
+          act[id]?.();
         });
       }
     });
+    // A sheet, not an anchored popover: the stylesheet places it.
+    const pop = this.pop;
+    if (pop?.classList.contains('rd-sheet')) {
+      pop.dataset.sheet = this.orientation === 'landscape' ? (this.el.root.dataset.bar === 'left' ? 'left' : 'right') : (this.el.root.dataset.bar === 'top' ? 'top' : 'bottom');
+      pop.style.left = pop.style.top = pop.style.maxHeight = '';
+    }
   }
+
 
   // --- connect overlay ------------------------------------------------------------
 
@@ -2694,6 +2714,7 @@ export class RdApp {
   }
 
   private applyView(): void {
+    this.bar?.setOn('zoom', this.view.zoomed);
     const css = this.view.css();
     for (const el of [this.canvas, this.videoEl]) {
       el.style.transformOrigin = css ? '0 0' : '';
