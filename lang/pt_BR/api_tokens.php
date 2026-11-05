@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Só adicionar entradas',
+    'add_entries_only_help' => 'Para scripts de implantação: o token pode adicionar entradas a estes catálogos compartilhados e nada mais. Não pode ler, alterar nem excluir.',
+    'add_entries_to' => 'Adicionar entradas: :books',
     'api_tokens' => 'Tokens de API',
     'audit_logs' => 'Logs de auditoria',
     'copy_it_now_it_is' => 'Copie agora — ele é exibido apenas uma vez e não pode ser recuperado depois.',

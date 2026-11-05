@@ -36,16 +36,22 @@ const STATS_INTERVAL_MS = 1000;
 const MAX_DECODE_QUEUE = 30;
 
 /**
- * How long frames may arrive with nothing rendered before assuming the decoder
- * is wedged and asking the peer for a fresh key frame.
+ * How long a chunk may wait with nothing rendered before assuming the decoder
+ * is wedged, replacing it and asking the peer for a fresh key frame.
  *
  * The failure this catches is silent: chunks are accepted, decode() does not
  * throw, and no error callback fires, but no VideoFrame ever comes out. Error
  * handling never engages because nothing reports an error — the session simply
  * shows a frozen or black picture. Only comparing frames in against frames out
  * detects it.
+ *
+ * A key frame fed to the same decoder does not bring it back (issue #139: a
+ * black screen that only re-selecting the display, which resets the pipeline,
+ * cured). So the decoder is rebuilt, and after MAX_STALLS in a row with no
+ * output at all the codec is treated as broken like one that throws.
  */
 const STALL_TIMEOUT_MS = 2500;
+const MAX_STALLS = 3;
 
 async function probe(codec: string): Promise<boolean> {
   try {
@@ -124,9 +130,10 @@ export class VideoPipeline {
   private lastW = 0;
   private lastH = 0;
   private closed = false;
-  // Stall detection: frames rendered out, and when the last one arrived.
-  private framesOut = 0;
-  private lastOutputMs = Date.now();
+  // Stall detection: when the oldest chunk still waiting for output went in,
+  // and how many stalls in a row have passed with nothing rendered.
+  private waitingSinceMs: number | null = null;
+  private stallStreak = 0;
 
   constructor(
     private readonly canvas: OffscreenCanvas,
@@ -177,6 +184,13 @@ export class VideoPipeline {
       if (!this.configure(kase)) return;
     }
     for (const f of frames) {
+      if (this.stalled()) {
+        if (++this.stallStreak >= MAX_STALLS) {
+          this.fatal(kase);
+          return;
+        }
+        if (!this.configure(kase)) return;
+      }
       if (this.awaitingKey && !f.key) {
         this.framesDropped++;
         this.requestRefresh();
@@ -196,6 +210,8 @@ export class VideoPipeline {
       }
       try {
         this.windowBytes += f.data.byteLength;
+        // Before decode(): a decoder that outputs synchronously clears it.
+        this.waitingSinceMs ??= Date.now();
         this.decoder!.decode(
           new EncodedVideoChunk({
             type: f.key ? 'key' : 'delta',
@@ -204,7 +220,6 @@ export class VideoPipeline {
           }),
         );
         this.awaitingKey = false;
-        this.checkStall();
       } catch {
         this.noteFailure(kase);
         if (this.disabled.has(kase) || !this.decoder || this.decoder.state === 'closed') break;
@@ -217,10 +232,7 @@ export class VideoPipeline {
     this.currentCase = null;
     this.awaitingKey = true;
     this.failStreak = 0;
-    // Without clearing these, a reconnect inherits the old counters and the
-    // stall check fires immediately on a session that is perfectly healthy.
-    this.framesOut = 0;
-    this.lastOutputMs = Date.now();
+    this.stallStreak = 0;
   }
 
   close(): void {
@@ -249,8 +261,8 @@ export class VideoPipeline {
 
   private handleOutput(frame: VideoFrame): void {
     this.failStreak = 0;
-    this.framesOut++;
-    this.lastOutputMs = Date.now();
+    this.stallStreak = 0;
+    this.waitingSinceMs = null;
     try {
       const w = frame.displayWidth;
       const h = frame.displayHeight;
@@ -291,6 +303,8 @@ export class VideoPipeline {
   private teardownDecoder(): void {
     const dec = this.decoder;
     this.decoder = null;
+    // Its chunks are gone with it; nothing is waiting any more.
+    this.waitingSinceMs = null;
     if (dec && dec.state !== 'closed') {
       try {
         dec.close();
@@ -308,21 +322,16 @@ export class VideoPipeline {
   }
 
   /**
-   * Frames going in, nothing coming out — ask for a key frame.
+   * Has a chunk waited longer than STALL_TIMEOUT_MS with nothing rendered?
    *
-   * Gated on time since the last rendered frame, NOT on "has never produced
-   * one". A decoder that works for ten minutes and then wedges is the more
-   * common case, and a total-output check would never catch it. Because this
-   * runs only from the decode path it cannot fire on an idle session, where no
-   * chunks arrive and a frozen picture is simply a static screen.
+   * Timed from the oldest chunk still waiting, NOT from the last rendered
+   * frame. A static screen sends nothing for minutes; timing from the last
+   * output would call the first chunk after that a stall. And because this
+   * runs only from the decode path it cannot fire on an idle session.
    */
-  private checkStall(): void {
-    if (this.closed) return;
-    if (Date.now() - this.lastOutputMs < STALL_TIMEOUT_MS) return;
-    // Reset the clock so this asks once per timeout window, not once per chunk.
-    this.lastOutputMs = Date.now();
-    this.awaitingKey = true;
-    this.requestRefresh();
+  private stalled(): boolean {
+    if (this.closed || this.waitingSinceMs === null) return false;
+    return Date.now() - this.waitingSinceMs >= STALL_TIMEOUT_MS;
   }
 
   private tickStats(): void {

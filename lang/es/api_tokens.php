@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Solo añadir entradas',
+    'add_entries_only_help' => 'Para scripts de despliegue: el token puede añadir entradas a estas libretas compartidas y nada más. No puede leerlas, cambiarlas ni borrarlas.',
+    'add_entries_to' => 'Añadir entradas: :books',
     'api_tokens' => 'Tokens de API',
     'audit_logs' => 'Registros de auditoría',
     'copy_it_now_it_is' => 'Cópialo ahora: solo se muestra una vez y no se puede recuperar después.',

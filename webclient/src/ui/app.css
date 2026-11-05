@@ -393,6 +393,73 @@
   touch-action: none;
 }
 
+/* The remote screen owns every touch: no text selection, iOS callout menu,
+   tap flash, pull-to-refresh or overscroll bounce on top of it. */
+#rd-canvas,
+#rd-video,
+#rd-remote-cursor {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#rd-viewport {
+  overscroll-behavior: none;
+}
+
+/* Trackpad mode's local cursor (app.ts drawTrackpadCursor). */
+#rd-tp-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+#rd-tp-cursor[hidden] {
+  display: none;
+}
+#rd-tp-cursor.rd-faded {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+/* The field the on-screen keyboard types into (app.ts setupSoftKeyboard).
+   Focusable but invisible; 16px so iOS does not zoom the page to it. */
+#rd-kbd-sink {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  font-size: 16px;
+  resize: none;
+  overflow: hidden;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Controls only a finger needs (on-screen keyboard, ...). */
+@media not all and (pointer: coarse) {
+  .rd-coarse-only {
+    display: none !important;
+  }
+}
+/* Buttons react at once instead of waiting out a double-tap-to-zoom. */
+#rd-toolbar,
+#rd-dock,
+#rd-edge,
+.rd-pop {
+  touch-action: manipulation;
+}
+
 /* Actual size: the canvas keeps its remote pixel dimensions and the viewport
    pans. The input mapper stays exact here because the element box equals the
    display aspect, so its letterbox math degenerates to identity. */
@@ -405,6 +472,392 @@
   height: auto;
   display: block;
   margin: 0 auto;
+}
+
+/* --- extra-keys bar (phones, tablets; extra-keys-bar.ts) ----------------------- */
+
+#rd-xkeys {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: color-mix(in srgb, var(--rd-bg) 88%, black 12%);
+  border-top: 1px solid var(--rd-border);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+#rd-xkeys[hidden] {
+  display: none;
+}
+.rd-xk-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.rd-xk-row::-webkit-scrollbar {
+  display: none;
+}
+.rd-xk {
+  appearance: none;
+  flex: 0 0 auto;
+  min-width: 44px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--rd-border);
+  background: var(--rd-surface);
+  color: var(--rd-fg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rd-xk:active {
+  background: var(--rd-surface-3);
+}
+.rd-xk[data-latch='once'] {
+  border-color: var(--rd-accent);
+  background: color-mix(in srgb, var(--rd-accent) 15%, transparent);
+}
+.rd-xk[data-latch='locked'] {
+  border-color: var(--rd-accent);
+  background: var(--rd-accent);
+  color: var(--rd-accent-fg);
+}
+.rd-xk:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.rd-xk-page {
+  color: var(--rd-muted);
+  font-weight: 500;
+}
+
+/* --- phones and tablets: floating controls (mobile-toolbar.ts) ----------------- */
+
+/* The top bar, the dock and the side-panel edge strip give way to the docked
+   bar (which has Files / Chat / Details) while a session streams. */
+#rd-root.rd-mobile[data-state='streaming'] #rd-toolbar,
+#rd-root.rd-mobile[data-state='streaming'] #rd-dock,
+#rd-root.rd-mobile #rd-edge,
+#rd-root.rd-mobile .rd-arrow-btn {
+  display: none;
+}
+/* Notch and home indicator (viewport-fit=cover, landscape, Home Screen app). */
+#rd-root.rd-mobile {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+#rd-root.rd-mobile:not([data-keyboard='open']) {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Docked bar: a strip at the top or bottom in portrait, a column at the left or
+   right in landscape (root data-bar). The remote screen fits what is left. */
+#rd-mbar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px;
+  background: color-mix(in srgb, var(--rd-bg) 88%, black 12%);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  scrollbar-width: none;
+}
+#rd-mbar::-webkit-scrollbar {
+  display: none;
+}
+#rd-root[data-bar='bottom'] #rd-mbar,
+#rd-root[data-bar='top'] #rd-mbar {
+  flex-direction: row;
+}
+.rd-mbar-main,
+.rd-mbar-end {
+  display: flex;
+  gap: 2px;
+  flex-direction: inherit;
+}
+.rd-mbar-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  justify-content: space-between;
+  scrollbar-width: none;
+}
+.rd-mbar-main::-webkit-scrollbar {
+  display: none;
+}
+.rd-mbar-end {
+  flex: 0 0 auto;
+}
+#rd-root[data-bar='bottom'] .rd-mbar-main,
+#rd-root[data-bar='top'] .rd-mbar-main {
+  overflow-x: auto;
+  touch-action: pan-x;
+}
+#rd-root[data-bar='bottom'] .rd-mbar-end,
+#rd-root[data-bar='top'] .rd-mbar-end {
+  border-left: 1px solid var(--rd-border);
+  padding-left: 2px;
+}
+#rd-root[data-bar='left'] .rd-mbar-main,
+#rd-root[data-bar='right'] .rd-mbar-main {
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+#rd-root[data-bar='left'] .rd-mbar-end,
+#rd-root[data-bar='right'] .rd-mbar-end {
+  border-top: 1px solid var(--rd-border);
+  padding-top: 2px;
+}
+#rd-root[data-bar='bottom'] #rd-mbar {
+  order: 10;
+  border-top: 1px solid var(--rd-border);
+}
+#rd-root[data-bar='top'] #rd-mbar {
+  order: -1;
+  border-bottom: 1px solid var(--rd-border);
+}
+#rd-root[data-bar='left'] #rd-mbar,
+#rd-root[data-bar='right'] #rd-mbar {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  bottom: 0;
+  width: 48px;
+  box-sizing: border-box;
+  flex-direction: column;
+}
+#rd-root[data-bar='right'] #rd-mbar {
+  right: env(safe-area-inset-right);
+  border-left: 1px solid var(--rd-border);
+}
+#rd-root[data-bar='left'] #rd-mbar {
+  left: env(safe-area-inset-left);
+  border-right: 1px solid var(--rd-border);
+}
+/* Room for the side column: everything else in the root moves over. */
+#rd-root.rd-mobile[data-state='streaming'][data-bar='right'] {
+  padding-right: calc(env(safe-area-inset-right) + 48px);
+}
+#rd-root.rd-mobile[data-state='streaming'][data-bar='left'] {
+  padding-left: calc(env(safe-area-inset-left) + 48px);
+}
+.rd-mbar-btn {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rd-fg);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#rd-root[data-bar='left'] .rd-mbar-btn,
+#rd-root[data-bar='right'] .rd-mbar-btn {
+  height: 38px;
+}
+.rd-mbar-btn[hidden] {
+  display: none;
+}
+.rd-mbar-btn:active {
+  background: var(--rd-surface-3);
+}
+.rd-mbar-btn.rd-on {
+  background: color-mix(in srgb, var(--rd-accent) 18%, transparent);
+  color: var(--rd-accent);
+}
+.rd-mbar-btn:disabled {
+  opacity: 0.35;
+}
+.rd-mbar-btn:focus-visible {
+  outline: 2px solid var(--rd-accent);
+  outline-offset: -2px;
+}
+.rd-mbar-btn[data-mbar='disconnect'] {
+  color: var(--rd-danger);
+}
+
+/* More sheet (app.ts openMoreSheet): from the bottom in portrait, beside the
+   bar in landscape. Positioned inside the root, which follows the visible
+   viewport, so it stays above an open keyboard. */
+.rd-pop.rd-sheet {
+  position: absolute;
+  z-index: 43; /* over the clipboard-sync offer (42) */
+  max-width: none;
+  max-height: 70%;
+  padding: 8px;
+}
+.rd-pop.rd-sheet[data-sheet='bottom'] {
+  left: calc(env(safe-area-inset-left) + 6px);
+  right: calc(env(safe-area-inset-right) + 6px);
+  bottom: calc(env(safe-area-inset-bottom) + 54px);
+}
+.rd-pop.rd-sheet[data-sheet='top'] {
+  left: calc(env(safe-area-inset-left) + 6px);
+  right: calc(env(safe-area-inset-right) + 6px);
+  top: calc(env(safe-area-inset-top) + 54px);
+}
+.rd-pop.rd-sheet[data-sheet='right'],
+.rd-pop.rd-sheet[data-sheet='left'] {
+  top: calc(env(safe-area-inset-top) + 6px);
+  bottom: 6px;
+  width: min(380px, 62%);
+  max-height: none;
+}
+.rd-pop.rd-sheet[data-sheet='right'] {
+  right: calc(env(safe-area-inset-right) + 54px);
+}
+.rd-pop.rd-sheet[data-sheet='left'] {
+  left: calc(env(safe-area-inset-left) + 54px);
+}
+.rd-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+  padding: 2px;
+}
+.rd-sheet-tile {
+  appearance: none;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  border: 1px solid var(--rd-border);
+  border-radius: 10px;
+  background: var(--rd-surface-2);
+  color: var(--rd-fg);
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rd-sheet-tile span {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.rd-sheet-tile:active {
+  background: var(--rd-surface-3);
+}
+.rd-sheet-tile.rd-on {
+  border-color: var(--rd-accent);
+  color: var(--rd-accent);
+}
+.rd-pop.rd-sheet .rd-mi {
+  min-height: 44px;
+}
+
+/* Hide-keyboard key: only while a keyboard is open. */
+.rd-xk-hide {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#rd-root[data-keyboard='open'] .rd-xk-hide,
+#rd-root[data-ckbd] .rd-xk-hide {
+  display: inline-flex;
+}
+/* Landscape with a keyboard: every pixel of height counts. */
+#rd-root[data-orient='landscape'][data-keyboard='open'] #rd-xkeys,
+#rd-root[data-orient='landscape'][data-ckbd] #rd-xkeys {
+  padding: 2px 4px;
+}
+#rd-root[data-orient='landscape'][data-keyboard='open'] .rd-xk,
+#rd-root[data-orient='landscape'][data-ckbd] .rd-xk {
+  height: 30px;
+  min-width: 38px;
+  padding: 0 7px;
+  font-size: 12px;
+}
+
+/* Compact in-page keyboard (compact-keyboard.ts): ~40% of a landscape phone. */
+#rd-ckbd {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: min(40vh, 190px);
+  padding: 4px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--rd-bg) 88%, black 12%);
+  border-top: 1px solid var(--rd-border);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+#rd-ckbd[hidden] {
+  display: none;
+}
+.rd-ck-row {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  min-height: 0;
+}
+.rd-ck {
+  appearance: none;
+  flex: 1 1 0;
+  max-width: 64px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--rd-border);
+  border-radius: 7px;
+  background: var(--rd-surface);
+  color: var(--rd-fg);
+  font: inherit;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rd-ck:active {
+  background: var(--rd-surface-3);
+}
+.rd-ck-shift,
+.rd-ck-bksp,
+.rd-ck-sym,
+.rd-ck-sym2,
+.rd-ck-abc,
+.rd-ck-back,
+.rd-ck-enter,
+.rd-ck-hide {
+  flex-grow: 1.5;
+  max-width: 96px;
+  color: var(--rd-muted);
+  font-size: 14px;
+}
+.rd-ck-space {
+  flex-grow: 5;
+  max-width: none;
+}
+.rd-ck[data-on] {
+  color: var(--rd-accent);
+  border-color: var(--rd-accent);
 }
 
 /* --- bottom dock -------------------------------------------------------------- */
@@ -1310,6 +1763,12 @@
 
 /* --- small screens ------------------------------------------------------------ */
 
+@media (min-width: 901px) {
+  .rd-narrow-only {
+    display: none; /* the toolbar has its own Fit chip at this width */
+  }
+}
+
 @media (max-width: 900px) {
   .rd-tb-sub {
     display: none;
@@ -1322,7 +1781,7 @@
     display: none; /* icon-only chips; the title attribute still names them */
   }
   #rd-btn-fit {
-    display: none; /* fit control matters least on a phone; lives in overflow later */
+    display: none; /* the More menu carries Fit / Actual size here */
   }
 }
 

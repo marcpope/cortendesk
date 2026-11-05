@@ -81,6 +81,11 @@
                                         </span>
                                     @endif
                                 @endforeach
+                                @if ($token->address_book_add)
+                                    <span class="badge bg-info-subtle text-info">
+                                        {{ __('api_tokens.add_entries_to', ['books' => collect($token->address_book_add)->map(fn ($id) => $bookNames[$id] ?? '#'.$id)->implode(', ')]) }}
+                                    </span>
+                                @endif
                             </td>
                             <td>{{ $token->user?->username ?? '—' }}</td>
                             <td>
@@ -150,6 +155,11 @@
                                         </span>
                                     @endif
                                 @endforeach
+                                @if ($token->address_book_add)
+                                    <span class="badge bg-info-subtle text-info">
+                                        {{ __('api_tokens.add_entries_to', ['books' => collect($token->address_book_add)->map(fn ($id) => $bookNames[$id] ?? '#'.$id)->implode(', ')]) }}
+                                    </span>
+                                @endif
                             </div>
                             <span class="rd-mini-sub mt-2">
                                 {{ __('api_tokens.last_used_when', ['when' => $token->last_used_at ? $token->last_used_at->diffForHumans() : __('common.never')]) }} ·
@@ -241,6 +251,19 @@
                                     </div>
                                 @endforeach
                             </div>
+
+                            @if ($sharedBooks->isNotEmpty())
+                                <label class="form-label mt-3 mb-1">{{ __('api_tokens.add_entries_only') }}</label>
+                                <div class="form-text mt-0 mb-2">{{ __('api_tokens.add_entries_only_help') }}</div>
+                                <div class="border rounded p-2" style="max-height: 160px; overflow-y: auto;">
+                                    @foreach ($sharedBooks as $b)
+                                        <div class="form-check" wire:key="addbook-{{ $b->id }}">
+                                            <input class="form-check-input" type="checkbox" id="at-add-{{ $b->id }}" value="{{ $b->id }}" wire:model="addBooks">
+                                            <label class="form-check-label" for="at-add-{{ $b->id }}">{{ $b->name }}</label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light" wire:click="closeModal">{{ __('common.cancel') }}</button>

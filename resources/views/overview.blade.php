@@ -305,7 +305,10 @@
                     axisTicks: { show: false },
                     labels: { rotate: 0, hideOverlappingLabels: true }
                 },
-                yaxis: { labels: { formatter: function (v) { return Math.round(v); } } },
+                // With no sessions at all ApexCharts has no range to scale
+                // and labels the axis "Infinity"; give it one.
+                yaxis: Object.assign({ min: 0, labels: { formatter: function (v) { return Math.round(v); } } },
+                    connectionData.series.some(function (s) { return s.data.some(function (v) { return v > 0; }); }) ? {} : { max: 4, tickAmount: 4 }),
                 legend: Object.assign(baseOptions(t).legend, { position: "bottom", horizontalAlign: "left", offsetY: 4 })
             }));
             charts.push(conn);

@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Tylko dodawanie wpisów',
+    'add_entries_only_help' => 'Dla skryptów wdrożeniowych: token może dodawać wpisy do tych udostępnionych książek adresowych i nic więcej. Nie może ich odczytywać, zmieniać ani usuwać.',
+    'add_entries_to' => 'Dodawanie wpisów: :books',
     'api_tokens' => 'Tokeny API',
     'audit_logs' => 'Logi audytu',
     'copy_it_now_it_is' => 'Skopiuj go teraz — jest wyświetlany tylko raz i nie można go później odzyskać.',

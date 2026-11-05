@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Csak bejegyzések hozzáadása',
+    'add_entries_only_help' => 'Telepítő szkriptekhez: a token bejegyzéseket adhat ezekhez a megosztott címjegyzékekhez, mást nem. Olvasni, módosítani vagy törölni nem tud.',
+    'add_entries_to' => 'Bejegyzések hozzáadása: :books',
     'api_tokens' => 'API-tokenek',
     'audit_logs' => 'Naplók',
     'copy_it_now_it_is' => 'Másolja ki most — csak egyszer jelenik meg, később nem kérhető le.',

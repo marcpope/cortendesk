@@ -49,6 +49,25 @@ final class IceServers
     }
 
     /**
+     * What a share link's viewer gets: the web client's list without its TURN
+     * servers. Their credentials are static and the viewer has no account, so
+     * handing them out would open the TURN server to anyone who ever held a
+     * link. Without TURN the session still runs over the console's relay.
+     *
+     * @return array{iceServers:string}|null
+     */
+    public static function forShareViewer(): ?array
+    {
+        $config = self::forWebClient();
+        if ($config === null) {
+            return null;
+        }
+        $stun = array_filter(self::entries($config['iceServers']), fn ($e) => preg_match('~^stuns?:~i', $e));
+
+        return ['iceServers' => implode(',', $stun)];
+    }
+
+    /**
      * The list in canonical form ("" for an empty one), or null when it is too
      * long or any entry is unusable.
      */

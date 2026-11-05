@@ -1087,6 +1087,17 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     letter-spacing: 0.01em;
 }
 
+/* Tones Bootstrap lacks. Teal is the Overview chart's "Other" series;
+   purple marks iOS "Outgoing only", the counterpart of "Incoming only". */
+.badge.rd-badge-teal {
+    background-color: rgba(var(--rd-teal-rgb), 0.14);
+    color: var(--rd-teal);
+}
+.badge.rd-badge-purple {
+    background-color: rgba(var(--rd-purple-rgb), 0.14);
+    color: var(--rd-purple);
+}
+
 /* Status dot. Standalone, or as the leading dot of a live/online badge:
    `<span class="badge bg-success-subtle text-success"><i class="rd-dot"></i>Online</span>` */
 .rd-dot {

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Support\Label;
 use App\Models\ClientToken;
 use App\Models\Device;
+use App\Models\DeviceShare;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -23,6 +24,14 @@ class ServerLink
 
     /** Web client tickets live this long; the page mints a fresh one on load. */
     public const TICKET_TTL_SECONDS = 12 * 3600;
+
+    /**
+     * Share link tickets live this long, or until the link expires if that
+     * is sooner. The share page gets a fresh one with every ping, so ending a
+     * link stops new sessions within this time even from a page that ignores
+     * the end signal.
+     */
+    public const SHARE_TICKET_TTL_SECONDS = 300;
 
     /** A pull older than this means hbbs is not following the console. */
     public const STALE_SECONDS = 60;
@@ -116,8 +125,28 @@ class ServerLink
             return '';
         }
 
-        $signed = 'cdw1.'.(time() + self::TICKET_TTL_SECONDS).'.web-'.$user->id;
+        return self::sign('cdw1.'.(time() + self::TICKET_TTL_SECONDS).'.web-'.$user->id);
+    }
 
+    /**
+     * A ticket for a share link's viewer. Unlike webTicket() it names the
+     * share's device (`cdw2`), and hbbs admits it for that device only: the
+     * viewer has no account, so a ticket good for any device would let them
+     * start sessions to every other device on the server. Needs CortenDesk
+     * Server 1.5.0; older hbbs refuses it in approved-only mode.
+     */
+    public static function shareTicket(DeviceShare $share): string
+    {
+        if (! self::configured()) {
+            return '';
+        }
+        $expiresAt = min(time() + self::SHARE_TICKET_TTL_SECONDS, $share->expires_at->getTimestamp());
+
+        return self::sign('cdw2.'.$expiresAt.'.'.$share->device->rustdesk_id.'.share-'.$share->id);
+    }
+
+    private static function sign(string $signed): string
+    {
         return $signed.'.'.hash_hmac('sha256', $signed, self::secret());
     }
 

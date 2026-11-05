@@ -69,6 +69,9 @@ return [
     'ws_id_url' => env('CORTENDESK_WS_ID_URL', ''),
     'ws_relay_url' => env('CORTENDESK_WS_RELAY_URL', ''),
 
+    // Share links (docs/share-links.md).
+    'share_links' => (bool) env('CORTENDESK_SHARE_LINKS', true),
+
     /*
     | Let the native web client sign in with a password kept in an address
     | book the user can read (shared-book passwords, own personal-book

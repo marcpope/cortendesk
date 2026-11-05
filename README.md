@@ -24,16 +24,19 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - **Device policies (strategies)** — push client settings to devices from the console: permissions, security and password rules, capture options, and the STUN/TURN servers RustDesk 1.5 uses for WebRTC. Assign to a device, a user or a device group, with the most specific assignment winning. Optionally enforced, so a local change is reverted on the next heartbeat. The ID whitelist can take whole device groups, and follows their membership as devices come and go.
 - **Two-factor authentication** — TOTP with single-use recovery codes, optionally required for everyone or for administrators only, with an administrator reset and a break-glass command. The RustDesk client asks for the same code when it signs in with a password.
 - **Delegated administration** — roles with a permission matrix over each console area, so you can grant someone the users screen without handing them the whole console.
-- **Automation API** — scoped bearer tokens and a REST API for users, devices, groups, address books and audit logs, plus support for the RustDesk client's `--assign` flag for unattended deployment.
+- **Automation API** — scoped bearer tokens and a REST API for users, devices, groups, address books and audit logs, plus support for the RustDesk client's `--assign` flag for unattended deployment. A token can be limited to adding entries to chosen address books, so a rollout script can carry it safely.
 - **Email** — SMTP settings with a test send, user invitations by email, self-service password reset, and an optional emailed code when signing in from a new browser.
 - **Backups** — one archive with the whole database, every setting, the app key and the bundled server's key pair and peer database. Runs daily, keeps 7 daily, 8 weekly and 6 monthly, mirrors them to FTP/FTPS or S3-compatible storage, and restores from the list or an upload, re-keying encrypted values for a fresh install. Every run goes in the console log, and notifications can report each success or failure.
 - **Dashboard** — live stat tiles, active sessions, 14-day connection charts, platform and version breakdowns.
 - **Importer** — one artisan command migrates everything (users with passwords intact, devices, address books, audit history) from a `lejianwen/rustdesk-api` database.
 - **Mobile-first** — every screen works on a phone; wide tables degrade to card lists. Dark and light themes.
-- **11 languages** — English, Deutsch, Español, Français, Italiano, Magyar, Nederlands, Polski, Português (Brasil), Русский and 简体中文, including emails and the web client. Each user picks their own; without a choice the console follows the browser.
+- **12 languages** — English, Deutsch, Español, Français, Italiano, Magyar, Nederlands, Polski, Português (Brasil), Русский, Slovenčina and 简体中文, including emails and the web client. Each user picks their own; without a choice the console follows the browser.
 
 **Client API**
 - Implements the RustDesk client HTTP API: login/tokens, heartbeat and sysinfo presence, address books, group tab, audit ingestion. Point stock RustDesk clients at CortenDesk as their **API Server** — no client patches needed.
+
+**Share links**
+- Send someone a secret link to one device. It opens the web client in their browser: no account, no RustDesk. The person at the device accepts the connection in RustDesk's own accept window. You choose how many people may connect at once and how long the link works (15 minutes to 7 days); ending a link disconnects open share pages within half a minute. See [Share links](https://github.com/marcpope/cortendesk/wiki/Share-Links).
 
 **Native web client**
 - A from-scratch TypeScript implementation of the RustDesk wire protocol (rendezvous → relay → NaCl handshake → login), running entirely in the browser over WebSocket relays. Not a WASM port — readable, auditable source.
@@ -41,6 +44,7 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - Hardware-accelerated video via WebCodecs (VP8/VP9/H.264/H.265/AV1 as supported), remote audio, two-way voice calls, text chat, clipboard both ways, multi-monitor switching, Ctrl+Alt+Del, session stats. The keyboard sends physical keys to Windows and Linux hosts like the desktop client, so AltGr, dead keys and punctuation work on non-US layouts.
 - **File transfer** — an in-session dual-pane manager: browse the remote filesystem, send/receive files and folders with progress, resume-aware digests, conflict prompts, and drag-and-drop. Uses the File System Access API on Chromium; falls back to picker/Downloads elsewhere.
 - **Remote terminal** — a shell on Windows, macOS and Linux devices (RustDesk 1.4.1+), from inside a desktop session or straight from the device list with its own sign-in.
+- **Phones and tablets** — one bar of controls docked by orientation, the phone's own keyboard (any script and emoji), an extra-keys bar with Esc, Tab, modifiers, arrows and F-keys, touch gestures, pinch zoom and a Trackpad mode, automatic reconnect when the connection drops, and Add to Home Screen for a full-screen app on iPhone.
 - Devices that ask for a 2FA code get one prompted for, in desktop and terminal sessions alike.
 - Saved passwords (hashed, never plaintext) with auto-login per device.
 - Best experienced in Chrome/Edge; the desktop stream requires WebCodecs. Voice calls need Chrome or Edge on HTTPS (or `http://localhost`) plus microphone permission.
@@ -64,7 +68,7 @@ docker run -d --name cortendesk \
   -e APP_URL=https://rd.example.com \
   -p 8080:8080 -p 21115-21117:21115-21117 -p 21116:21116/udp \
   -v cortendesk-data:/data \
-  ghcr.io/marcpope/cortendesk:1.20.0
+  ghcr.io/marcpope/cortendesk:1.21.0
 ```
 
 `APP_URL` is the only setting that matters: it is the address your clients and

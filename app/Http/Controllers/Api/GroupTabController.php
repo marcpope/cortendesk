@@ -91,6 +91,9 @@ class GroupTabController extends Controller
             'data' => $query->forPage($page, $size)->get()
                 ->map(fn (Device $d) => [
                     'id' => $d->rustdesk_id,
+                    // Not read by stock clients; for customised ones that
+                    // want the console's name for a device (issue #28).
+                    'alias' => (string) $d->alias,
                     'info' => [
                         'username' => (string) $d->username,
                         'os' => (string) $d->os,

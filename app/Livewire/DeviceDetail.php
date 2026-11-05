@@ -322,16 +322,60 @@ class DeviceDetail extends Component
             'deleteState' => $this->deleteConfirmState(),
             'twins' => $this->twins($device),
             'connections' => $canAudit
-                ? AuditConnection::where('rustdesk_id', $device->rustdesk_id)->with(['noteUser', 'relaySession'])->latest()->limit(10)->get()
+                ? $this->both(AuditConnection::query(), $device)->with(['noteUser', 'relaySession'])->latest()->limit(10)->get()
                 : collect(),
             'transfers' => $canAudit
-                ? AuditFileTransfer::where('rustdesk_id', $device->rustdesk_id)->latest()->limit(10)->get()
+                ? $this->both(AuditFileTransfer::query(), $device)->latest()->limit(10)->get()
                 : collect(),
+            'peerNames' => $canAudit ? $this->outgoingTargets($device) : [],
             'alarms' => $canAudit
                 ? AlarmLog::where('rustdesk_id', $device->rustdesk_id)->latest()->limit(10)->get()
                 : collect(),
             'notifications' => $canAudit ? $this->notifications($device) : collect(),
         ]);
+    }
+
+    /**
+     * Log rows for sessions to this device and, since #149, sessions it
+     * started (it is the controlling peer). Outgoing rows are scoped like the
+     * logs: a user who sees only some devices sees only sessions to those.
+     */
+    private function both(Builder $query, Device $device): Builder
+    {
+        $user = auth()->user();
+
+        return $query->where(fn (Builder $q) => $q
+            ->where('rustdesk_id', $device->rustdesk_id)
+            ->orWhere(fn (Builder $q) => $q
+                ->where('from_peer', $device->rustdesk_id)
+                ->when(! $user->seesAllDevices(), fn (Builder $q) => $q->whereIn(
+                    'rustdesk_id',
+                    Device::query()->visibleTo($user)->select('rustdesk_id')
+                ))));
+    }
+
+    /**
+     * Names of the devices this one reached, for its outgoing rows: RustDesk
+     * ID => [label, device id or null when the user cannot open it].
+     *
+     * @return array<string, array{0: string, 1: ?int}>
+     */
+    private function outgoingTargets(Device $device): array
+    {
+        $ids = AuditConnection::where('from_peer', $device->rustdesk_id)->latest()->limit(10)->pluck('rustdesk_id')
+            ->merge(AuditFileTransfer::where('from_peer', $device->rustdesk_id)->latest()->limit(10)->pluck('rustdesk_id'))
+            ->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+        $visible = Device::query()->visibleTo(auth()->user())->whereIn('rustdesk_id', $ids)
+            ->get(['id', 'rustdesk_id', 'alias', 'hostname'])->keyBy('rustdesk_id');
+
+        return $ids->mapWithKeys(function (string $rid) use ($visible) {
+            $d = $visible->get($rid);
+
+            return [$rid => [$d ? ($d->alias ?: $d->hostname ?: $rid) : $rid, $d?->id]];
+        })->all();
     }
 
     /**

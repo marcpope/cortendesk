@@ -12,6 +12,8 @@ events { worker_connections ${NGINX_WORKER_CONNECTIONS}; }
 
 http {
     include /etc/nginx/mime.types;
+    # Alpine's mime.types has no entry for the web client's manifest.
+    types { application/manifest+json webmanifest; }
     default_type application/octet-stream;
     access_log off;
     sendfile on;

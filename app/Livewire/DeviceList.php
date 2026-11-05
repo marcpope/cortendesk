@@ -663,7 +663,7 @@ class DeviceList extends Component
             'deleteState' => $this->deleteConfirmState(),
             'totalCount' => Device::visibleTo($user)->count(),
             'onlineCount' => Device::visibleTo($user)->online()->count(),
-            'trashedCount' => Device::visibleTo($user)->onlyTrashed()->count(),
+            'trashedCount' => Device::visibleWithTrashed($user)->onlyTrashed()->count(),
             'pendingCount' => $pendingCount,
             'duplicates' => $this->trashed ? null : $this->duplicates(),
         ]);
@@ -677,9 +677,10 @@ class DeviceList extends Component
     private function filteredQuery(User $user)
     {
         $query = Device::query()
-            ->visibleTo($user)
+            ->when($this->trashed,
+                fn ($q) => $q->visibleWithTrashed($user)->onlyTrashed(),
+                fn ($q) => $q->visibleTo($user))
             ->with(['group', 'user'])
-            ->when($this->trashed, fn ($q) => $q->onlyTrashed())
             ->when($this->search !== '', function ($q) {
                 $s = '%'.$this->search.'%';
                 $q->where(function ($q) use ($s) {

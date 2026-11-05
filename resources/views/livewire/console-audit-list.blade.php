@@ -72,7 +72,7 @@
                             @endif
                         </td>
                         <td>{{ $audit->summary }}</td>
-                        <td class="rd-mono">{{ $audit->ip ?: '—' }}</td>
+                        <td class="rd-mono text-nowrap">{{ $audit->ip ?: '—' }}</td>
                     </tr>
                 @empty
                     <tr>

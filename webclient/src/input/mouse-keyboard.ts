@@ -1,6 +1,8 @@
 import { ControlKey } from '../gen/message';
 import type { UiCommand } from '../core/contracts';
 import { DOM_CODE_KEYCODES } from './keycodes';
+import { GestureRecognizer, type Pt } from './gesture';
+import { DirectTouchMapper, type GestureMapper, type TouchOutput } from './touch-direct';
 
 export const MouseType = { MOVE: 0, DOWN: 1, UP: 2, WHEEL: 3, TRACKPAD: 4, MOVE_RELATIVE: 5 } as const;
 export const MouseButton = { LEFT: 0x01, RIGHT: 0x02, MIDDLE: 0x04, BACK: 0x08, FORWARD: 0x10 } as const;
@@ -352,16 +354,14 @@ type KeyboardLock = { lock?: (keyCodes?: string[]) => Promise<void>; unlock?: ()
 
 export type InputOptions = {
   /**
-   * When true, touch pointers get gesture mapping: dragging a finger moves the
-   * remote cursor without holding a button, a quick tap clicks where the
-   * finger was, and a still long-press right-clicks.
+   * When true, touch pointers go through the gesture recogniser (Touch mode,
+   * input/touch-direct.ts): tap clicks where the finger is, drag drags, long
+   * press or two-finger tap right-clicks, two fingers scroll, pinch zooms.
    *
    * Without it (pointer mode), a finger behaves like a pressed left button —
-   * touching immediately mouses-down and dragging drags. That is correct for
-   * a stylus or a touch-screen laptop, and hopeless on a phone, where the
-   * finger is also the only way to aim: every attempt to position the cursor
-   * drags whatever it lands on. Mouse/pen pointers are identical in both
-   * modes.
+   * touching immediately mouses-down and dragging drags. That is right for a
+   * stylus or a touch-screen laptop. Mouse/pen pointers are identical in
+   * both modes.
    */
   isTouchMode?: () => boolean;
   /**
@@ -370,11 +370,67 @@ export type InputOptions = {
    * info arriving, the keyboard setting).
    */
   keyboardTarget?: () => KeyTarget | null;
+  /**
+   * Element to focus when the remote screen is touched, instead of the
+   * screen itself (the on-screen keyboard's field while it is open).
+   */
+  focusTarget?: () => HTMLElement | null;
+  /** Touch mode hooks. */
+  touch?: {
+    haptic?(): void;
+    /** Three-finger tap. */
+    keyboard?(): void;
+    /** Pinch: local zoom by `scale` about `center`, then pan. */
+    zoom?(scale: number, center: Pt, pan: Pt): void;
+    /** A mapper other than direct touch (Trackpad mode), or null for direct. */
+    mapper?(out: TouchOutput): GestureMapper | null;
+  };
 };
 
-const TOUCH_TAP_MS = 500;      // tap = shorter than this…
-const TOUCH_SLOP_PX = 12;      // …and moved less than this
-const TOUCH_LONGPRESS_MS = 600; // still for this long = right-click
+export type KeyHandler = {
+  /** Send one key event; true when it was sent (and its default prevented). */
+  onKey(e: KeyboardEvent, down: boolean): boolean;
+  /** Focus left: release what the host holds, forget AltGr state. */
+  reset(): void;
+};
+
+/**
+ * Browser key events -> KeyEvents, in Map mode when the host takes keycodes
+ * and in legacy mode otherwise. Shared by the remote screen and the
+ * on-screen keyboard's field.
+ */
+export function createKeyHandler(
+  post: (cmd: UiCommand) => void,
+  keyboardTarget?: () => KeyTarget | null,
+): KeyHandler {
+  const keys = new LegacyKeyTranslator();
+  const postMapKey = (k: MapKeyMessage): void =>
+    post({ c: 'key', down: k.down, press: false, keyKind: 'map', value: k.keyCode, modifiers: k.modifiers });
+  let mapKeys: MapKeyTranslator | null = null;
+  return {
+    onKey(e, down) {
+      const target = keyboardTarget?.() ?? null;
+      if (target !== (mapKeys?.target ?? null)) {
+        mapKeys?.reset();
+        mapKeys = target ? new MapKeyTranslator(target, postMapKey) : null;
+      }
+      if (mapKeys?.handle(e, down)) {
+        e.preventDefault(); // keeps Ctrl+W / F5 / Tab from hitting the browser while focused
+        return true;
+      }
+      if (!legacyKeyCommand(e, down)) return false;
+      e.preventDefault();
+      for (const k of keys.translate(e, down)) {
+        post({ c: 'key', down: k.down, press: false, keyKind: k.keyKind, value: k.value, modifiers: k.modifiers });
+      }
+      return true;
+    },
+    reset() {
+      keys.reset();
+      mapKeys?.reset();
+    },
+  };
+}
 
 export function attachInput(
   el: HTMLElement,
@@ -383,13 +439,6 @@ export function attachInput(
   options: InputOptions = {},
 ): () => void {
   if (el.tabIndex < 0) el.tabIndex = 0; // keyboard focus target
-
-  // One-finger gesture state (touch mode). Secondary touches are ignored — a
-  // second finger mid-gesture would otherwise teleport the cursor.
-  let touch: {
-    id: number; startX: number; startY: number; lastX: number; lastY: number;
-    moved: boolean; downAt: number; timer: ReturnType<typeof setTimeout> | undefined;
-  } | null = null;
 
   const touchActive = (e: PointerEvent): boolean =>
     e.pointerType === 'touch' && options.isTouchMode?.() === true;
@@ -404,24 +453,45 @@ export function attachInput(
     post({ c: 'mouse', mask, x, y, modifiers: modifierList(e) });
   };
 
+  // Touch mode: fingers go through the gesture recogniser.
+  const touchOut: TouchOutput = {
+    mouse: (type, button, at) => {
+      const t = type === 'move' ? MouseType.MOVE : type === 'down' ? MouseType.DOWN : MouseType.UP;
+      sendAt(at.x, at.y, buttonMask(t, button));
+    },
+    wheel: (x, y) => post({ c: 'mouse', mask: buttonMask(MouseType.WHEEL, 0), x, y, modifiers: [] }),
+    haptic: () => options.touch?.haptic?.(),
+    keyboard: () => options.touch?.keyboard?.(),
+    zoom: (scale, center, pan) => options.touch?.zoom?.(scale, center, pan),
+  };
+  const direct = new DirectTouchMapper(touchOut);
+  const gestures = new GestureRecognizer((g) => {
+    const mapper = options.touch?.mapper?.(touchOut) ?? direct;
+    mapper.handle(g);
+  });
+
+  // Buttons each pointer holds down on the host (pointer mode), with where it
+  // last was, so a gesture the browser cancels can still let go of them.
+  const held = new Map<number, { mask: number; x: number; y: number }>();
+
   const onPointerMove = (e: PointerEvent): void => {
     if (touchActive(e)) {
-      if (!touch || e.pointerId !== touch.id) return;
-      const dx = e.clientX - touch.startX;
-      const dy = e.clientY - touch.startY;
-      if (!touch.moved && dx * dx + dy * dy > TOUCH_SLOP_PX * TOUCH_SLOP_PX) {
-        touch.moved = true;
-        clearTimeout(touch.timer);
-      }
-      touch.lastX = e.clientX;
-      touch.lastY = e.clientY;
-      sendAt(e.clientX, e.clientY, buttonMask(MouseType.MOVE, 0)); // cursor follows, no button
+      gestures.move(e.pointerId, e.clientX, e.clientY, e.timeStamp);
       return;
+    }
+    const h = held.get(e.pointerId);
+    if (h) {
+      h.x = e.clientX;
+      h.y = e.clientY;
     }
     posted(e, buttonMask(MouseType.MOVE, 0));
   };
   const onPointerDown = (e: PointerEvent): void => {
-    el.focus();
+    // Keep the on-screen keyboard's field focused while it is open: focusing
+    // the canvas would close the keyboard on every tap.
+    const focusTarget = options.focusTarget?.();
+    if (focusTarget) focusTarget.focus({ preventScroll: true });
+    else el.focus();
     try {
       el.setPointerCapture(e.pointerId);
     } catch {
@@ -429,39 +499,47 @@ export function attachInput(
     }
     e.preventDefault();
     if (touchActive(e)) {
-      if (touch) return; // second finger — ignore
-      touch = {
-        id: e.pointerId, startX: e.clientX, startY: e.clientY,
-        lastX: e.clientX, lastY: e.clientY, moved: false, downAt: Date.now(),
-        timer: setTimeout(() => {
-          // Long-press, finger still: context menu where the finger rests.
-          if (!touch || touch.moved) return;
-          sendAt(touch.lastX, touch.lastY, buttonMask(MouseType.MOVE, 0));
-          sendAt(touch.lastX, touch.lastY, buttonMask(MouseType.DOWN, MouseButton.RIGHT));
-          sendAt(touch.lastX, touch.lastY, buttonMask(MouseType.UP, MouseButton.RIGHT));
-          touch = null; // consumed; the pointerup that follows does nothing
-        }, TOUCH_LONGPRESS_MS),
-      };
+      gestures.down(e.pointerId, e.clientX, e.clientY, e.timeStamp);
       return;
     }
-    posted(e, buttonMask(MouseType.DOWN, domButtonToMask(e.button)));
+    const mask = domButtonToMask(e.button);
+    // The host moves its cursor only on MOVE. A mouse has always hovered there
+    // first; a finger or a pen lands without one, and the click would hit
+    // wherever the cursor was before.
+    if (e.pointerType !== 'mouse') posted(e, buttonMask(MouseType.MOVE, 0));
+    const h = held.get(e.pointerId);
+    held.set(e.pointerId, { mask: (h?.mask ?? 0) | mask, x: e.clientX, y: e.clientY });
+    posted(e, buttonMask(MouseType.DOWN, mask));
   };
   const onPointerUp = (e: PointerEvent): void => {
     e.preventDefault();
-    if (e.pointerType === 'touch' && touch && e.pointerId === touch.id) {
-      clearTimeout(touch.timer);
-      const wasTap = !touch.moved && Date.now() - touch.downAt < TOUCH_TAP_MS;
-      const { startX, startY } = touch;
-      touch = null;
-      if (wasTap) {
-        sendAt(startX, startY, buttonMask(MouseType.MOVE, 0));
-        sendAt(startX, startY, buttonMask(MouseType.DOWN, MouseButton.LEFT));
-        sendAt(startX, startY, buttonMask(MouseType.UP, MouseButton.LEFT));
-      }
+    if (e.pointerType === 'touch' && gestures.busy) {
+      gestures.up(e.pointerId, e.clientX, e.clientY, e.timeStamp);
       return;
     }
-    if (touchActive(e)) return; // stray secondary finger
-    posted(e, buttonMask(MouseType.UP, domButtonToMask(e.button)));
+    if (touchActive(e)) return;
+    const mask = domButtonToMask(e.button);
+    const h = held.get(e.pointerId);
+    if (h) {
+      h.mask &= ~mask;
+      if (!h.mask) held.delete(e.pointerId);
+    }
+    posted(e, buttonMask(MouseType.UP, mask));
+  };
+  /**
+   * The browser took the pointer away (a system gesture, the notification
+   * shade, an alert, capture lost): no pointerup will come. Release whatever
+   * the pointer holds on the host and end the touch gesture, or the host
+   * keeps the button down and later touches are misread.
+   */
+  const onPointerCancel = (e: PointerEvent): void => {
+    gestures.cancel(e.pointerId);
+    const h = held.get(e.pointerId);
+    if (!h) return;
+    held.delete(e.pointerId);
+    for (const b of [MouseButton.LEFT, MouseButton.RIGHT, MouseButton.MIDDLE, MouseButton.BACK, MouseButton.FORWARD]) {
+      if (h.mask & b) sendAt(h.x, h.y, buttonMask(MouseType.UP, b));
+    }
   };
   const onWheel = (e: WheelEvent): void => {
     e.preventDefault();
@@ -475,32 +553,10 @@ export function attachInput(
     e.preventDefault();
   };
 
-  const keys = new LegacyKeyTranslator();
-  const postMapKey = (k: MapKeyMessage): void =>
-    post({ c: 'key', down: k.down, press: false, keyKind: 'map', value: k.keyCode, modifiers: k.modifiers });
-  let mapKeys: MapKeyTranslator | null = null;
-  const onKey = (down: boolean) => (e: KeyboardEvent): void => {
-    const target = options.keyboardTarget?.() ?? null;
-    if (target !== (mapKeys?.target ?? null)) {
-      mapKeys?.reset();
-      mapKeys = target ? new MapKeyTranslator(target, postMapKey) : null;
-    }
-    if (mapKeys?.handle(e, down)) {
-      e.preventDefault(); // keeps Ctrl+W / F5 / Tab from hitting the browser while focused
-      return;
-    }
-    if (!legacyKeyCommand(e, down)) return;
-    e.preventDefault();
-    for (const k of keys.translate(e, down)) {
-      post({ c: 'key', down: k.down, press: false, keyKind: k.keyKind, value: k.value, modifiers: k.modifiers });
-    }
-  };
-  const onKeyDown = onKey(true);
-  const onKeyUp = onKey(false);
-  const onBlur = (): void => {
-    keys.reset();
-    mapKeys?.reset();
-  };
+  const keys = createKeyHandler(post, options.keyboardTarget);
+  const onKeyDown = (e: KeyboardEvent): void => void keys.onKey(e, true);
+  const onKeyUp = (e: KeyboardEvent): void => void keys.onKey(e, false);
+  const onBlur = (): void => keys.reset();
 
   const kb: KeyboardLock | undefined =
     typeof navigator !== 'undefined' && 'keyboard' in navigator
@@ -519,6 +575,8 @@ export function attachInput(
   el.addEventListener('pointermove', onPointerMove);
   el.addEventListener('pointerdown', onPointerDown);
   el.addEventListener('pointerup', onPointerUp);
+  el.addEventListener('pointercancel', onPointerCancel);
+  el.addEventListener('lostpointercapture', onPointerCancel);
   el.addEventListener('wheel', onWheel, { passive: false });
   el.addEventListener('contextmenu', onContextMenu);
   el.addEventListener('keydown', onKeyDown);
@@ -527,10 +585,14 @@ export function attachInput(
   document.addEventListener('fullscreenchange', onFullscreenChange);
 
   return () => {
-    mapKeys?.reset();
+    gestures.reset();
+    for (const id of [...held.keys()]) onPointerCancel({ pointerId: id } as PointerEvent);
+    keys.reset();
     el.removeEventListener('pointermove', onPointerMove);
     el.removeEventListener('pointerdown', onPointerDown);
     el.removeEventListener('pointerup', onPointerUp);
+    el.removeEventListener('pointercancel', onPointerCancel);
+    el.removeEventListener('lostpointercapture', onPointerCancel);
     el.removeEventListener('wheel', onWheel);
     el.removeEventListener('contextmenu', onContextMenu);
     el.removeEventListener('keydown', onKeyDown);

@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Add entries only',
+    'add_entries_only_help' => 'For rollout scripts: the token can add entries to these shared address books and nothing else. It cannot read, change or delete them.',
+    'add_entries_to' => 'Add entries: :books',
     'api_tokens' => 'API Tokens',
     'audit_logs' => 'Audit logs',
     'copy_it_now_it_is' => 'Copy it now — it is shown only once and cannot be retrieved later.',

@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Solo aggiunta di voci',
+    'add_entries_only_help' => 'Per gli script di distribuzione: il token può aggiungere voci a queste rubriche condivise e nient\'altro. Non può leggerle, modificarle o eliminarle.',
+    'add_entries_to' => 'Aggiunta di voci: :books',
     'api_tokens' => 'Token API',
     'audit_logs' => 'Log di audit',
     'copy_it_now_it_is' => 'Copialo ora: viene mostrato una sola volta e non potrà essere recuperato in seguito.',

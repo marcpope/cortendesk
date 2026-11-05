@@ -38,7 +38,34 @@ export type SessionPrefs = {
    * layout on both sides); 'legacy' sends the characters the browser typed.
    */
   keyboardMode: 'map' | 'legacy';
+  /**
+   * What a finger does on the remote screen. 'auto' picks touch on a phone or
+   * tablet (coarse primary pointer) and pointer everywhere else. A mouse or a
+   * pen is the same in every mode.
+   */
+  inputMode: InputModePref;
+  /** The extra-keys bar is open (phones, tablets). */
+  extraKeys: boolean;
+  /** Short vibration on long-press, modifier lock and mode change (Android). */
+  haptics: boolean;
+  /** Docked session controls (phones, tablets): the edge per orientation. */
+  barPortrait: 'top' | 'bottom';
+  barLandscape: 'left' | 'right';
+  /** In landscape, the Keyboard button opens the compact in-page keyboard instead of the phone's. */
+  compactKeyboard: boolean;
+  /** Ask the on-screen keyboard for no suggestions / autocorrect (more room; soft-keyboard.ts sinkAttributes). */
+  hideSuggestions: boolean;
 };
+
+export const INPUT_MODES = ['auto', 'pointer', 'touch', 'trackpad'] as const;
+export type InputModePref = (typeof INPUT_MODES)[number];
+export type InputMode = Exclude<InputModePref, 'auto'>;
+
+/** The mode a remembered choice means on this device. */
+export function resolveInputMode(pref: InputModePref, coarsePointer: boolean): InputMode {
+  if (pref !== 'auto') return pref;
+  return coarsePointer ? 'touch' : 'pointer';
+}
 
 export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   quality: QUALITY.balanced,
@@ -57,6 +84,13 @@ export const DEFAULT_PREFS: Readonly<SessionPrefs> = Object.freeze({
   audioMuted: false,
   audioVolume: 1,
   keyboardMode: 'map',
+  inputMode: 'auto',
+  extraKeys: false,
+  haptics: true,
+  barPortrait: 'bottom',
+  barLandscape: 'right',
+  compactKeyboard: false,
+  hideSuggestions: true,
 });
 
 export const PREFS_KEY = 'cortendesk.rdprefs.v1';
@@ -105,6 +139,15 @@ export function validatePrefs(raw: unknown): SessionPrefs {
       ? r.audioVolume
       : d.audioVolume,
     keyboardMode: r.keyboardMode === 'map' || r.keyboardMode === 'legacy' ? r.keyboardMode : d.keyboardMode,
+    inputMode: typeof r.inputMode === 'string' && (INPUT_MODES as readonly string[]).includes(r.inputMode)
+      ? (r.inputMode as InputModePref)
+      : d.inputMode,
+    extraKeys: bool(r.extraKeys, d.extraKeys),
+    haptics: bool(r.haptics, d.haptics),
+    barPortrait: r.barPortrait === 'top' || r.barPortrait === 'bottom' ? r.barPortrait : d.barPortrait,
+    barLandscape: r.barLandscape === 'left' || r.barLandscape === 'right' ? r.barLandscape : d.barLandscape,
+    compactKeyboard: bool(r.compactKeyboard, d.compactKeyboard),
+    hideSuggestions: bool(r.hideSuggestions, d.hideSuggestions),
   };
 }
 

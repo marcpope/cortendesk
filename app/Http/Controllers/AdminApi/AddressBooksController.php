@@ -6,10 +6,13 @@ use App\Models\AddressBook;
 use App\Models\AddressBookEntry;
 use App\Models\AddressBookRule;
 use App\Models\ConsoleAudit;
+use App\Livewire\AddressBookManager;
 use App\Models\Tag;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AddressBooksController extends AdminApiController
 {
@@ -92,25 +95,45 @@ class AddressBooksController extends AdminApiController
         return $this->ok($peers->map(fn (AddressBookEntry $e) => $this->serializePeer($e))->all());
     }
 
+    /**
+     * Add an entry. A token with only the add grant for this book (#151) is
+     * for rollout scripts, whose credential anyone on the machine can read:
+     * it gets back the new id and nothing else, and an ID already in the book
+     * is a 409 so a script that runs twice adds nothing.
+     */
     public function storePeer(Request $request, AddressBook $addressBook): JsonResponse
     {
+        $addOnly = (bool) $request->attributes->get('api_token_add_only');
         $data = $this->validatePeer($request);
+        $password = $this->passwordUpdate($request, $addressBook, $data);
         $data['address_book_id'] = $addressBook->id;
 
-        $peer = AddressBookEntry::create($data);
+        if ($addOnly && $addressBook->entries()->where('rustdesk_id', $data['rustdesk_id'])->exists()) {
+            return response()->json(['code' => 409, 'data' => null, 'message' => 'Peer already in this address book.'], 409);
+        }
 
-        ConsoleAudit::record('address-book.peer-add', 'Added peer '.$peer->rustdesk_id.' to '.$addressBook->name.' (API)', 'address_book', $addressBook->guid);
+        $peer = AddressBookEntry::create($data + $password);
 
-        return $this->created($this->serializePeer($peer), 'Peer added.');
+        ConsoleAudit::record('address-book.peer-add', 'Added peer '.$peer->rustdesk_id.' to '.$addressBook->name.(! empty($password['password_enc']) ? ', password set' : '').' (API'.($addOnly ? ', add-only token' : '').')', 'address_book', $addressBook->guid);
+
+        return $this->created($addOnly ? ['id' => $peer->id] : $this->serializePeer($peer), 'Peer added.');
     }
 
     public function updatePeer(Request $request, AddressBook $addressBook, AddressBookEntry $peer): JsonResponse
     {
         abort_unless($peer->address_book_id === $addressBook->id, 404);
 
-        $peer->update($this->validatePeer($request, true));
+        $data = $this->validatePeer($request, true);
+        $password = $this->passwordUpdate($request, $addressBook, $data);
+        $had = $peer->password_enc !== null;
+        $peer->update($data + $password);
 
-        ConsoleAudit::record('address-book.peer-update', 'Updated peer '.$peer->rustdesk_id.' (API)', 'address_book', $addressBook->guid);
+        $note = match (true) {
+            $password === [] => '',
+            $password['password_enc'] === null => $had ? ', password cleared' : '',
+            default => $had ? ', password changed' : ', password set',
+        };
+        ConsoleAudit::record('address-book.peer-update', 'Updated peer '.$peer->rustdesk_id.$note.' (API)', 'address_book', $addressBook->guid);
 
         return $this->ok($this->serializePeer($peer), 'Peer updated.');
     }
@@ -131,36 +154,61 @@ class AddressBooksController extends AdminApiController
     public function tags(AddressBook $addressBook): JsonResponse
     {
         return $this->ok($addressBook->tags()->orderBy('name')->get()
-            ->map(fn (Tag $t) => ['id' => $t->id, 'name' => $t->name, 'color' => $t->color])->all());
+            ->map(fn (Tag $t) => $this->serializeTag($t))->all());
     }
 
     public function storeTag(Request $request, AddressBook $addressBook): JsonResponse
     {
-        $data = $request->validate([
+        $data = $this->tagColor($request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'color' => ['nullable', 'string', 'max:32'],
-        ]);
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ]));
         $data['address_book_id'] = $addressBook->id;
 
         $tag = Tag::create($data);
 
         ConsoleAudit::record('address-book.tag-add', 'Added tag '.$tag->name.' (API)', 'address_book', $addressBook->guid);
 
-        return $this->created(['id' => $tag->id, 'name' => $tag->name, 'color' => $tag->color], 'Tag added.');
+        return $this->created($this->serializeTag($tag), 'Tag added.');
     }
 
     public function updateTag(Request $request, AddressBook $addressBook, Tag $tag): JsonResponse
     {
         abort_unless($tag->address_book_id === $addressBook->id, 404);
 
-        $tag->update($request->validate([
+        $tag->update($this->tagColor($request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'color' => ['nullable', 'string', 'max:32'],
-        ]));
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ])));
 
         ConsoleAudit::record('address-book.tag-update', 'Updated tag '.$tag->name.' (API)', 'address_book', $addressBook->guid);
 
-        return $this->ok(['id' => $tag->id, 'name' => $tag->name, 'color' => $tag->color], 'Tag updated.');
+        return $this->ok($this->serializeTag($tag), 'Tag updated.');
+    }
+
+    /**
+     * The API speaks "#RRGGBB"; the column holds the u32 ARGB the RustDesk
+     * client uses. Passing the string straight through stored it as-is on
+     * SQLite and failed with a 500 on MySQL and MariaDB. Null means no colour.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function tagColor(array $data): array
+    {
+        if (array_key_exists('color', $data)) {
+            $data['color'] = $data['color'] === null ? 0 : AddressBookManager::hexToColor($data['color']);
+        }
+
+        return $data;
+    }
+
+    /** @return array{id: int, name: string, color: string|null} */
+    private function serializeTag(Tag $tag): array
+    {
+        $color = (int) $tag->color;
+
+        return ['id' => $tag->id, 'name' => $tag->name, 'color' => $color === 0 ? null : sprintf('#%06X', $color & 0xFFFFFF)];
     }
 
     public function destroyTag(AddressBook $addressBook, Tag $tag): JsonResponse
@@ -236,11 +284,35 @@ class AddressBooksController extends AdminApiController
 
     // ---- helpers -----------------------------------------------------------
 
+    /**
+     * The write-only `password` (#151), as the column update to apply: [] when
+     * the field is absent (keep it), null password_enc for null or "" (clear
+     * it). Shared books only, as in the client API: a personal book keeps a
+     * client-side hash, which the console cannot make from a password.
+     *
+     * @param  array<string,mixed>  $data  validated input; `password` is taken out
+     * @return array{password_enc?: ?string}
+     */
+    private function passwordUpdate(Request $request, AddressBook $book, array &$data): array
+    {
+        if (! array_key_exists('password', $data)) {
+            return [];
+        }
+        $password = (string) $data['password'];
+        unset($data['password']);
+        if ($password !== '' && $book->is_personal) {
+            throw ValidationException::withMessages(['password' => 'Passwords can be set only in shared address books.']);
+        }
+
+        return ['password_enc' => $password === '' ? null : Crypt::encryptString($password)];
+    }
+
     private function validatePeer(Request $request, bool $partial = false): array
     {
         $req = $partial ? 'sometimes' : 'required';
 
         return $request->validate([
+            'password' => ['sometimes', 'nullable', 'string', 'max:255'],
             'rustdesk_id' => [$req, 'string', 'max:255'],
             'alias' => ['nullable', 'string', 'max:255'],
             'hostname' => ['nullable', 'string', 'max:255'],
@@ -283,6 +355,7 @@ class AddressBooksController extends AdminApiController
             'rdp_port' => $e->rdp_port,
             'rdp_username' => $e->rdp_username,
             'tags' => $e->tag_ids ?? [],
+            'has_password' => $e->password_enc !== null,
         ];
     }
 

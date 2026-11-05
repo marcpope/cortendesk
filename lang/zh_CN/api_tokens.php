@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => '仅添加条目',
+    'add_entries_only_help' => '用于部署脚本：此令牌只能向这些共享地址簿添加条目，不能读取、修改或删除。',
+    'add_entries_to' => '添加条目：:books',
     'api_tokens' => 'API 令牌',
     'audit_logs' => '审计日志',
     'copy_it_now_it_is' => '请立即复制——它只显示一次，之后无法再次获取。',

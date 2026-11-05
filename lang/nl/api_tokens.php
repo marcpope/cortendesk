@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Alleen items toevoegen',
+    'add_entries_only_help' => 'Voor uitrolscripts: het token kan items toevoegen aan deze gedeelde adresboeken en verder niets. Lezen, wijzigen of verwijderen kan het niet.',
+    'add_entries_to' => 'Items toevoegen: :books',
     'api_tokens' => 'API-tokens',
     'audit_logs' => 'Auditlogs',
     'copy_it_now_it_is' => 'Kopieer het nu — het wordt maar één keer getoond en kan later niet worden opgehaald.',

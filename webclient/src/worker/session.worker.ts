@@ -83,6 +83,7 @@ export interface SessionLike {
     value: number,
     modifiers: number[],
   ): void;
+  sendSeq(text: string): void;
   switchDisplay(index: number): void;
   ctrlAltDel(): void;
   refresh(): void;
@@ -355,6 +356,9 @@ export class WorkerHost {
         return;
       case 'key':
         this.session?.sendKey(cmd.down, cmd.press, cmd.keyKind, cmd.value, cmd.modifiers);
+        return;
+      case 'text':
+        this.session?.sendSeq(cmd.text);
         return;
       case 'switchDisplay':
         this.session?.switchDisplay(cmd.index);

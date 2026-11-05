@@ -59,16 +59,10 @@
                             <span class="rd-cell-sub">{{ $conn->from_name }}</span>
                         </td>
                         <td>
-                            @if ($conn->conn_type === 1)
-                                <span class="badge bg-info-subtle text-info"><i class="ri-file-transfer-line me-1"></i>{{ __('logs.file_transfer') }}</span>
-                            @elseif ($conn->conn_type === 2)
-                                <span class="badge bg-warning-subtle text-warning"><i class="ri-swap-line me-1"></i>{{ __('logs.port_forward') }}</span>
-                            @else
-                                <span class="badge bg-primary-subtle text-primary"><i class="{{ \App\Models\AuditConnection::typeIcon((int) $conn->conn_type) }} me-1"></i>{{ \App\Models\AuditConnection::typeLabel((int) $conn->conn_type) }}</span>
-                            @endif
+                            <x-conn-type :type="$conn->conn_type" icon/>
                         </td>
                         <td><x-conn-path :conn="$conn"/></td>
-                        <td class="rd-mono">{{ $conn->ip ?: '—' }}</td>
+                        <td class="rd-mono text-nowrap">{{ $conn->ip ?: '—' }}</td>
                         <td>
                             @if ($conn->closed_at)
                                 <span title="{{ __('logs.closed_time', ['time' => $conn->closed_at]) }}">
@@ -125,13 +119,7 @@
                         @endif
                     </div>
                     <div class="rd-mini-foot">
-                        @if ($conn->conn_type === 1)
-                            <span class="badge bg-info-subtle text-info">{{ __('logs.file_transfer') }}</span>
-                        @elseif ($conn->conn_type === 2)
-                            <span class="badge bg-warning-subtle text-warning">{{ __('logs.port_forward') }}</span>
-                        @else
-                            <span class="badge bg-primary-subtle text-primary">{{ \App\Models\AuditConnection::typeLabel((int) $conn->conn_type) }}</span>
-                        @endif
+                        <x-conn-type :type="$conn->conn_type"/>
                         <x-conn-path :conn="$conn" hide-unknown/>
                         <span class="rd-mini-sub text-end">
                             {{ $conn->ip ?: '—' }} · {{ $conn->created_at?->diffForHumans(short: true) }}

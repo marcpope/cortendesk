@@ -1028,6 +1028,26 @@ export class Session {
     });
   }
 
+  /**
+   * Type a string on the host as text, the way RustDesk's own clients send
+   * soft-keyboard input (input_string): a legacy KeyEvent carrying `seq`,
+   * neither down nor press. The host types it in one go with Unicode input
+   * (enigo key_sequence: SendInput KEYEVENTF_UNICODE on Windows), so the
+   * characters do not depend on the host's keyboard layout.
+   */
+  sendSeq(text: string): void {
+    if (!text) return;
+    this.sendMessage({
+      $case: 'key_event',
+      key_event: KeyEvent.fromPartial({
+        down: false,
+        press: false,
+        union: { $case: 'seq', seq: text },
+        mode: KeyboardMode.Legacy,
+      }),
+    });
+  }
+
   switchDisplay(index: number): void {
     // While this is outstanding, a switch_display naming a DIFFERENT display is
     // a stale broadcast rather than news — see dispatchMisc.

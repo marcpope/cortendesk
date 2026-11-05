@@ -18,14 +18,7 @@ class WebClientPageController extends Controller
      */
     public function show(Request $request): View
     {
-        $wsIdUrl = config('cortendesk.ws_id_url');
-        $wsRelayUrl = config('cortendesk.ws_relay_url');
-
-        if (! $wsIdUrl || ! $wsRelayUrl) {
-            $base = $this->wsBase($request);
-            $wsIdUrl = $wsIdUrl ?: ($base ? "{$base}/ws/id" : '');
-            $wsRelayUrl = $wsRelayUrl ?: ($base ? "{$base}/ws/relay" : '');
-        }
+        [$wsIdUrl, $wsRelayUrl] = self::wsUrls($request);
 
         $user = $request->user();
 
@@ -65,6 +58,26 @@ class WebClientPageController extends Controller
     }
 
     /**
+     * The ID-server and relay WebSocket URLs the browser dials. Share links
+     * (ShareController) use the same ones.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function wsUrls(Request $request): array
+    {
+        $wsIdUrl = config('cortendesk.ws_id_url');
+        $wsRelayUrl = config('cortendesk.ws_relay_url');
+
+        if (! $wsIdUrl || ! $wsRelayUrl) {
+            $base = self::wsBase($request);
+            $wsIdUrl = $wsIdUrl ?: ($base ? "{$base}/ws/id" : '');
+            $wsRelayUrl = $wsRelayUrl ?: ($base ? "{$base}/ws/relay" : '');
+        }
+
+        return [(string) $wsIdUrl, (string) $wsRelayUrl];
+    }
+
+    /**
      * WebSocket origin for the bridge, e.g. "ws://10.0.0.5:8080".
      *
      * Taken from APP_URL, which is what the deployment declares as its public
@@ -73,7 +86,7 @@ class WebClientPageController extends Controller
      * over: this used to be hardcoded to wss on an implicit 443, which broke
      * every install not behind TLS on the default port (#23).
      */
-    private function wsBase(Request $request): string
+    private static function wsBase(Request $request): string
     {
         $parts = parse_url(trim((string) config('app.url')));
 

@@ -24,7 +24,7 @@
                     <span class="badge bg-info-subtle text-info rd-status-block" title="{{ __('devices.can_be_controlled_cannot_start') }}">{{ __('devices.incoming_only') }}</span>
                 @endif
                 @unless ($device->canBeControlled())
-                    <span class="badge bg-info-subtle text-info rd-status-block" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ __('devices.outgoing_only') }}</span>
+                    <span class="badge rd-badge-purple rd-status-block" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ __('devices.outgoing_only') }}</span>
                 @endunless
                 @unless ($device->trashed())
                     @if ($device->canBeControlled())
@@ -136,11 +136,11 @@
                                 @endif
                             </dd>
                         </div>
-                        <div class="rd-def"><dt>{{ __('common.sessions') }}</dt><dd>{{ $device->isIncomingOnly() ? __('devices.incoming_only') : __('devices.incoming_and_outgoing') }}</dd></div>
+                        <div class="rd-def"><dt>{{ __('common.sessions') }}</dt><dd>{{ ! $device->canBeControlled() ? __('devices.outgoing_only') : ($device->isIncomingOnly() ? __('devices.incoming_only') : __('devices.incoming_and_outgoing')) }}</dd></div>
                         <div class="rd-def"><dt>{{ __('devices.registered_from') }}</dt><dd title="{{ __('devices.address_this_device_first_appeared') }}">{{ $device->registered_ip ?: '—' }}</dd></div>
                         <div class="rd-def"><dt>{{ __('devices.uuid') }}</dt><dd class="rd-mono rd-select-all min-width-0">{{ $device->uuid ?: '—' }}</dd></div>
                         <div class="rd-def"><dt>{{ __('devices.first_seen_2') }}</dt><dd>{{ $device->created_at?->diffForHumans() ?? '—' }}</dd></div>
-                        <div class="rd-def"><dt>{{ __('devices.last_seen') }}</dt><dd>{{ $device->last_online_at?->diffForHumans() ?? __('common.never') }}</dd></div>
+                        <div class="rd-def"><dt>{{ __('devices.last_seen') }}</dt>@if (! $device->last_online_at && ! $device->canBeControlled())<dd title="{{ __('devices.ios_no_presence') }}">—</dd>@else<dd>{{ $device->last_online_at?->diffForHumans() ?? __('common.never') }}</dd>@endif</div>
                         <div class="rd-def"><dt>{{ __('common.group') }}</dt><dd>{{ $device->group?->name ?: '—' }}</dd></div>
                         <div class="rd-def"><dt>{{ __('devices.owner') }}</dt>
                             <dd>
@@ -240,8 +240,13 @@
                         @forelse ($connections as $c)
                             <div class="rd-def">
                                 <dt class="fw-normal">
-                                    {{ $c->from_name ?: $c->from_peer ?: 'unknown' }}
-                                    <span class="text-muted">· {{ $c->ip }}</span>
+                                    @if ($c->rustdesk_id !== $device->rustdesk_id)
+                                        {{-- This device started it (#149): name the device it reached. --}}
+                                        <x-outgoing-peer :peer="$peerNames[$c->rustdesk_id] ?? [$c->rustdesk_id, null]"/>
+                                    @else
+                                        {{ $c->from_name ?: $c->from_peer ?: 'unknown' }}
+                                        <span class="text-muted">· {{ $c->ip }}</span>
+                                    @endif
                                     @if ($c->note)
                                         <span class="rd-cell-sub rd-conn-note-full"><i class="ri-sticky-note-line"></i> {{ $c->note }}@if ($c->noteUser) · {{ $c->noteUser->username }}@endif</span>
                                     @endif
@@ -277,7 +282,12 @@
                                     @endif
                                     {{ $t->pathLabel() ?: '—' }}
                                 </dt>
-                                <dd class="text-end text-muted mb-0">{{ $t->created_at->diffForHumans() }}</dd>
+                                <dd class="text-end text-muted mb-0">
+                                    @if ($t->rustdesk_id !== $device->rustdesk_id)
+                                        <x-outgoing-peer :peer="$peerNames[$t->rustdesk_id] ?? [$t->rustdesk_id, null]"/> ·
+                                    @endif
+                                    {{ $t->created_at->diffForHumans() }}
+                                </dd>
                             </div>
                         @empty
                             <span class="text-muted">{{ __('devices.no_file_transfers_recorded') }}</span>

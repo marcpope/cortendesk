@@ -49,6 +49,7 @@ class User extends Authenticatable
         'pl' => 'Polski',
         'pt_BR' => 'Português (Brasil)',
         'ru' => 'Русский',
+        'sk' => 'Slovenčina',
         'zh_CN' => '简体中文',
     ];
 

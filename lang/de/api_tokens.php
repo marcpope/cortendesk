@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Nur Einträge hinzufügen',
+    'add_entries_only_help' => 'Für Rollout-Skripte: Das Token kann diesen geteilten Adressbüchern Einträge hinzufügen und sonst nichts. Lesen, ändern oder löschen kann es sie nicht.',
+    'add_entries_to' => 'Einträge hinzufügen: :books',
     'api_tokens' => 'API-Tokens',
     'audit_logs' => 'Audit-Protokolle',
     'copy_it_now_it_is' => 'Kopieren Sie es jetzt – es wird nur einmal angezeigt und kann später nicht abgerufen werden.',

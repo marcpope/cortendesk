@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'add_entries_only' => 'Ajout d\'entrées uniquement',
+    'add_entries_only_help' => 'Pour les scripts de déploiement : le jeton peut ajouter des entrées à ces carnets partagés, et rien d\'autre. Il ne peut ni les lire, ni les modifier, ni les supprimer.',
+    'add_entries_to' => 'Ajout d\'entrées : :books',
     'api_tokens' => 'Jetons API',
     'audit_logs' => 'Journaux d’audit',
     'copy_it_now_it_is' => 'Copiez-le maintenant : il n’est affiché qu’une seule fois et ne pourra pas être récupéré plus tard.',

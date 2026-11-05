@@ -294,7 +294,7 @@
                             </td>
                         @endif
                         @if ($cols['version'])
-                            <td><span class="badge bg-secondary-subtle text-secondary">{{ $device->version ?: '?' }}</span></td>
+                            <td>@if ($device->version)<span class="badge bg-secondary-subtle text-secondary">{{ $device->version }}</span>@else<span class="text-muted">—</span>@endif</td>
                         @endif
                         @if ($cols['os'])<td class="rd-nowrap" title="{{ $device->os }}">{{ $device->os ? \Illuminate\Support\Str::limit($device->osDescription(), 34) : '—' }}</td>@endif
                         @if ($cols['username'])<td>{{ $device->username ?: '—' }}</td>@endif
@@ -315,14 +315,18 @@
                         @endif
                         @if ($cols['last_seen'])
                             <td>
-                                <span title="{{ $device->last_online_at }}">
-                                    {{ $device->last_online_at?->diffForHumans() ?? __('common.never') }}
-                                </span>
+                                @if (! $device->last_online_at && ! $device->canBeControlled())
+                                    <span class="text-muted" title="{{ __('devices.ios_no_presence') }}">—</span>
+                                @else
+                                    <span title="{{ $device->last_online_at }}">
+                                        {{ $device->last_online_at?->diffForHumans() ?? __('common.never') }}
+                                    </span>
+                                @endif
                             </td>
                         @endif
                         <td>
                             @if ($trashed)
-                                <span class="badge bg-warning-subtle text-warning">{{ __('devices.deleted') }}</span>
+                                <span class="badge bg-warning-subtle text-warning">{{ $device->isPending() ? __('devices.rejected') : __('devices.deleted') }}</span>
                             @elseif ($device->isOnline())
                                 <span class="badge bg-success-subtle text-success"><i class="rd-dot"></i>{{ __('common.online') }}</span>
                             @else
@@ -331,6 +335,9 @@
                             @if ($device->isIncomingOnly())
                                 <span class="badge bg-info-subtle text-info ms-1" title="{{ __('devices.can_be_controlled_cannot_start') }}">{{ __('devices.incoming_only') }}</span>
                             @endif
+                            @unless ($device->canBeControlled())
+                                <span class="badge rd-badge-purple ms-1" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ __('devices.outgoing_only') }}</span>
+                            @endunless
                             @include('livewire.partials.device-duplicate-badge', ['class' => 'ms-1'])
                         </td>
                         <td class="text-end rd-rowact">
@@ -347,7 +354,7 @@
                                      side by side read louder than Edit and make this
                                      the only cell in the console with four colours. --}}
                                 @if (! $device->canBeControlled())
-                                    <span class="text-muted fs-12 me-2" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ __('devices.outgoing_only') }}</span>
+                                    {{-- Nothing to connect to: "Outgoing only" shows in the status column. --}}
                                 @elseif (config('cortendesk.native_webclient'))
                                     <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}"
                                        target="cortendesk-webclient" rel="noopener" class="rd-act me-2"
@@ -358,6 +365,10 @@
                                            target="cortendesk-terminal" rel="noopener" class="rd-act me-2"
                                            title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line me-1"></i>{{ __('devices.terminal') }}</a>
                                     @endunless
+                                @endif
+                                @if (config('cortendesk.share_links') && $device->canBeControlled() && auth()->user()?->consoleAllows('device', 'rw'))
+                                    <a href="{{ route('devices.show', $device->id) }}?share=1#share" class="rd-act me-2"
+                                       title="{{ __('shares.share_button') }}"><i class="ri-share-forward-line me-1"></i>{{ __('shares.share_button') }}</a>
                                 @endif
                                 @if (config('cortendesk.webclient_url') && $device->canBeControlled())
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"
@@ -426,25 +437,30 @@
                                    wire:model.live="selected" aria-label="{{ __('devices.select_device_id', ['id' => $device->rustdesk_id]) }}">
                         @endunless
                         @if ($trashed)
-                            <span class="badge bg-warning-subtle text-warning flex-shrink-0">{{ __('devices.deleted') }}</span>
+                            <span class="badge bg-warning-subtle text-warning flex-shrink-0">{{ $device->isPending() ? __('devices.rejected') : __('devices.deleted') }}</span>
                         @elseif ($device->isOnline())
                             <span class="badge bg-success-subtle text-success flex-shrink-0">{{ __('common.online') }}</span>
                         @else
                             <span class="badge bg-secondary-subtle text-secondary flex-shrink-0">{{ __('devices.offline') }}</span>
                         @endif
                     </div>
-                    @if ($device->isIncomingOnly() || $duplicates?->has($device->id))
+                    @if ($device->isIncomingOnly() || ! $device->canBeControlled() || $duplicates?->has($device->id))
                         <div class="mb-1 d-flex flex-wrap gap-1">
                             @if ($device->isIncomingOnly())
                                 <span class="badge bg-info-subtle text-info" title="{{ __('devices.can_be_controlled_cannot_start') }}">{{ __('devices.incoming_only') }}</span>
                             @endif
+                            @unless ($device->canBeControlled())
+                                <span class="badge rd-badge-purple" title="{{ __('devices.ios_cannot_be_controlled') }}">{{ __('devices.outgoing_only') }}</span>
+                            @endunless
                             @include('livewire.partials.device-duplicate-badge')
                         </div>
                     @endif
                     <div class="rd-mini-foot">
                         <span class="rd-mini-sub min-width-0">
-                            {{ $device->username }} · v{{ $device->version ?: '?' }} ·
-                            <span class="text-nowrap">{{ $device->last_online_at?->diffForHumans(short: true) ?? __('common.never') }}</span>
+                            {{ $device->username }}@if ($device->version) · v{{ $device->version }}@endif
+                            @if ($device->last_online_at || $device->canBeControlled())
+                                · <span class="text-nowrap">{{ $device->last_online_at?->diffForHumans(short: true) ?? __('common.never') }}</span>
+                            @endif
                         </span>
                         <div class="rd-mini-acts">
                             @if ($trashed)
@@ -464,6 +480,10 @@
                                            target="cortendesk-terminal" rel="noopener" class="rd-iconbtn"
                                            title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line"></i></a>
                                     @endunless
+                                @endif
+                                @if (config('cortendesk.share_links') && $device->canBeControlled() && auth()->user()?->consoleAllows('device', 'rw'))
+                                    <a href="{{ route('devices.show', $device->id) }}?share=1#share" class="rd-iconbtn"
+                                       title="{{ __('shares.share_button') }}"><i class="ri-share-forward-line"></i></a>
                                 @endif
                                 @if (config('cortendesk.webclient_url') && $device->canBeControlled())
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"

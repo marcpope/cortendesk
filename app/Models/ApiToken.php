@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  * creation; only its sha256 is stored. Per-resource permissions gate every
  * route via the `api-token-can:<resource>,<level>` middleware.
  */
-#[Fillable(['name', 'token_hash', 'token_prefix', 'user_id', 'permissions', 'last_used_at', 'expires_at', 'is_active'])]
+#[Fillable(['name', 'token_hash', 'token_prefix', 'user_id', 'permissions', 'address_book_add', 'last_used_at', 'expires_at', 'is_active'])]
 #[Hidden(['token_hash'])]
 class ApiToken extends Model
 {
@@ -33,6 +33,7 @@ class ApiToken extends Model
     {
         return [
             'permissions' => 'array',
+            'address_book_add' => 'array',
             'last_used_at' => 'datetime',
             'expires_at' => 'datetime',
             'is_active' => 'boolean',
@@ -49,9 +50,10 @@ class ApiToken extends Model
      * persisted — surface it to the operator once, then discard.
      *
      * @param  array<string,string>  $permissions
+     * @param  list<int>  $addBookIds  shared address books it may only add entries to (#151)
      * @return array{0: self, 1: string}
      */
-    public static function issue(User $creator, string $name, array $permissions, ?\DateTimeInterface $expiresAt = null): array
+    public static function issue(User $creator, string $name, array $permissions, ?\DateTimeInterface $expiresAt = null, array $addBookIds = []): array
     {
         $plain = 'cdk_'.Str::random(40);
 
@@ -61,6 +63,7 @@ class ApiToken extends Model
             'token_prefix' => substr($plain, 0, 12),
             'user_id' => $creator->id,
             'permissions' => static::clampToCreator($creator, $permissions),
+            'address_book_add' => static::clampAddBooks($creator, $addBookIds) ?: null,
             'expires_at' => $expiresAt,
             'is_active' => true,
         ]);
@@ -105,6 +108,29 @@ class ApiToken extends Model
         }
 
         return $out;
+    }
+
+    /**
+     * The add-only grant (#151), kept to shared books that exist, and only
+     * for a creator who may manage address books.
+     *
+     * @param  list<int|string>  $ids
+     * @return list<int>
+     */
+    public static function clampAddBooks(User $creator, array $ids): array
+    {
+        if ($ids === [] || ! $creator->consoleAllows('address_book', 'rw')) {
+            return [];
+        }
+
+        return AddressBook::query()->where('is_personal', false)
+            ->whereIn('id', array_map('intval', $ids))->orderBy('id')->pluck('id')->all();
+    }
+
+    /** May this token add entries to $bookId through its add-only grant? */
+    public function mayAddTo(int $bookId): bool
+    {
+        return in_array($bookId, array_map('intval', $this->address_book_add ?? []), true);
     }
 
     public function isValid(): bool

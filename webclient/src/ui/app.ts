@@ -28,7 +28,26 @@ import type {
   SessionStats,
   UiCommand,
 } from '../core/contracts';
-import { attachInput, mapKeyboardTarget, type DisplayRect, type KeyTarget } from '../input/mouse-keyboard';
+import {
+  attachInput,
+  createKeyHandler,
+  mapKeyboardTarget,
+  type DisplayRect,
+  type InputOptions,
+  type KeyHandler,
+  type KeyTarget,
+} from '../input/mouse-keyboard';
+import { SoftKeyboardInput, sinkAttributes, type SoftKeyAction, type SoftKey } from '../input/soft-keyboard';
+import { trackVisualViewport, type ViewportState } from './viewport';
+import { ExtraKeysBar } from './extra-keys-bar';
+import { haptic, setHapticsEnabled } from './haptics';
+import { ViewTransformer, containRect, type Rect, type View } from '../input/view-transform';
+import { CompactKeyboard } from './compact-keyboard';
+import { MobileBar, barSide, fullscreenButtonMode, currentOrientation, swappedPrefs, type Orientation } from './mobile-bar';
+import { TrackpadMapper } from '../input/touch-trackpad';
+import type { TouchOutput } from '../input/touch-direct';
+import type { Pt } from '../input/gesture';
+import { keyComboCommands, modControlKeys, stickyTextCommands } from '../input/extra-keys';
 import { readLocalClipboardText } from '../input/clipboard-cursor';
 import {
   BackNotification_BlockInputState,
@@ -37,6 +56,7 @@ import {
   SupportedDecoding_PreferCodec,
 } from '../gen/message';
 import { RESTART_RECONNECT_TIMEOUT_MS, nextRestartReconnectDelay } from '../core/session-controls';
+import { DROP_RECONNECT_TIMEOUT_MS, nextReconnectDelay, shouldAutoReconnect } from '../core/reconnect';
 import { buildLockScreenKeyCommand, buildSecurityControlMenu } from './session-controls-menu';
 import {
   overlayVersion,
@@ -44,6 +64,7 @@ import {
   STATE_LABEL,
   buildSessionConfig,
   newSessionId,
+  buildKeyPressCommands,
   buildTypeCommands,
   clearSavedHash,
   cursorCss,
@@ -65,6 +86,7 @@ import {
   setLoggedOutParam,
   type IconName,
   type RdGlobalConfig,
+  type ShareInfo,
 } from './common';
 import { FilePanel } from './file-panel';
 import { TerminalPanel } from './terminal-panel';
@@ -96,7 +118,10 @@ import {
   resetPrefs,
   savePrefs,
   withRememberedOptions,
+  resolveInputMode,
   type CodecName,
+  type InputMode,
+  type InputModePref,
   type SessionPrefs,
 } from './session-prefs';
 import { isRtcEvent, webRtcFor, type WebRtcHost } from './webrtc-host';
@@ -108,13 +133,14 @@ export * from './common';
 type RdWindow = Window & { __RD__?: RdGlobalConfig };
 
 type SideTab = 'files' | 'chat' | 'details';
-type InputMode = 'pointer' | 'touch';
 type FitMode = 'fit' | 'actual';
 
 type ChatEntry = { who: 'me' | 'peer'; text: string; at: number };
 type UiWorkerEvent = SessionEvent | { t: 'audioPcm'; pcm: Float32Array; sampleRate: number; channels: number };
 
 type RestartFlow = {
+  /** restart: the user restarted the device; drop: the connection died by itself (core/reconnect.ts). */
+  kind: 'restart' | 'drop';
   startedAt: number;
   attempt: number;
   config: SessionConfig;
@@ -158,6 +184,37 @@ type Els = ConnectCardEls & {
   statPlatform: HTMLElement;
 };
 
+const HOME_SCREEN_HINT_KEY = 'cortendesk.rdhomescreenhint.v1';
+
+/**
+ * Offer Add to Home Screen: an iPhone/iPod browser tab (no fullscreen API),
+ * not already running as a Home Screen app.
+ */
+export function shouldOfferHomeScreen(
+  nav: { userAgent: string; standalone?: boolean },
+  fullscreenEnabled: boolean,
+): boolean {
+  if (nav.standalone === true || fullscreenEnabled) return false;
+  return /iPhone|iPod/.test(nav.userAgent);
+}
+
+/** After the user pinches or pans, the view does not scroll after the trackpad cursor for this long. */
+const USER_PAN_HOLD_MS = 400;
+/** Trackpad follow: how far (CSS px) inside the visible edge the cursor is kept. */
+const FOLLOW_MARGIN = 40;
+
+/** `v` if it lies in lo..hi, else the point `margin` inside the nearer end (the middle of a narrower span). */
+function intoSpan(v: number, lo: number, hi: number, margin: number): number {
+  if (hi < lo || (v >= lo && v <= hi)) return v;
+  const m = Math.min(margin, (hi - lo) / 2);
+  return v < lo ? lo + m : hi - m;
+}
+
+/** A phone or tablet: the primary pointer is a finger. */
+function coarsePointer(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+}
+
 function q<T extends Element>(scope: ParentNode, sel: string): T {
   const el = scope.querySelector<T>(sel);
   if (!el) throw new Error(`rdclient: missing element ${sel}`);
@@ -178,7 +235,15 @@ export const PERMISSION_CONTROLS: Record<string, { id: string; title: string }> 
 };
 
 /** Controls beyond the canonical one that a withdrawn Keyboard permission disables. */
-const KEYBOARD_EXTRA_IDS = ['rd-lat-ctrl', 'rd-lat-alt', 'rd-key-del', 'rd-btn-type'];
+const KEYBOARD_EXTRA_IDS = ['rd-lat-ctrl', 'rd-lat-alt', 'rd-key-del', 'rd-btn-type', 'rd-btn-kbd', 'rd-btn-xkeys'];
+
+/** On-screen keyboard keys -> the control keys sent for them. */
+const SOFT_KEY_CONTROL: Record<SoftKey, ControlKey> = {
+  Backspace: ControlKey.Backspace,
+  Enter: ControlKey.Return,
+  Delete: ControlKey.Delete,
+  Tab: ControlKey.Tab,
+};
 
 export class RdApp {
   private cfg: RdGlobalConfig | undefined;
@@ -203,6 +268,8 @@ export class RdApp {
   private connectedWithSavedHash = false; // this attempt used a stored hash
   private connectedWithAddressBook = false; // this attempt signed in with an address-book password
   private addressBookRefused = false; // the device refused it: ask for the password instead
+  private shareEnded = false; // share page: the console ended the link
+  private shareWaitTimer: ReturnType<typeof setTimeout> | undefined; // share page: hint after a long wait
   private sessionHashHex: string | undefined; // h1 of the live session — lets the file panel log in silently
   /** Peer-advertised permissions for THIS session; absent means granted. */
   private permissions: Record<string, boolean> = {};
@@ -241,6 +308,8 @@ export class RdApp {
   private latchCtrl = false;
   private latchAlt = false;
   private inputMode: InputMode = 'pointer';
+  /** The remembered choice behind inputMode ('auto' follows the device). */
+  private inputModePref: InputModePref = 'auto';
   private fitMode: FitMode = 'fit';
   private quality: number = QUALITY.balanced;
   private customQuality = 75;
@@ -274,6 +343,41 @@ export class RdApp {
   private pop: HTMLElement | undefined; // the one open popover
   private popAnchor: HTMLElement | undefined;
   private popCleanup: (() => void) | undefined;
+  // --- phones and tablets ----------------------------------------------------
+  /** Hidden field the on-screen keyboard types into. */
+  private kbdSink!: HTMLTextAreaElement;
+  private softKeys!: SoftKeyboardInput;
+  /** Physical keys typed into the field (iPad / Bluetooth keyboards). */
+  private sinkKeys!: KeyHandler;
+  private viewportState: ViewportState | undefined;
+  private xkeys!: ExtraKeysBar;
+  /** Local zoom / pan of the remote screen (pinch, Fit / 1:1). */
+  private readonly view = new ViewTransformer();
+  private trackpad: TrackpadMapper | undefined;
+  private trackpadOut: TouchOutput | undefined;
+  /** Trackpad mode's local cursor. */
+  private tpCursor!: HTMLElement;
+  private tpCursorFade: ReturnType<typeof setTimeout> | undefined;
+  /** Last pinch / pan by the user: the view does not follow the cursor right after it. */
+  private lastUserPanAt = 0;
+  /** Floating controls replacing the top bar and dock on phones and tablets. */
+  private bar: MobileBar | undefined;
+  private orientation: Orientation = 'portrait';
+  /** Viewport size with no on-screen keyboard, kept while one is open. */
+  private fullSize: { w: number; h: number } | undefined;
+  /** While the keyboard is open the remote screen keeps its full size and pans instead. */
+  private frozenSize: { w: number; h: number } | undefined;
+  private viewBeforeKeyboard: View | undefined;
+  /** Zoom to put back after an automatic reconnect. */
+  private viewBeforeReconnect: View | undefined;
+  /** The on-screen keyboard was open when the connection dropped. */
+  private keyboardBeforeReconnect = false;
+  /** The user pressed Disconnect: whatever ends the session now is not a drop. */
+  private userClosing = false;
+  /** Last touched point on the remote screen (fraction of the image), kept in view when a keyboard opens. */
+  private focusFrac: Pt | undefined;
+  /** The compact in-page keyboard (landscape option). */
+  private ckbd: CompactKeyboard | undefined;
 
   mount(): void {
     (window as unknown as { __rdApp?: RdApp }).__rdApp = this; // console/debug handle
@@ -283,6 +387,12 @@ export class RdApp {
     this.renderDock();
     this.renderSide();
     this.renderOverlay();
+    this.setupSoftKeyboard();
+    this.setupExtraKeys();
+    if (coarsePointer()) {
+      this.setupMobileBar();
+      trackVisualViewport(this.el.root, (s) => this.onViewportChange(s));
+    }
 
     const attr = document
       .querySelector('script[data-rd-worker]')
@@ -291,7 +401,9 @@ export class RdApp {
 
     this.fixedPeerId =
       normalizePeerId(this.cfg?.peerId ?? '') || peerIdFromSearch(location.search) || '';
-    if (this.fixedPeerId) {
+    if (this.share) {
+      this.applyShareMode(this.share);
+    } else if (this.fixedPeerId) {
       this.el.fieldId.hidden = true;
       this.el.overlayTarget.hidden = false;
       this.el.overlayPeer.textContent = this.fixedPeerId;
@@ -315,8 +427,10 @@ export class RdApp {
 
     // Saved password (or an address-book password) + fixed peer -> sign
     // straight in. Skipped when ?lo=1 (the user logged out on purpose) so the
-    // connect screen stays put.
-    if (
+    // connect screen stays put. Share links always connect at once.
+    if (this.share) {
+      if (!this.secureContextProblem()) this.onConnectClick();
+    } else if (
       this.fixedPeerId &&
       !loggedOutFromSearch(location.search) &&
       (loadSavedHash(this.fixedPeerId) || addressBookReady(this.cfg, this.fixedPeerId))
@@ -341,6 +455,7 @@ export class RdApp {
     }, 1000);
 
     window.addEventListener('beforeunload', () => {
+      this.userClosing = true;
       this.endVoiceCall(true);
       this.releaseRemoteSecurityState();
       this.post({ c: 'disconnect' });
@@ -419,6 +534,23 @@ export class RdApp {
     root.appendChild(dock);
     root.dataset.state = 'closed';
     viewport.dataset.fit = 'fit';
+    // Safari's own pinch would zoom the whole page out from under the session.
+    viewport.addEventListener('gesturestart', (e) => e.preventDefault());
+    let tpCursor = document.getElementById('rd-tp-cursor');
+    if (!tpCursor) {
+      tpCursor = document.createElement('div');
+      tpCursor.id = 'rd-tp-cursor';
+      tpCursor.className = 'rd-stream-only';
+      tpCursor.setAttribute('aria-hidden', 'true');
+      tpCursor.innerHTML =
+        '<svg viewBox="0 0 20 24" width="20" height="24"><path d="M2 2v17l4.6-4.4 3 7 3-1.3-3-6.8H16Z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+      tpCursor.hidden = true;
+      viewport.appendChild(tpCursor);
+    }
+    this.tpCursor = tpCursor;
+    if (typeof ResizeObserver === 'function') {
+      new ResizeObserver(() => this.updateView()).observe(viewport);
+    }
     this.canvas = canvas;
     this.el = {
       root,
@@ -590,15 +722,114 @@ export class RdApp {
     );
     this.el.btnFit.addEventListener('click', () => this.openFitPop());
     this.el.btnViewOnly.addEventListener('click', () => this.toggleViewOnly());
-    q<HTMLButtonElement>(t, '#rd-btn-disconnect').addEventListener('click', () => {
-      this.setLoggedOutFlag(true); // an explicit logout must not auto-login on reload
-      this.clearRestartFlow();
-      this.endVoiceCall(true);
-      this.releaseRemoteSecurityState();
-      this.destroyAdvancedPanels();
-      this.post({ c: 'disconnect' });
-      this.setState('closed');
+    q<HTMLButtonElement>(t, '#rd-btn-disconnect').addEventListener('click', () => this.disconnectByUser());
+  }
+
+  private disconnectByUser(): void {
+    this.userClosing = true;
+    this.setLoggedOutFlag(true); // an explicit logout must not auto-login on reload
+    this.clearRestartFlow();
+    this.endVoiceCall(true);
+    this.releaseRemoteSecurityState();
+    this.destroyAdvancedPanels();
+    this.post({ c: 'disconnect' });
+    this.setState('closed');
+  }
+
+  /** Share-link page: present when opened from a share link. */
+  private get share(): ShareInfo | undefined {
+    return this.cfg?.share ?? undefined;
+  }
+
+  /**
+   * Share-link page: no ID or password to type, and the device's name instead
+   * of its ID. The viewer signs in with an empty password, so the device
+   * opens its accept window; what the viewer may do is decided there.
+   */
+  private applyShareMode(share: ShareInfo): void {
+    this.el.overlayTarget.hidden = false;
+    this.el.overlayPeer.textContent = share.deviceName || share.label;
+    this.el.peerLabel.textContent = share.deviceName || share.label;
+    this.voiceCallSupported = false;
+    this.syncShareCard();
+    this.startSharePing(share);
+  }
+
+  /**
+   * Keep the console's viewer slot while the page is open. When the link
+   * ends (revoked, expired) the console answers 410 and the page disconnects.
+   * Each answer carries a fresh hbbs ticket: they live only minutes, so a
+   * reconnect, or a file or terminal panel, uses the latest one.
+   */
+  private startSharePing(share: ShareInfo): void {
+    const post = (url: string, keepalive = false): Promise<Response> =>
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': share.csrfToken },
+        body: JSON.stringify({ token: share.token, session: share.session }),
+      });
+    const timer = setInterval(() => {
+      post(share.pingUrl)
+        .then(async (r) => {
+          if (r.status === 410) {
+            clearInterval(timer);
+            this.endShare();
+            return;
+          }
+          if (!r.ok) return;
+          const body = (await r.json().catch(() => ({}))) as { signal_token?: unknown };
+          if (typeof body.signal_token === 'string' && body.signal_token) this.refreshSignalToken(body.signal_token);
+        })
+        .catch(() => undefined); // a missed ping is retried; the slot lapses on its own
+    }, Math.max(5, share.pingSeconds) * 1000);
+    window.addEventListener('pagehide', () => {
+      if (!this.shareEnded) void post(share.endUrl, true).catch(() => undefined);
     });
+  }
+
+  private refreshSignalToken(token: string): void {
+    if (this.cfg) this.cfg.signalToken = token;
+    if (this.reconnectConfig) this.reconnectConfig.signalToken = token;
+  }
+
+  private endShare(): void {
+    this.shareEnded = true;
+    this.clearRestartFlow();
+    this.endVoiceCall(true);
+    this.releaseRemoteSecurityState();
+    this.destroyAdvancedPanels();
+    this.post({ c: 'disconnect' });
+    this.setState('closed', tl('share_ended'));
+  }
+
+  /**
+   * A device set to password-only answers an empty password exactly like one
+   * that is showing its accept window: with silence. So after a while the
+   * share page says what may be wrong instead of waiting without a word.
+   */
+  private watchShareWait(state: SessionState): void {
+    if (!this.share) return;
+    if (state !== 'needAccept') {
+      clearTimeout(this.shareWaitTimer);
+      this.shareWaitTimer = undefined;
+      return;
+    }
+    if (this.shareWaitTimer) return;
+    this.shareWaitTimer = setTimeout(() => {
+      if (this.state === 'needAccept') this.setOverlayError(tl('share_waiting_long'));
+    }, 45_000);
+  }
+
+  /** The connect card never asks a share viewer for an ID or password. */
+  private syncShareCard(): void {
+    if (!this.share) return;
+    this.el.fieldId.hidden = true;
+    this.el.passwordRow.hidden = true;
+    this.el.saveRow.hidden = true;
+    const help = this.el.overlay.querySelector<HTMLElement>('.rd-help');
+    if (help) help.textContent = tl('share_help');
   }
 
   private toggleViewOnly(): void {
@@ -608,6 +839,7 @@ export class RdApp {
     // Latched modifiers make no sense with input off; drop them quietly.
     if (this.viewOnly) {
       this.setLatches(false, false);
+      this.xkeys.clearLatches();
       this.terminalPanel?.destroy();
       this.terminalPanel = undefined;
       this.removeClipboardSyncOffer();
@@ -623,6 +855,8 @@ export class RdApp {
       `${iconHtml(icon)}<span>${escapeHtml(label)}</span></button>`;
     this.el.dock.innerHTML = `
       <div class="rd-dock-group" role="group" aria-label="${htl('keyboard')}">
+        ${db('rd-btn-kbd', 'keyboard', tl('keyboard'), tl('show_hide_on_screen_keyboard')).replace('class="rd-db"', 'class="rd-db rd-coarse-only" aria-pressed="false"')}
+        ${db('rd-btn-xkeys', 'keyboard', tl('extra_keys'), tl('extra_keys_title')).replace('class="rd-db"', 'class="rd-db rd-coarse-only" aria-pressed="false"')}
         ${db('rd-lat-ctrl', 'keyboard', 'Ctrl', tl('hold_ctrl_for_clicks_and'))}
         ${db('rd-lat-alt', 'keyboard', 'Alt', tl('hold_alt_for_clicks_and'))}
         ${db('rd-key-del', 'keyboard', 'Del', tl('send_delete'))}
@@ -631,7 +865,7 @@ export class RdApp {
       <span class="rd-dock-sep" aria-hidden="true"></span>
       <div class="rd-dock-group" role="group" aria-label="${htl('input_mode')}">
         ${db('rd-mode-pointer', 'pointer', tl('pointer'), tl('pointer_mode_touch_acts_as'))}
-        ${db('rd-mode-touch', 'touch', tl('touch'), tl('touch_mode_drag_moves_cursor'))}
+        ${db('rd-mode-touch', 'touch', tl('touch'), tl('touch_mode_tap_drag_scroll'))}
       </div>
       <span class="rd-dock-sep" aria-hidden="true"></span>
       <div class="rd-dock-group" role="group" aria-label="${htl('send')}">
@@ -651,15 +885,17 @@ export class RdApp {
     q<HTMLButtonElement>(d, '#rd-lat-alt').addEventListener('click', () =>
       this.setLatches(this.latchCtrl, !this.latchAlt),
     );
+    q<HTMLButtonElement>(d, '#rd-btn-kbd').addEventListener('click', () => this.toggleSoftKeyboard());
+    q<HTMLButtonElement>(d, '#rd-btn-xkeys').addEventListener('click', () => this.toggleExtraKeys());
     q<HTMLButtonElement>(d, '#rd-key-del').addEventListener('click', () => {
       this.pressControl(ControlKey.Delete, tl('delete_sent'));
     });
     q<HTMLButtonElement>(d, '#rd-btn-cad').addEventListener('click', (e) =>
       this.openKeysPop(e.currentTarget as HTMLElement),
     );
-    q<HTMLButtonElement>(d, '#rd-mode-pointer').addEventListener('click', () => this.setInputMode('pointer'));
-    q<HTMLButtonElement>(d, '#rd-mode-touch').addEventListener('click', () => this.setInputMode('touch'));
-    this.setInputMode('pointer');
+    q<HTMLButtonElement>(d, '#rd-mode-pointer').addEventListener('click', () => this.chooseInputMode('pointer'));
+    q<HTMLButtonElement>(d, '#rd-mode-touch').addEventListener('click', () => this.chooseInputMode('touch'));
+    this.applyInputModePref(loadPrefs().inputMode);
     q<HTMLButtonElement>(d, '#rd-btn-type').addEventListener('click', (e) =>
       this.openTypePop(e.currentTarget as HTMLElement),
     );
@@ -671,8 +907,23 @@ export class RdApp {
     q<HTMLButtonElement>(d, '#rd-btn-session').addEventListener('click', () => this.openSide('details'));
   }
 
+  /** The user picked a mode: use it and remember it for the next session. */
+  private chooseInputMode(mode: InputMode): void {
+    this.applyInputModePref(mode);
+    this.rememberPrefs({ inputMode: mode });
+    haptic();
+  }
+
+  private applyInputModePref(pref: InputModePref): void {
+    this.inputModePref = pref;
+    this.setInputMode(resolveInputMode(pref, coarsePointer()));
+  }
+
   private setInputMode(mode: InputMode): void {
+    if (mode !== 'trackpad') this.trackpad?.reset();
     this.inputMode = mode;
+    if (this.tpCursor) this.drawTrackpadCursor();
+    this.bar?.setIcon('mode', this.inputModeIcon());
     this.el.dock.querySelector('#rd-mode-pointer')?.classList.toggle('rd-on', mode === 'pointer');
     this.el.dock.querySelector('#rd-mode-touch')?.classList.toggle('rd-on', mode === 'touch');
   }
@@ -1123,8 +1374,8 @@ export class RdApp {
     );
   }
 
-  private openMonitorPop(): void {
-    this.openPop(this.el.btnMonitors, (pop) => {
+  private openMonitorPop(anchor: HTMLElement = this.el.btnMonitors): void {
+    this.openPop(anchor, (pop) => {
       const currentDisplay = this.displays[this.current];
       const virtual = parseVirtualDisplayCapability(this.peerPlatform, this.platformAdditions);
       const isVirtualDisplay = !!virtual && currentDisplay?.originalResolution?.width === 0 && currentDisplay.originalResolution.height === 0;
@@ -1265,6 +1516,10 @@ export class RdApp {
           : '';
       pop.innerHTML =
         this.menuItem('refresh', tl('refresh_video'), false, 'refresh') +
+        // The toolbar's Fit chip is hidden on narrow screens; offer it here.
+        '<div class="rd-narrow-only"><div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('scale_mode') + '</div>' +
+        this.menuItem(null, tl('fit_screen'), this.fitMode === 'fit', 'fit:fit') +
+        this.menuItem(null, tl('actual_size'), this.fitMode === 'actual', 'fit:actual') + '</div>' +
         '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('image_quality') + '</div>' +
         this.menuItem(null, tl('best'), !this.customQualityActive && this.quality === QUALITY.best, 'quality:best') +
         this.menuItem(null, tl('balanced'), !this.customQualityActive && this.quality === QUALITY.balanced, 'quality:balanced') +
@@ -1282,6 +1537,7 @@ export class RdApp {
             this.menuItem(null, tl('enlarge_remote_cursor'), this.cursorScale > 1, 'cursorScale')
           : '') +
         keyboardHtml +
+        this.touchMenuHtml() +
         securityHtml +
         tools +
         mediaHtml +
@@ -1292,6 +1548,28 @@ export class RdApp {
         this.post({ c: 'refresh' });
         this.closePop();
       });
+      for (const button of pop.querySelectorAll<HTMLButtonElement>('[data-action^="input:"]')) {
+        button.addEventListener('click', () => {
+          const mode = button.dataset.action?.slice('input:'.length);
+          this.chooseInputMode(mode === 'pointer' || mode === 'trackpad' ? mode : 'touch');
+          this.closePop();
+        });
+      }
+      pop.querySelector<HTMLButtonElement>('[data-action="haptics"]')?.addEventListener('click', () => {
+        const on = !loadPrefs().haptics;
+        setHapticsEnabled(on);
+        this.rememberPrefs({ haptics: on });
+        haptic();
+        this.closePop();
+      });
+      for (const button of pop.querySelectorAll<HTMLButtonElement>('[data-action^="fit:"]')) {
+        button.addEventListener('click', () => {
+          const mode: FitMode = button.dataset.action === 'fit:actual' ? 'actual' : 'fit';
+          this.setFitMode(mode);
+          this.rememberPrefs({ fitMode: mode });
+          this.closePop();
+        });
+      }
       pop.querySelector<HTMLButtonElement>('[data-action="resetPrefs"]')?.addEventListener('click', () => {
         this.resetSessionPrefs();
         this.toast(tl('settings_reset_defaults'));
@@ -1514,7 +1792,13 @@ export class RdApp {
 
   private setFitMode(mode: FitMode): void {
     this.fitMode = mode;
-    this.el.viewport.dataset.fit = mode;
+    if (coarsePointer()) {
+      // Phones and tablets zoom the view instead (pinch-able, no scrollbars).
+      this.el.viewport.dataset.fit = 'fit';
+      this.applyFitZoom();
+    } else {
+      this.el.viewport.dataset.fit = mode;
+    }
     q(this.el.toolbar, '#rd-fit-label').textContent = mode === 'fit' ? tl('fit_screen') : tl('actual_size');
   }
 
@@ -1549,6 +1833,8 @@ export class RdApp {
     this.audioMuted = p.audioMuted;
     this.audioVolume = p.audioVolume;
     this.keyboardMode = p.keyboardMode;
+    this.applyInputModePref(p.inputMode);
+    setHapticsEnabled(p.haptics);
     this.audioPlayback?.setVolume(this.audioVolume);
     this.audioPlayback?.setMuted(this.audioMuted);
   }
@@ -1582,7 +1868,26 @@ export class RdApp {
       audioMuted: this.audioMuted,
       audioVolume: this.audioVolume,
       keyboardMode: this.keyboardMode,
+      inputMode: this.inputModePref,
+      extraKeys: this.xkeys.shown,
+      haptics: loadPrefs().haptics,
+      barPortrait: loadPrefs().barPortrait,
+      barLandscape: loadPrefs().barLandscape,
+      compactKeyboard: loadPrefs().compactKeyboard,
+      hideSuggestions: loadPrefs().hideSuggestions,
     };
+  }
+
+  /** More menu section for finger input; only where the primary pointer is a finger. */
+  private touchMenuHtml(): string {
+    if (!coarsePointer()) return '';
+    return (
+      '<div class="rd-pop-sep"></div><div class="rd-pop-title">' + htl('input_mode') + '</div>' +
+      this.menuItem(null, tl('touch'), this.inputMode === 'touch', 'input:touch') +
+      this.menuItem(null, tl('trackpad'), this.inputMode === 'trackpad', 'input:trackpad') +
+      this.menuItem(null, tl('pointer'), this.inputMode === 'pointer', 'input:pointer') +
+      ('vibrate' in navigator ? this.menuItem(null, tl('vibrate_on_touch_actions'), loadPrefs().haptics, 'haptics') : '')
+    );
   }
 
   /** Keycodes for Map mode, or null for legacy character input. */
@@ -1643,18 +1948,460 @@ export class RdApp {
             <button type="button" class="rd-chip rd-chip-solid" id="rd-type-send">${iconHtml('send')}<span>${htl('send_keystrokes')}</span></button>
           </div>`;
         const ta = q<HTMLTextAreaElement>(pop, '#rd-type-text');
-        setTimeout(() => ta.focus(), 0);
         q<HTMLButtonElement>(pop, '#rd-type-send').addEventListener('click', () => {
           const text = ta.value;
           if (!text) return;
-          for (const cmd of buildTypeCommands(text)) this.post(cmd);
+          const latched = this.latchCtrl || this.latchAlt;
+          for (const cmd of latched ? buildKeyPressCommands(text) : buildTypeCommands(text)) this.post(cmd);
           this.toast(tn('typed_chars', text.length));
           this.closePop();
         });
       },
       true,
     );
+    // Focus inside the tap itself: iOS opens its keyboard for nothing later.
+    this.pop?.querySelector<HTMLTextAreaElement>('#rd-type-text')?.focus();
   }
+
+  // --- on-screen keyboard (phones, tablets) ----------------------------------
+
+  private setupSoftKeyboard(): void {
+    const sink = document.createElement('textarea');
+    sink.id = 'rd-kbd-sink';
+    for (const [k, v] of Object.entries(sinkAttributes(loadPrefs().hideSuggestions))) sink.setAttribute(k, v);
+    sink.setAttribute('aria-label', tl('on_screen_keyboard'));
+    sink.tabIndex = -1;
+    this.el.root.appendChild(sink);
+    this.kbdSink = sink;
+    this.sinkKeys = createKeyHandler((c) => this.post(c), () => this.keyboardTarget());
+    this.softKeys = new SoftKeyboardInput(sink, (a) => this.onSoftKey(a));
+    sink.addEventListener('keydown', (e) => this.softKeys.keydown(e));
+    sink.addEventListener('keyup', (e) => this.softKeys.keyup(e));
+    sink.addEventListener('beforeinput', (e) => this.softKeys.beforeinput(e));
+    sink.addEventListener('input', () => this.softKeys.input());
+    sink.addEventListener('compositionstart', () => this.softKeys.compositionstart());
+    sink.addEventListener('compositionend', () => this.softKeys.compositionend());
+    sink.addEventListener('focus', () => this.syncSoftKeyboardButton());
+    sink.addEventListener('blur', () => {
+      this.softKeys.reset();
+      this.sinkKeys.reset();
+      this.syncSoftKeyboardButton();
+    });
+  }
+
+  private softKeyboardFocused(): boolean {
+    return !!this.kbdSink && document.activeElement === this.kbdSink;
+  }
+
+  /**
+   * Keyboard button. Must run synchronously in the tap: iOS only opens its
+   * keyboard for a focus() made inside a user gesture.
+   */
+  private toggleSoftKeyboard(): void {
+    if (this.ckbd?.shown) {
+      this.showCompactKeyboard(false);
+      return;
+    }
+    if (this.orientation === 'landscape' && this.ckbd && loadPrefs().compactKeyboard) {
+      if (this.softKeyboardFocused()) this.kbdSink.blur();
+      this.showCompactKeyboard(true);
+      return;
+    }
+    if (this.softKeyboardFocused()) {
+      this.kbdSink.blur();
+      // Android's back button hides the keyboard but leaves the field
+      // focused: then the tap means "show it again", not "hide it".
+      if (this.viewportState && !this.viewportState.keyboard) this.focusSoftKeyboard();
+      return;
+    }
+    this.focusSoftKeyboard();
+  }
+
+  /** The compact in-page keyboard (landscape option): its space is handled like the phone keyboard's. */
+  private showCompactKeyboard(on: boolean): void {
+    const k = this.ckbd;
+    if (!k || k.shown === on) return;
+    k.show(on);
+    if (on) this.el.root.dataset.ckbd = '1';
+    else delete this.el.root.dataset.ckbd;
+    this.syncSoftKeyboardButton();
+    requestAnimationFrame(() => (on ? this.keyboardSpaceOpened(false) : this.keyboardSpaceClosed()));
+  }
+
+  /** Hide whichever keyboard is open (extra-keys bar button). */
+  private hideKeyboards(): void {
+    if (this.ckbd?.shown) this.showCompactKeyboard(false);
+    if (this.softKeyboardFocused()) this.kbdSink.blur();
+  }
+
+  /** More sheet option. The keyboard reads the attributes when the field gains focus: refocus it. */
+  private setHideSuggestions(hide: boolean): void {
+    this.rememberPrefs({ hideSuggestions: hide });
+    for (const [k, v] of Object.entries(sinkAttributes(hide))) this.kbdSink.setAttribute(k, v);
+    if (this.softKeyboardFocused()) {
+      this.kbdSink.blur();
+      this.focusSoftKeyboard();
+    }
+  }
+
+  private focusSoftKeyboard(): void {
+    this.softKeys.reset();
+    this.kbdSink.focus({ preventScroll: true });
+    this.syncSoftKeyboardButton();
+  }
+
+  private syncSoftKeyboardButton(): void {
+    const on = this.softKeyboardFocused() || !!this.ckbd?.shown;
+    for (const b of this.el.root.querySelectorAll<HTMLButtonElement>('[data-kbd-toggle], #rd-btn-kbd')) {
+      b.classList.toggle('rd-on', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+  }
+
+  private onSoftKey(a: SoftKeyAction): void {
+    switch (a.k) {
+      case 'hardware':
+        this.sinkKeys.onKey(a.event, a.down);
+        return;
+      case 'key': {
+        const mods = this.xkeys.activeMods();
+        if (mods.length) {
+          // Shift+Enter, Ctrl+Backspace...: a real key with the sticky modifiers.
+          const code = a.key === 'Enter' ? 'Enter' : a.key;
+          const all = a.ctrl && !mods.includes('ctrl') ? [...mods, 'ctrl' as const] : mods;
+          for (const cmd of keyComboCommands({ code, key: code }, all, this.keyboardTarget())) this.post(cmd);
+          this.xkeys.consume();
+          return;
+        }
+        this.post({
+          c: 'key', down: false, press: true, keyKind: 'control',
+          value: SOFT_KEY_CONTROL[a.key], modifiers: a.ctrl ? [ControlKey.Control] : [],
+        });
+        return;
+      }
+      case 'text': {
+        const mods = this.xkeys.activeMods();
+        if (mods.length) {
+          // Sticky Ctrl/Alt/Win from the extra-keys bar: letters become shortcuts.
+          for (const cmd of stickyTextCommands(a.text, mods, this.keyboardTarget())) this.post(cmd);
+          if (mods.some((m) => m !== 'shift')) this.xkeys.consume();
+        } else if (this.latchCtrl || this.latchAlt) {
+          // Latched Ctrl/Alt turn letters into shortcuts: those need keys, not text.
+          for (const cmd of buildKeyPressCommands(a.text)) this.post(cmd);
+        } else {
+          this.post({ c: 'text', text: a.text });
+        }
+        return;
+      }
+    }
+  }
+
+  // --- extra-keys bar (phones, tablets) ----------------------------------------
+
+  private setupExtraKeys(): void {
+    this.xkeys = new ExtraKeysBar({
+      send: (cmds) => {
+        for (const cmd of cmds) this.post(cmd);
+      },
+      target: () => this.keyboardTarget(),
+      onHideKeyboard: () => this.hideKeyboards(),
+    });
+    this.el.root.insertBefore(this.xkeys.el, this.el.dock);
+    if (coarsePointer() && loadPrefs().extraKeys) this.xkeys.show(true);
+    this.syncExtraKeysButton();
+  }
+
+  private toggleExtraKeys(): void {
+    const on = !this.xkeys.shown;
+    this.xkeys.show(on);
+    if (!on) this.xkeys.clearLatches();
+    this.rememberPrefs({ extraKeys: on });
+    this.syncExtraKeysButton();
+  }
+
+  private syncExtraKeysButton(): void {
+    const on = this.xkeys.shown;
+    for (const b of this.el.root.querySelectorAll<HTMLButtonElement>('[data-xkeys-toggle], #rd-btn-xkeys')) {
+      b.classList.toggle('rd-on', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+  }
+
+  private onViewportChange(s: ViewportState): void {
+    const wasOpen = this.viewportState?.keyboard ?? false;
+    this.viewportState = s;
+    this.syncOrientation();
+    if (s.keyboard && !wasOpen) {
+      this.keyboardSpaceOpened(true);
+    } else if (!s.keyboard && wasOpen) {
+      this.keyboardSpaceClosed();
+    } else {
+      this.updateView();
+    }
+  }
+
+  /**
+   * A keyboard (the phone's or the compact one) took the bottom of the
+   * screen. Portrait: the remote screen keeps its full size and slides up,
+   * so the point being worked on sits above the keyboard. Landscape: what is
+   * left is a wide, short strip; the picture is fitted into it and zoomed to
+   * its width around that point, instead of a postage stamp.
+   */
+  private keyboardSpaceOpened(systemKeyboard: boolean): void {
+    if (!this.viewBeforeKeyboard) this.viewBeforeKeyboard = { ...this.view.view };
+    const landscape = this.orientation === 'landscape';
+    if (systemKeyboard && !landscape && this.fullSize) {
+      this.frozenSize = this.fullSize;
+      for (const el of [this.canvas, this.videoEl]) {
+        el.style.width = `${this.frozenSize.w}px`;
+        el.style.height = `${this.frozenSize.h}px`;
+      }
+    }
+    this.updateView();
+    if (landscape) this.view.fillWidth();
+    const p = this.keyboardFocusPoint();
+    if (p) this.view.ensureVisible(p.x, p.y, landscape ? 0.5 : 1 / 3);
+    this.applyView();
+  }
+
+  private keyboardSpaceClosed(): void {
+    this.frozenSize = undefined;
+    for (const el of [this.canvas, this.videoEl]) {
+      el.style.width = '';
+      el.style.height = '';
+    }
+    this.updateView();
+    if (this.viewBeforeKeyboard) {
+      this.view.restore(this.viewBeforeKeyboard);
+      this.viewBeforeKeyboard = undefined;
+      this.applyView();
+    }
+  }
+
+  /**
+   * What to keep visible when a keyboard opens, element-local: the trackpad
+   * cursor, else the last touch. Kept as a fraction of the remote image, as
+   * the element itself changes size when the keyboard fits it into a strip.
+   */
+  private keyboardFocusPoint(): Pt | undefined {
+    let f = this.focusFrac;
+    if (this.inputMode === 'trackpad' && this.trackpad) {
+      const c = this.trackpad.position();
+      f = this.clientToFrac(c.x, c.y);
+    }
+    if (!f) return undefined;
+    const r = this.view.contentRect;
+    return { x: r.x + f.x * r.width, y: r.y + f.y * r.height };
+  }
+
+  /** Client point -> fraction of the remote image. */
+  private clientToFrac(x: number, y: number): Pt | undefined {
+    const c = this.contentClientRect();
+    if (c.width <= 0 || c.height <= 0) return undefined;
+    return { x: (x - c.x) / c.width, y: (y - c.y) / c.height };
+  }
+
+  /**
+   * iPhone Safari has no fullscreen: once per browser, point at Add to Home
+   * Screen, which opens the client full screen with no browser bars.
+   */
+  private maybeShowHomeScreenHint(): void {
+    if (!shouldOfferHomeScreen(navigator as Navigator & { standalone?: boolean }, document.fullscreenEnabled === true)) return;
+    try {
+      if (localStorage.getItem(HOME_SCREEN_HINT_KEY)) return;
+      localStorage.setItem(HOME_SCREEN_HINT_KEY, '1');
+    } catch {
+      return; // storage blocked: better never than on every session
+    }
+    this.toast(tl('add_to_home_screen_hint'), true);
+    this.toastTimer = setTimeout(() => this.hideToast(), 9000); // longer than a normal toast
+  }
+
+  // --- docked controls (phones, tablets) ------------------------------------------
+
+  private setupMobileBar(): void {
+    this.el.root.classList.add('rd-mobile');
+    const items = [
+      { id: 'kbd', icon: 'keyboard', label: tl('show_hide_on_screen_keyboard'), attrs: 'data-kbd-toggle aria-pressed="false"', onClick: () => this.toggleSoftKeyboard() },
+      { id: 'xkeys', icon: 'keyCombo', label: tl('extra_keys'), attrs: 'data-xkeys-toggle aria-pressed="false"', onClick: () => this.toggleExtraKeys() },
+      { id: 'mode', icon: this.inputModeIcon(), label: tl('touch_or_trackpad'), onClick: () => this.cycleTouchMode() },
+      { id: 'zoom', icon: 'zoom', label: tl('fit_or_actual_size'), attrs: 'aria-pressed="false"', onClick: () => this.toggleZoom() },
+      { id: 'fullscreen', icon: 'fullscreen', label: tl('fullscreen'), attrs: 'aria-pressed="false"', onClick: () => this.barFullscreen() },
+      // Only with more than one monitor (syncBar).
+      { id: 'monitors', icon: 'monitor', label: tl('select_monitor'), attrs: 'aria-haspopup="true"', onClick: (b: HTMLButtonElement) => this.openMonitorPop(b) },
+      { id: 'more', icon: 'more', label: tl('more_options'), attrs: 'aria-haspopup="true"', pinned: true, onClick: (b: HTMLButtonElement) => this.openMoreSheet(b) },
+      { id: 'disconnect', icon: 'power', label: tl('disconnect'), pinned: true, onClick: () => this.disconnectByUser() },
+    ] satisfies import('./mobile-bar').BarItem[];
+    this.bar = new MobileBar(items, tl('session_controls'));
+    this.el.root.appendChild(this.bar.el);
+    this.ckbd = new CompactKeyboard(
+      (a) => (a.k === 'hide' ? this.showCompactKeyboard(false) : this.onSoftKey(a)),
+      tl('compact_keyboard'),
+      tl('hide_keyboard'),
+    );
+    this.el.root.insertBefore(this.ckbd.el, this.el.dock);
+    this.syncOrientation();
+    this.syncBar();
+    document.addEventListener('fullscreenchange', () => this.syncBar());
+    const onRotate = (): void => this.syncOrientation();
+    screen.orientation?.addEventListener?.('change', onRotate);
+    window.addEventListener('orientationchange', onRotate);
+    window.addEventListener('resize', onRotate);
+    // Remember where the remote screen was last touched (keyboard avoidance).
+    this.el.viewport.addEventListener('pointerdown', (e) => {
+      if (e.target === this.canvas || e.target === this.videoEl) this.focusFrac = this.clientToFrac(e.clientX, e.clientY);
+    }, true);
+  }
+
+  /** Dock the bar to the remembered edge for the way the device is held. */
+  private syncOrientation(): void {
+    if (!this.bar) return;
+    const legacy = (window as unknown as { orientation?: number }).orientation;
+    this.orientation = currentOrientation(screen.orientation?.type, legacy, window.innerWidth, window.innerHeight);
+    const side = barSide(this.orientation, loadPrefs());
+    this.el.root.dataset.orient = this.orientation;
+    if (this.orientation === 'portrait' && this.ckbd?.shown) this.showCompactKeyboard(false);
+    if (this.el.root.dataset.bar !== side) {
+      this.el.root.dataset.bar = side;
+      this.closePop();
+    }
+  }
+
+  private swapBarSide(): void {
+    this.rememberPrefs(swappedPrefs(this.orientation, loadPrefs()));
+    this.syncOrientation();
+  }
+
+  /** Show only what applies now (monitors), and the current mode's icon and toggles. */
+  private syncBar(): void {
+    const bar = this.bar;
+    if (!bar) return;
+    const monitors = bar.button('monitors');
+    if (monitors) monitors.hidden = this.displays.length < 2;
+    bar.setIcon('mode', this.inputModeIcon());
+    bar.setOn('zoom', this.view.zoomed);
+    const fs = bar.button('fullscreen');
+    if (fs) {
+      fs.hidden = this.fullscreenMode() === 'hidden';
+      const on = !!document.fullscreenElement;
+      bar.setIcon('fullscreen', on ? 'fullscreenExit' : 'fullscreen');
+      bar.setOn('fullscreen', on);
+      const label = on ? tl('exit_fullscreen') : tl('fullscreen');
+      fs.title = label;
+      fs.setAttribute('aria-label', label);
+    }
+    this.syncSoftKeyboardButton();
+    this.syncExtraKeysButton();
+  }
+
+  private inputModeIcon(): IconName {
+    return this.inputMode === 'trackpad' ? 'trackpad' : this.inputMode === 'touch' ? 'touch' : 'pointer';
+  }
+
+  private fullscreenMode(): 'toggle' | 'hint' | 'hidden' {
+    const standalone = (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+      (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches);
+    return fullscreenButtonMode(document.fullscreenEnabled === true, standalone);
+  }
+
+  /** Bar Fullscreen button (see fullscreenButtonMode). */
+  private barFullscreen(): void {
+    if (this.fullscreenMode() === 'toggle') {
+      void this.toggleFullscreen();
+      return;
+    }
+    this.toast(tl('add_to_home_screen_hint'), true);
+    this.toastTimer = setTimeout(() => this.hideToast(), 9000);
+  }
+
+  /** Mode button: Touch <-> Trackpad (Pointer lives in the More sheet). */
+  private cycleTouchMode(): void {
+    const next: InputMode = this.inputMode === 'touch' ? 'trackpad' : 'touch';
+    this.chooseInputMode(next);
+    this.toast(next === 'trackpad' ? tl('trackpad_mode_move_cursor') : tl('touch_mode_tap_drag_scroll'));
+  }
+
+  /** Zoom button: Fit <-> Actual size (1:1). */
+  private toggleZoom(): void {
+    const mode: FitMode = this.view.zoomed ? 'fit' : 'actual';
+    this.setFitMode(mode);
+    this.rememberPrefs({ fitMode: mode });
+  }
+
+  /**
+   * More: everything that is not on the bar, as a sheet — from the bottom in
+   * portrait, beside the bar in landscape. Tiles for actions, then the
+   * options, then the full settings menu.
+   */
+  private openMoreSheet(anchor: HTMLElement): void {
+    this.openPop(anchor, (pop) => {
+      pop.classList.add('rd-sheet');
+      const can = (perm: string): boolean => this.permissions[perm] !== false;
+      const tiles: [string, IconName, string, boolean, boolean][] = [
+        ['monitors', 'monitor', tl('select_monitor'), !this.el.btnMonitors.hidden, false],
+        ['clipboard', 'clipboard', tl('send_clipboard'), can('Clipboard') && remoteInputAllowed(this.viewOnly, 'clipboard'), false],
+        ['files', 'folderTransfer', tl('file_transfer_2'), can('File'), false],
+        ['chat', 'chat', tl('chat'), true, false],
+        ['details', 'info', tl('session_details'), true, false],
+        ['viewonly', 'eye', tl('view_only'), true, this.viewOnly],
+        ['swap', 'swap', tl('swap_side'), true, false],
+      ];
+      const prefs = loadPrefs();
+      pop.innerHTML =
+        '<div class="rd-sheet-grid">' +
+        tiles
+          .filter(([, , , show]) => show)
+          .map(([id, icon, label, , on]) =>
+            `<button type="button" class="rd-sheet-tile${on ? ' rd-on' : ''}" data-tile="${id}" title="${escapeHtml(label)}" aria-pressed="${on}">` +
+            `${iconHtml(icon)}<span>${escapeHtml(label)}</span></button>`,
+          )
+          .join('') +
+        '</div><div class="rd-pop-sep"></div>' +
+        this.menuItem('pointer', tl('pointer'), this.inputMode === 'pointer', 'opt:pointer') +
+        this.menuItem(null, tl('hide_suggestions'), prefs.hideSuggestions, 'opt:suggestions') +
+        this.menuItem(null, tl('compact_keyboard_landscape'), prefs.compactKeyboard, 'opt:compactKbd') +
+        ('vibrate' in navigator ? this.menuItem(null, tl('vibrate_on_touch_actions'), prefs.haptics, 'opt:haptics') : '') +
+        '<div class="rd-pop-sep"></div>' +
+        this.menuItem('more', tl('more_options'), false, 'opt:settings');
+      const act: Record<string, () => void> = {
+        monitors: () => this.openMonitorPop(anchor),
+        clipboard: () => void this.sendClipboard(),
+        files: () => this.openSide('files'),
+        chat: () => this.openSide('chat'),
+        details: () => this.openSide('details'),
+        viewonly: () => this.toggleViewOnly(),
+        swap: () => this.swapBarSide(),
+        'opt:pointer': () => this.chooseInputMode(this.inputMode === 'pointer' ? 'touch' : 'pointer'),
+        'opt:suggestions': () => this.setHideSuggestions(!loadPrefs().hideSuggestions),
+        'opt:compactKbd': () => {
+          const on = !loadPrefs().compactKeyboard;
+          this.rememberPrefs({ compactKeyboard: on });
+          if (!on) this.showCompactKeyboard(false);
+        },
+        'opt:haptics': () => {
+          const on = !loadPrefs().haptics;
+          setHapticsEnabled(on);
+          this.rememberPrefs({ haptics: on });
+          haptic();
+        },
+        'opt:settings': () => this.openMorePop(anchor),
+      };
+      for (const b of pop.querySelectorAll<HTMLButtonElement>('[data-tile], [data-action^="opt:"]')) {
+        b.addEventListener('click', () => {
+          const id = b.dataset.tile ?? b.dataset.action!;
+          this.closePop(); // follow-up popovers anchor on the same button
+          act[id]?.();
+        });
+      }
+    });
+    // A sheet, not an anchored popover: the stylesheet places it.
+    const pop = this.pop;
+    if (pop?.classList.contains('rd-sheet')) {
+      pop.dataset.sheet = this.orientation === 'landscape' ? (this.el.root.dataset.bar === 'left' ? 'left' : 'right') : (this.el.root.dataset.bar === 'top' ? 'top' : 'bottom');
+      pop.style.left = pop.style.top = pop.style.maxHeight = '';
+    }
+  }
+
 
   // --- connect overlay ------------------------------------------------------------
 
@@ -1698,6 +2445,7 @@ export class RdApp {
 
   private hideTwoFactor(): void {
     if (this.el) showTwoFactor(this.el, false, !!this.fixedPeerId);
+    this.syncShareCard();
   }
 
   // --- session lifecycle -----------------------------------------------------
@@ -1747,6 +2495,10 @@ export class RdApp {
 
   private onConnectClick(): void {
     if (this.worker && this.state !== 'error' && this.state !== 'closed') return;
+    if (this.shareEnded) {
+      this.setOverlayError(tl('share_ended'));
+      return;
+    }
     const peerId = normalizePeerId(this.el.peerIdInput.value || this.fixedPeerId);
     if (!peerId) {
       this.setOverlayError(tl('enter_device_id'));
@@ -1766,10 +2518,13 @@ export class RdApp {
     this.setLoggedOutFlag(false); // connecting again clears the logout marker
 
     const typed = this.consumePasswordInput();
-    const saved = loadSavedHash(peerId);
+    // A share viewer always goes through the accept window: the page shares
+    // its origin with the console's web client, so a password saved there for
+    // this device is neither used nor cleared.
+    const saved = this.share ? null : loadSavedHash(peerId);
     // If the user left the field blank and we have a stored hash, reuse it.
     // If the "save" box is off, forget any stored credential for this device.
-    if (!this.el.saveCheckbox.checked) clearSavedHash(peerId);
+    if (!this.share && !this.el.saveCheckbox.checked) clearSavedHash(peerId);
     this.pendingHashHex = undefined;
     this.connectedWithSavedHash = false;
     this.connectedWithAddressBook = false;
@@ -1799,7 +2554,7 @@ export class RdApp {
     this.clearRestartFlow();
     this.el.reconnectCancel.hidden = false;
     this.post({ c: 'restartRemoteDevice' });
-    const flow: RestartFlow = { startedAt: Date.now(), attempt: 0, config, reconnecting: false };
+    const flow: RestartFlow = { kind: 'restart', startedAt: Date.now(), attempt: 0, config, reconnecting: false };
     flow.deadlineTimer = setTimeout(() => this.expireRestartFlow(flow), RESTART_RECONNECT_TIMEOUT_MS);
     this.restartFlow = flow;
     this.toast(tl('restart_command_sent_waiting_for'), true);
@@ -1818,10 +2573,13 @@ export class RdApp {
     this.closePop();
 
     const elapsed = Date.now() - flow.startedAt;
-    const delay = nextRestartReconnectDelay(flow.attempt, elapsed);
+    const delay = flow.kind === 'drop'
+      ? nextReconnectDelay(flow.attempt, elapsed)
+      : nextRestartReconnectDelay(flow.attempt, elapsed);
     if (delay === null) {
       this.clearRestartFlow();
-      this.setState('error', tl('restart_no_return') + (detail ? ` — ${detail}` : ''));
+      const why = flow.kind === 'drop' ? tl('could_not_reconnect') : tl('restart_no_return');
+      this.setState('error', why + (detail ? ` — ${detail}` : ''));
       return;
     }
 
@@ -1831,17 +2589,41 @@ export class RdApp {
     this.showOverlay();
     this.setOverlayBusy(true);
     this.el.reconnectCancel.hidden = false;
-    this.setOverlayStatusText(tl('waiting_restart_retry', { attempt: flow.attempt, seconds: Math.ceil(delay / 1000) }));
+    const wait = { attempt: flow.attempt, seconds: Math.ceil(delay / 1000) };
+    this.setOverlayStatusText(flow.kind === 'drop' ? tl('connection_lost_reconnecting', wait) : tl('waiting_restart_retry', wait));
     flow.timer = setTimeout(() => {
       if (this.restartFlow !== flow) return;
       flow.timer = undefined;
-      if (Date.now() - flow.startedAt >= RESTART_RECONNECT_TIMEOUT_MS) {
+      if (Date.now() - flow.startedAt >= (flow.kind === 'drop' ? DROP_RECONNECT_TIMEOUT_MS : RESTART_RECONNECT_TIMEOUT_MS)) {
         this.expireRestartFlow(flow);
         return;
       }
       flow.reconnecting = true;
       this.startSession({ ...flow.config, password: '' });
     }, delay);
+  }
+
+  /**
+   * The connection died by itself (core/reconnect.ts): reconnect with the
+   * same credentials (the session's h1, or the address book again), keeping
+   * the zoom, input mode and keyboard, until it works or five minutes pass.
+   */
+  private beginDropReconnect(detail?: string): void {
+    const base = this.reconnectConfig!;
+    const flow: RestartFlow = {
+      kind: 'drop',
+      startedAt: Date.now(),
+      attempt: 0,
+      config: { ...base, password: '', savedHashHex: this.sessionHashHex ?? base.savedHashHex },
+      reconnecting: false,
+    };
+    this.clearRestartFlow();
+    this.viewBeforeReconnect = { ...this.view.view };
+    this.keyboardBeforeReconnect = this.softKeyboardFocused();
+    flow.deadlineTimer = setTimeout(() => this.expireRestartFlow(flow), DROP_RECONNECT_TIMEOUT_MS);
+    this.restartFlow = flow;
+    this.dbg('reconnect', { detail });
+    this.scheduleRestartReconnect(detail);
   }
 
   private cancelRestartReconnect(): void {
@@ -1860,7 +2642,7 @@ export class RdApp {
     if (reconnecting) {
       this.teardown(true);
       this.clearSecurityState();
-      this.setState('error', tl('remote_device_did_not_return'));
+      this.setState('error', flow.kind === 'drop' ? tl('could_not_reconnect') : tl('remote_device_did_not_return'));
     } else if (sessionStillStreaming) {
       this.toast(tl('no_remote_restart_was_detected'));
     } else {
@@ -1875,10 +2657,12 @@ export class RdApp {
       clearTimeout(this.restartFlow.deadlineTimer);
     }
     this.restartFlow = undefined;
+    this.viewBeforeReconnect = undefined;
     if (this.el?.reconnectCancel) this.el.reconnectCancel.hidden = true;
   }
 
   private startSession(config: SessionConfig): void {
+    this.userClosing = false;
     this.teardown();
     // Retain only the challenge-independent password hash for reconnects. The
     // typed plaintext is transferred to the worker and never kept in UI state.
@@ -1922,6 +2706,10 @@ export class RdApp {
     this.removeClipboardSyncOffer();
     this.createAudioPlayback();
     const canvas = this.freshCanvas();
+    this.trackpad?.reset();
+    this.trackpad = this.trackpadOut = undefined;
+    this.view.reset();
+    this.applyView();
     const offscreen = canvas.transferControlToOffscreen();
     const worker = new Worker(this.workerUrl, { type: 'module' });
     this.worker = worker;
@@ -1933,12 +2721,10 @@ export class RdApp {
     worker.onerror = (e: ErrorEvent) => this.setState('error', e.message || 'session worker failed');
     const cmd: UiCommand = { c: 'connect', config: { ...config, messages: (window as unknown as { __RD__?: { messages?: Record<string, string> } }).__RD__?.messages }, canvas: offscreen };
     worker.postMessage(cmd, [offscreen]);
-    this.detach = attachInput(canvas, (c) => this.post(c), () => this.currentRect(), {
-      isTouchMode: () => this.inputMode === 'touch',
-      keyboardTarget: () => this.keyboardTarget(),
-    });
-    this.el.peerLabel.textContent = this.peerId;
-    this.el.statDevice.textContent = this.peerId;
+    this.detach = attachInput(canvas, (c) => this.post(c), () => this.currentRect(), this.inputOptions());
+    const shown = this.share ? this.share.deviceName || this.share.label : this.peerId;
+    this.el.peerLabel.textContent = shown;
+    this.el.statDevice.textContent = shown;
     this.el.statTransport.textContent = '—';
     this.resetPermissions();
     this.setState('connecting');
@@ -2014,12 +2800,12 @@ export class RdApp {
     const lockScreen = cmd.c === 'key' && cmd.keyKind === 'control' && cmd.value === ControlKey.LockScreen;
     const inputChannel: RemoteInputChannel | null = cmd.c === 'mouse'
       ? 'pointer'
-      : cmd.c === 'key' || cmd.c === 'ctrlAltDel'
+      : cmd.c === 'key' || cmd.c === 'ctrlAltDel' || cmd.c === 'text'
         ? 'keyboard'
         : cmd.c === 'clipboardText'
           ? 'clipboard'
           : null;
-    const sendsRemoteInput = cmd.c === 'mouse' || cmd.c === 'key' || cmd.c === 'ctrlAltDel';
+    const sendsRemoteInput = cmd.c === 'mouse' || cmd.c === 'key' || cmd.c === 'ctrlAltDel' || cmd.c === 'text';
     if (sendsRemoteInput && !lockScreen && this.displays[this.current]?.online !== true) return false;
     if (cmd.c === 'mouse') {
       const now = Date.now();
@@ -2045,9 +2831,170 @@ export class RdApp {
       if (this.latchAlt) extra.push(ControlKey.Alt);
       cmd = { ...cmd, modifiers: [...new Set([...cmd.modifiers, ...extra])] };
     }
+    const sticky = cmd.c === 'mouse' ? this.xkeys?.activeMods() ?? [] : [];
+    if (sticky.length && cmd.c === 'mouse') {
+      cmd = { ...cmd, modifiers: [...new Set([...cmd.modifiers, ...modControlKeys(sticky)])] };
+    }
     if (!this.worker) return false;
     this.worker.postMessage(cmd);
+    // Ctrl+click, Shift+click: a one-shot modifier is spent when the button comes up.
+    if (sticky.length && cmd.c === 'mouse' && (cmd.mask & 7) === 2) this.xkeys.consume();
     return true;
+  }
+
+  // --- local zoom / pan, trackpad cursor --------------------------------------
+
+  /** The element showing the remote screen (canvas, or the MSE <video> fallback). */
+  private surface(): HTMLElement {
+    return this.videoEl.hidden ? this.canvas : this.videoEl;
+  }
+
+  /** Re-measure after a resize, rotation, keyboard or display change; keeps the zoom. */
+  private updateView(): void {
+    const vp = this.el.viewport;
+    const d = this.currentRect();
+    if (!vp.clientWidth || !vp.clientHeight || !d.width || !d.height) return;
+    if (!this.viewportState?.keyboard) {
+      const last = this.fullSize;
+      // A shrinking height at the same width is a keyboard on its way in
+      // (Android resizes before the visual viewport reports it): keep the old one.
+      if (!last || last.w !== vp.clientWidth || vp.clientHeight >= last.h) {
+        this.fullSize = { w: vp.clientWidth, h: vp.clientHeight };
+      }
+    }
+    const full = this.frozenSize ?? { w: vp.clientWidth, h: vp.clientHeight };
+    this.view.setGeometry(full.w, full.h, d.width / d.height, vp.clientWidth, vp.clientHeight);
+    this.view.allowZoom(this.view.oneToOneScale(d.width));
+    this.applyView();
+  }
+
+  /** New session or display: back to Fit (or 1:1 if that is the remembered choice). */
+  private resetView(): void {
+    const keep = this.restartFlow?.kind === 'drop' ? this.viewBeforeReconnect : undefined;
+    this.view.reset();
+    this.updateView();
+    if (keep) {
+      this.view.restore(keep);
+      this.applyView();
+      return;
+    }
+    this.applyFitZoom();
+  }
+
+  private applyFitZoom(): void {
+    if (!coarsePointer()) return;
+    if (this.fitMode === 'actual') this.view.zoomTo(this.view.oneToOneScale(this.currentRect().width));
+    else this.view.reset();
+    this.applyView();
+  }
+
+  private applyView(): void {
+    this.bar?.setOn('zoom', this.view.zoomed);
+    const css = this.view.css();
+    for (const el of [this.canvas, this.videoEl]) {
+      el.style.transformOrigin = css ? '0 0' : '';
+      el.style.transform = css;
+    }
+    if (this.tpCursor) this.drawTrackpadCursor();
+  }
+
+  /** Pinch: zoom about the fingers (client coordinates), then pan with them. */
+  private zoomView(scale: number, center: Pt, pan: Pt): void {
+    this.lastUserPanAt = Date.now();
+    const vp = this.el.viewport.getBoundingClientRect();
+    this.view.zoomAt(scale, center.x - vp.left, center.y - vp.top);
+    this.view.panBy(pan.x, pan.y);
+    this.applyView();
+  }
+
+  /** Where the remote image is on screen (client coordinates). */
+  private contentClientRect(): Rect {
+    const r = this.surface().getBoundingClientRect();
+    const d = this.currentRect();
+    const c = containRect(r.width, r.height, d.height ? d.width / d.height : 0);
+    return { x: r.left + c.x, y: r.top + c.y, width: c.width, height: c.height };
+  }
+
+  private trackpadFor(out: TouchOutput): TrackpadMapper {
+    if (!this.trackpad || this.trackpadOut !== out) {
+      this.trackpad?.reset();
+      this.trackpadOut = out;
+      this.trackpad = new TrackpadMapper(out, {
+        content: () => this.contentClientRect(),
+        cursor: (p, byCursor) => this.onTrackpadCursor(p, byCursor),
+        clampToView: (p) => this.clampToVisible(p),
+      });
+    }
+    return this.trackpad;
+  }
+
+  /**
+   * Trackpad cursor moved. Only a move of the cursor itself scrolls a zoomed
+   * view, and only by the amount it went past the edge (no re-centring, so
+   * no jumping back and forth); never during or right after the user's own
+   * pinch / pan, which always wins.
+   */
+  private onTrackpadCursor(p: Pt, byCursor: boolean): void {
+    if (byCursor && this.view.zoomed && Date.now() - this.lastUserPanAt > USER_PAN_HOLD_MS) {
+      const vp = this.el.viewport.getBoundingClientRect();
+      const v = this.view.view;
+      const lx = (p.x - vp.left - v.tx) / v.scale;
+      const ly = (p.y - vp.top - v.ty) / v.scale;
+      if (this.view.keepInView(lx, ly, FOLLOW_MARGIN)) this.applyView();
+    }
+    this.drawTrackpadCursor(byCursor);
+  }
+
+  /**
+   * An off-screen cursor (client coordinates) comes to just inside the visible
+   * part of the remote image, at the follow margin so the next move does not
+   * scroll back. An on-screen one is left alone: moves along the host's screen
+   * edge (menu bar, taskbar) must not be pulled inwards.
+   */
+  private clampToVisible(p: Pt): Pt {
+    const vp = this.el.viewport.getBoundingClientRect();
+    const c = this.contentClientRect();
+    return {
+      x: intoSpan(p.x, Math.max(vp.left, c.x), Math.min(vp.right, c.x + c.width), FOLLOW_MARGIN),
+      y: intoSpan(p.y, Math.max(vp.top, c.y), Math.min(vp.bottom, c.y + c.height), FOLLOW_MARGIN),
+    };
+  }
+
+  private drawTrackpadCursor(moving = false): void {
+    const on = this.inputMode === 'trackpad';
+    this.tpCursor.hidden = !on;
+    clearTimeout(this.tpCursorFade);
+    this.tpCursor.classList.remove('rd-faded');
+    if (!on) return;
+    // Where the host draws its own cursor (in the video, or the remote-cursor
+    // overlay), ours is only a pointer while moving: once still, it fades so
+    // there are not two arrows side by side (the host's lags by the latency).
+    const hostDrawsCursor = this.displays[this.current]?.cursorEmbedded === true || !this.el.remoteCursor.hidden;
+    if (hostDrawsCursor) {
+      this.tpCursorFade = setTimeout(() => this.tpCursor.classList.add('rd-faded'), moving ? 700 : 1500);
+    }
+    let p = this.trackpad?.position();
+    if (!p) {
+      const c = this.contentClientRect();
+      p = { x: c.x + c.width / 2, y: c.y + c.height / 2 };
+    }
+    const vp = this.el.viewport.getBoundingClientRect();
+    this.tpCursor.style.transform = `translate(${Math.round(p.x - vp.left)}px, ${Math.round(p.y - vp.top)}px)`;
+  }
+
+  /** Input wiring shared by the canvas and the MSE <video> surface. */
+  private inputOptions(): InputOptions {
+    return {
+      isTouchMode: () => this.inputMode !== 'pointer',
+      keyboardTarget: () => this.keyboardTarget(),
+      focusTarget: () => (this.softKeyboardFocused() ? this.kbdSink : null),
+      touch: {
+        haptic: () => haptic(),
+        keyboard: () => this.toggleSoftKeyboard(),
+        zoom: (scale, center, pan) => this.zoomView(scale, center, pan),
+        mapper: (out) => (this.inputMode === 'trackpad' ? this.trackpadFor(out) : null),
+      },
+    };
   }
 
   private currentRect(): DisplayRect {
@@ -2069,12 +3016,20 @@ export class RdApp {
           this.setState(ev.state, ev.detail);
         } else if (this.restartFlow && (ev.state === 'error' || ev.state === 'closed')) {
           this.scheduleRestartReconnect(ev.detail);
+        } else if (
+          this.reconnectConfig &&
+          shouldAutoReconnect(ev, { wasStreaming: this.state === 'streaming', userClosed: this.userClosing })
+        ) {
+          this.beginDropReconnect(ev.detail);
         } else {
           this.setState(ev.state, ev.detail);
         }
         break;
       case 'peerInfo': {
         this.dbg('peerInfo', { current: ev.current, displays: ev.displays });
+        // Login: start at Fit; a later refresh (resolution change) keeps the zoom.
+        const firstInfo = ev.current !== undefined;
+        queueMicrotask(() => (firstInfo ? this.resetView() : this.updateView()));
         this.displays = ev.current === undefined
           ? mergeDisplayRefresh(this.displays, ev.displays, this.current)
           : ev.displays;
@@ -2090,7 +3045,7 @@ export class RdApp {
         if (!canUseRemoteCursor(this.peerPlatform, this.displays[this.current])) {
           this.el.remoteCursor.hidden = true;
         }
-        this.el.peerLabel.textContent = this.peerWho || this.peerId;
+        this.el.peerLabel.textContent = this.peerWho || (this.share ? this.share.deviceName || this.share.label : this.peerId);
         this.refreshPeerSub();
         this.el.statVersion.textContent = ev.version || '—';
         this.el.statUser.textContent = this.peerWho || '—';
@@ -2099,6 +3054,7 @@ export class RdApp {
         const hasDisplayControls = !!currentDisplay?.resolutions.length || !!currentDisplay?.originalResolution ||
           !!parseVirtualDisplayCapability(this.peerPlatform, this.platformAdditions);
         this.el.btnMonitors.hidden = this.displays.length < 2 && !hasDisplayControls;
+        this.syncBar();
         document.title = `${this.peerId} — CortenDesk`;
         break;
       }
@@ -2117,6 +3073,7 @@ export class RdApp {
         // rebuilds this on the following push.
         this.teardownMse();
         this.refreshPeerSub();
+        this.resetView();
         break;
       }
       case 'followDisplay':
@@ -2235,6 +3192,8 @@ export class RdApp {
           this.el.passwordInput.placeholder = tl('enter_password');
           loginMessage = `${tl('address_book_password_refused')} (${loginMessage})`;
         }
+        // A share viewer has no password to try: only the person at the device can let them in.
+        if (this.share) loginMessage = `${tl('share_refused')} (${ev.message || tl('login_failed')})`;
         this.showOverlay();
         this.setOverlayBusy(false);
         this.setOverlayError(loginMessage);
@@ -2245,6 +3204,7 @@ export class RdApp {
   }
 
   private persistCredentialIfWanted(): void {
+    if (this.share) return;
     if (!this.el.saveCheckbox.checked) {
       clearSavedHash(this.peerId);
       return;
@@ -2266,17 +3226,36 @@ export class RdApp {
 
   private setState(state: SessionState, detail?: string): void {
     this.state = state;
+    this.watchShareWait(state);
     this.renderVoiceCall();
     this.el.root.dataset.state = state;
     this.refreshPeerSub();
     switch (state) {
       case 'streaming':
         if (!this.streamStartMs) this.streamStartMs = Date.now();
+        this.maybeShowHomeScreenHint();
         this.hideTwoFactor();
         this.persistCredentialIfWanted();
         this.hideOverlay();
         this.canvas.focus();
         if (this.restartFlow) {
+          // Back in time: the deadline no longer applies to this attempt.
+          clearTimeout(this.restartFlow.deadlineTimer);
+          this.restartFlow.deadlineTimer = undefined;
+          this.restartFlow.reconnecting = false;
+        }
+        if (this.restartFlow?.kind === 'drop') {
+          // Back. Keep the flow a little longer: a second drop right after
+          // continues the same back-off instead of starting over.
+          const flow = this.restartFlow;
+          this.el.reconnectCancel.hidden = true;
+          clearTimeout(flow.stableTimer);
+          this.toast(tl('reconnected'));
+          if (this.keyboardBeforeReconnect) this.kbdSink.focus({ preventScroll: true });
+          flow.stableTimer = setTimeout(() => {
+            if (this.restartFlow === flow && this.state === 'streaming') this.clearRestartFlow();
+          }, 15_000);
+        } else if (this.restartFlow) {
           const flow = this.restartFlow;
           this.el.reconnectCancel.hidden = true;
           clearTimeout(flow.stableTimer);
@@ -2313,13 +3292,15 @@ export class RdApp {
         this.closePop();
         this.showOverlay();
         this.setOverlayBusy(false);
-        this.setOverlayStatusText(tl('disconnected'));
+        // A share viewer is told why (the link ended).
+        this.setOverlayStatusText(this.share && detail ? detail : tl('disconnected'));
         break;
       default:
         this.showOverlay();
         this.setOverlayBusy(true);
         this.setOverlayStatusText(STATE_LABEL[state] + (detail ? ` — ${detail}` : '') + '…');
     }
+    this.syncShareCard();
   }
 
   private onStats(s: SessionStats): void {
@@ -2518,6 +3499,7 @@ export class RdApp {
       return; // nothing in the chrome maps to it
     }
 
+    if (kind === 'Keyboard') this.xkeys.setEnabled(enabled);
     const ids = kind === 'Keyboard' ? [target.id, ...KEYBOARD_EXTRA_IDS] : [target.id];
     for (const id of ids) {
       const el = this.el.root.querySelector<HTMLButtonElement>(`#${id}`);
@@ -2547,6 +3529,7 @@ export class RdApp {
   /** Forget peer permissions — they belong to one session, not to the client. */
   private resetPermissions(): void {
     this.permissions = {};
+    this.xkeys?.setEnabled(true);
     const all = new Set<string>(KEYBOARD_EXTRA_IDS);
     for (const { id } of Object.values(PERMISSION_CONTROLS)) all.add(id);
     for (const id of all) {
@@ -2583,10 +3566,7 @@ export class RdApp {
       this.videoEl.hidden = false;
       // Re-point input at the element the operator can actually see.
       this.detach?.();
-      this.detach = attachInput(this.videoEl, (c) => this.post(c), () => this.currentRect(), {
-        isTouchMode: () => this.inputMode === 'touch',
-        keyboardTarget: () => this.keyboardTarget(),
-      });
+      this.detach = attachInput(this.videoEl, (c) => this.post(c), () => this.currentRect(), this.inputOptions());
       this.el.viewport.dataset.mse = '1';
     }
     this.msePlayer.push(data, key);

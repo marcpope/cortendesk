@@ -59,11 +59,7 @@
                                     <a href="{{ \App\Support\ClientLink::to($s->rustdesk_id) }}" title="{{ __('common.connect_with_rustdesk') }}" class="fs-13">{{ $s->rustdesk_id }}</a>
                                 </td>
                                 <td>
-                                    @switch((int) $s->conn_type)
-                                        @case(1)<span class="badge bg-primary-subtle text-primary">File</span>@break
-                                        @case(2)<span class="badge bg-warning-subtle text-warning">Port Fwd</span>@break
-                                        @default<span class="badge bg-info-subtle text-info">{{ \App\Models\AuditConnection::typeLabel((int) $s->conn_type) }}</span>
-                                    @endswitch
+                                    <x-conn-type :type="$s->conn_type"/>
                                 </td>
                                 <td>
                                     <span class="rd-cell-title fw-normal"><i class="rd-dot text-success"></i><span
@@ -106,11 +102,7 @@
                                         <span class="rd-mini-sub text-truncate">{{ $s->from_peer }}</span>
                                     </div>
                                 </div>
-                                @switch((int) $s->conn_type)
-                                    @case(1)<span class="badge bg-primary-subtle text-primary">File</span>@break
-                                    @case(2)<span class="badge bg-warning-subtle text-warning">Port Fwd</span>@break
-                                    @default<span class="badge bg-info-subtle text-info">{{ \App\Models\AuditConnection::typeLabel((int) $s->conn_type) }}</span>
-                                @endswitch
+                                <x-conn-type :type="$s->conn_type"/>
                             </div>
                             @if ($canDisconnect)
                                 <div class="text-end">

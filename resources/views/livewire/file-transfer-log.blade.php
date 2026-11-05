@@ -42,7 +42,7 @@
                 <tbody>
                 @forelse ($transfers as $transfer)
                     <tr wire:key="t{{ $transfer->id }}">
-                        <td>
+                        <td class="text-nowrap">
                             <span title="{{ $transfer->created_at }}">{{ $transfer->created_at?->diffForHumans() }}</span>
                         </td>
                         <td><span class="fw-semibold">{{ $transfer->rustdesk_id }}</span></td>
@@ -57,15 +57,17 @@
                                 <span class="badge bg-info-subtle text-info"><i class="ri-arrow-up-line me-1"></i>{{ __('common.send') }}</span>
                             @endif
                         </td>
-                        <td>
+                        {{-- The path wraps rather than truncates (issue #144): it is the
+                             one column worth the width. --}}
+                        <td class="w-100" style="min-width: 240px;">
                             @if ($transfer->isClipboard())
                                 <span class="badge bg-secondary-subtle text-secondary me-1" title="{{ __('logs.copied_and_pasted_through_clipboard') }}">{{ __('common.clipboard') }}</span>
                             @endif
-                            <span class="d-inline-block text-truncate align-middle rd-mono" style="max-width: 240px;"
+                            <span class="rd-mono text-break"
                                   title="{{ $transfer->isClipboard() ? implode(', ', $transfer->fileNames()) : $transfer->path }}">{{ $transfer->pathLabel() ?: '—' }}</span>
                         </td>
                         <td>{{ $transfer->file_count }}</td>
-                        <td class="rd-mono">{{ $transfer->ip ?: '—' }}</td>
+                        <td class="rd-mono text-nowrap">{{ $transfer->ip ?: '—' }}</td>
                     </tr>
                 @empty
                     <tr>

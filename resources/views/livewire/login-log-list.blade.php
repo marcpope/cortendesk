@@ -65,7 +65,7 @@
                             <span class="rd-cell-title">{{ $log->device_id ?: '—' }}</span>
                             <span class="rd-cell-sub">{{ $log->device_os }}</span>
                         </td>
-                        <td class="rd-mono">{{ $log->ip ?: '—' }}</td>
+                        <td class="rd-mono text-nowrap">{{ $log->ip ?: '—' }}</td>
                         <td>
                             @if ($log->successful)
                                 <span class="badge bg-success-subtle text-success"><i class="ri-check-line me-1"></i>{{ __('common.success') }}</span>

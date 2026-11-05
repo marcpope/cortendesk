@@ -167,7 +167,7 @@ Route::middleware(['auth:api-token', 'throttle:120,1,admin-api'])
         Route::delete('/address-books/{addressBook}', [AddressBooksController::class, 'destroy'])->middleware('api-token-can:address_book,rw');
 
         Route::get('/address-books/{addressBook}/peers', [AddressBooksController::class, 'peers'])->middleware('api-token-can:address_book,r');
-        Route::post('/address-books/{addressBook}/peers', [AddressBooksController::class, 'storePeer'])->middleware('api-token-can:address_book,rw');
+        Route::post('/address-books/{addressBook}/peers', [AddressBooksController::class, 'storePeer'])->middleware('api-token-can:address_book,rw,add');
         Route::put('/address-books/{addressBook}/peers/{peer}', [AddressBooksController::class, 'updatePeer'])->middleware('api-token-can:address_book,rw');
         Route::delete('/address-books/{addressBook}/peers/{peer}', [AddressBooksController::class, 'destroyPeer'])->middleware('api-token-can:address_book,rw');
 

@@ -75,6 +75,8 @@ export type UiCommand =                           // main -> worker
   | { c:'connect'; config:SessionConfig; canvas:OffscreenCanvas }
   | { c:'mouse'; mask:number; x:number; y:number; modifiers:number[] }
   | { c:'key'; down:boolean; press:boolean; keyKind:'chr'|'control'|'unicode'|'map'; value:number; modifiers:number[] }
+  // Text typed as is, whatever the host's keyboard layout (KeyEvent.seq): on-screen keyboards, Type.
+  | { c:'text'; text:string }
   | { c:'switchDisplay'; index:number } | { c:'ctrlAltDel' } | { c:'refresh' }
   | { c:'quality'; imageQuality:number } | { c:'clipboardText'; text:string } | { c:'disconnect' }
   | { c:'restartRemoteDevice' } | { c:'requestElevation' }
