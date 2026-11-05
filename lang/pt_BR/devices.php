@@ -32,6 +32,7 @@ return [
     'col_memory' => 'Memória',
     'col_os' => 'SO',
     'col_owner' => 'Proprietário',
+    'col_strategy' => 'Estratégia',
     'col_status' => 'Status',
     'col_username' => 'Usuário',
     'col_uuid' => 'UUID',

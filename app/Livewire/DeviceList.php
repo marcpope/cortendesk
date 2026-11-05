@@ -9,6 +9,7 @@ use App\Models\AddressBook;
 use App\Models\ConsoleAudit;
 use App\Models\Device;
 use App\Models\DeviceGroup;
+use App\Models\Strategy;
 use App\Models\User;
 use App\Services\DeviceAddressBooks;
 use App\Services\DeviceEnrollment;
@@ -18,6 +19,7 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Pdo\Sqlite;
 
 class DeviceList extends Component
 {
@@ -28,13 +30,14 @@ class DeviceList extends Component
     /**
      * Optional table columns (issue #16), in render order. ID, Status and
      * Action are not here — they are the row's identity and controls, and a
-     * table without them is not a device list. 'owner' is admin-only.
+     * table without them is not a device list. ADMIN_COLUMNS are admin-only.
      */
     public const COLUMNS = [
         'device' => 'Device',
         'alias' => 'Alias',
         'group' => 'Group',
         'owner' => 'Owner',
+        'strategy' => 'Strategy',
         'version' => 'Version',
         'os' => 'OS',
         'username' => 'User',
@@ -50,6 +53,9 @@ class DeviceList extends Component
     /** What the table showed before it was configurable — and still the default. */
     public const DEFAULT_COLUMNS = ['device', 'alias', 'group', 'owner', 'version', 'last_seen'];
 
+    /** Columns, and sorts, only admins get: who owns what, and which policy applies. */
+    public const ADMIN_COLUMNS = ['owner', 'strategy'];
+
     /**
      * Sort keys the browser may ask for, mapped to fixed SQL identifiers —
      * never request data, so a tampered payload cannot reach the query. The
@@ -63,8 +69,10 @@ class DeviceList extends Component
         'alias' => 'devices.alias',
         'group' => '__group__',
         'owner' => '__owner__',
+        'strategy' => '__strategy__',
         'version' => 'devices.version',
         'os' => 'devices.os',
+        'ip' => '__ip__',
         'first_seen' => 'devices.created_at',
         'last_seen' => 'devices.last_online_at',
         'status' => '__presence__',
@@ -201,7 +209,7 @@ class DeviceList extends Component
     private function canSortBy(string $field): bool
     {
         return isset(self::SORTABLE[$field])
-            && ($field !== 'owner' || (bool) auth()->user()?->is_admin);
+            && (! in_array($field, self::ADMIN_COLUMNS, true) || (bool) auth()->user()?->is_admin);
     }
 
     /** Persist the column selection so it survives sign-out (issue #16). */
@@ -642,12 +650,12 @@ class DeviceList extends Component
 
         $devices = $this->filteredQuery($user)->paginate($this->perPage);
 
-        // Which optional columns render, keyed for the blade. Owner stays
-        // admin-only regardless of what a saved selection claims.
+        // Which optional columns render, keyed for the blade. Admin columns
+        // stay admin-only regardless of what a saved selection claims.
         $cols = [];
         foreach (array_keys(self::COLUMNS) as $key) {
             $cols[$key] = in_array($key, $this->columns, true)
-                && ($key !== 'owner' || $user->is_admin);
+                && (! in_array($key, self::ADMIN_COLUMNS, true) || $user->is_admin);
         }
 
         $groups = $this->accessibleDeviceGroups();
@@ -680,7 +688,7 @@ class DeviceList extends Component
             ->when($this->trashed,
                 fn ($q) => $q->visibleWithTrashed($user)->onlyTrashed(),
                 fn ($q) => $q->visibleTo($user))
-            ->with(['group', 'user'])
+            ->with(['group', 'user', 'resolvedStrategy'])
             ->when($this->search !== '', function ($q) {
                 $s = '%'.$this->search.'%';
                 $q->where(function ($q) use ($s) {
@@ -734,10 +742,19 @@ class DeviceList extends Component
                 "CASE WHEN devices.last_online_at > ? THEN 1 ELSE 0 END {$direction}",
                 [now()->subSeconds(Device::onlineWindow())],
             );
-        } elseif ($field === 'group' || $field === 'owner') {
-            [$model, $column, $fk] = $field === 'group'
-                ? [DeviceGroup::class, 'name', 'devices.device_group_id']
-                : [User::class, 'username', 'devices.user_id'];
+        } elseif ($field === 'ip' && ($key = $this->ipSortKey()) !== null) {
+            // By address, not text: 10.0.0.9 before 10.0.0.10, IPv4 before IPv6.
+            $query->orderByRaw("{$key} is null")
+                ->orderByRaw("length({$key}) {$direction}")
+                ->orderByRaw("{$key} {$direction}");
+        } elseif ($field === 'ip') {
+            $query->orderByRaw('devices.last_online_ip is null')->orderBy('devices.last_online_ip', $direction);
+        } elseif (in_array($field, ['group', 'owner', 'strategy'], true)) {
+            [$model, $column, $fk] = match ($field) {
+                'group' => [DeviceGroup::class, 'name', 'devices.device_group_id'],
+                'owner' => [User::class, 'username', 'devices.user_id'],
+                'strategy' => [Strategy::class, 'name', 'devices.strategy_id_resolved'],
+            };
 
             $query->orderByRaw("{$fk} is null")
                 ->orderBy(
@@ -761,6 +778,35 @@ class DeviceList extends Component
         }
 
         return $query->orderBy('devices.rustdesk_id');
+    }
+
+    /**
+     * SQL for a sortable key of devices.last_online_ip: the address bytes in
+     * hex, NULL when it does not parse. Null on a driver we have no key for.
+     */
+    private function ipSortKey(): ?string
+    {
+        $connection = Device::query()->getConnection();
+
+        switch ($connection->getDriverName()) {
+            case 'mysql':
+            case 'mariadb':
+                return 'hex(inet6_aton(devices.last_online_ip))';
+            case 'sqlite':
+                $key = static function ($ip): ?string {
+                    $packed = is_string($ip) ? @inet_pton($ip) : false;
+
+                    return $packed === false ? null : bin2hex($packed);
+                };
+                $pdo = $connection->getPdo();
+                $pdo instanceof Sqlite
+                    ? $pdo->createFunction('cd_ip_key', $key, 1, \PDO::SQLITE_DETERMINISTIC)
+                    : $pdo->sqliteCreateFunction('cd_ip_key', $key, 1, \PDO::SQLITE_DETERMINISTIC);
+
+                return 'cd_ip_key(devices.last_online_ip)';
+            default:
+                return null;
+        }
     }
 
     /**

@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => '加密',
         'smtpFromAddress' => '发件人地址',
         'smtpFromName' => '发件人名称',
+        'smtpFooter' => '邮件页脚',
         'smtpHost' => 'SMTP 主机',
         'smtpPassword' => 'SMTP 密码',
         'smtpPort' => 'SMTP 端口',

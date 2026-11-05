@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => 'força a desativação pelo shell.',
     'from_address' => 'Endereço do remetente',
     'from_name' => 'Nome do remetente',
+    'email_footer' => 'Rodapé do e-mail',
+    'email_footer_help' => 'Exibido no fim de cada e-mail. Deixe em branco para mostrar o endereço do console.',
     'geo_tag' => 'Geo tag',
     'host_port_of_rendezvous_server' => 'Host:porta do servidor rendezvous em que os clientes se registram.',
     'id_server' => 'Servidor de ID',

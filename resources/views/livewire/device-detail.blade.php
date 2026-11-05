@@ -118,7 +118,7 @@
             {{-- Facts. Everything the client reports, plus console assignment. --}}
             <div class="card">
                 <div class="card-header"><h5 class="card-title mb-0">{{ __('common.device') }}</h5></div>
-                <div class="card-body pt-0">
+                <div class="card-body">
                     <dl class="rd-deflist">
                         <div class="rd-def"><dt>{{ __('common.os') }}</dt><dd class="text-end" title="{{ $device->os }}">{{ $device->osDescription() ?: '—' }}</dd></div>
                         <div class="rd-def"><dt>{{ __('devices.cpu') }}</dt><dd class="text-end">{{ $device->cpu ?: '—' }}</dd></div>
@@ -160,11 +160,11 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">{{ __('common.note') }}</h5>
                     @if ($canEdit && ! $editingNote)
-                        <a href="javascript:void(0);" class="fs-13 text-muted" wire:click="editNote">
+                        <a href="javascript:void(0);" class="fs-13" wire:click="editNote">
                             <i class="ri-pencil-line me-1"></i>{{ __('common.edit') }}</a>
                     @endif
                 </div>
-                <div class="card-body pt-0">
+                <div class="card-body">
                     @if ($editingNote)
                         <textarea class="form-control @error('note') is-invalid @enderror" rows="3"
                                   wire:model="note" maxlength="500"></textarea>
@@ -185,11 +185,11 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">{{ __('common.address_books_2') }}</h5>
                     @if ($canWriteBooks && ! $device->trashed() && ! $abPickerOpen)
-                        <a href="javascript:void(0);" class="fs-13 text-muted" wire:click="openAbPicker">
+                        <a href="javascript:void(0);" class="fs-13" wire:click="openAbPicker">
                             <i class="ri-add-line me-1"></i>{{ __('common.add') }}</a>
                     @endif
                 </div>
-                <div class="card-body pt-0">
+                <div class="card-body">
                     @if ($abPickerOpen)
                         <form wire:submit="addToBook" class="mb-3">
                             <label class="form-label" for="dd-ab-book">{{ __('devices.add_to_address_book_2') }}</label>
@@ -227,6 +227,12 @@
                     @endif
                 </div>
             </div>
+
+            {{-- Its own component (polls on its own clock); here so it is not
+                 below a long notification list (#156). --}}
+            @if (config('cortendesk.share_links'))
+                @livewire(App\Livewire\DeviceShares::class, ['deviceId' => $device->id], key('device-shares-'.$device->id))
+            @endif
         </div>
 
         <div class="col-lg-7">
@@ -234,9 +240,9 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">{{ __('devices.recent_connections') }}</h5>
-                        <a href="{{ route('logs.connections') }}?search={{ $device->rustdesk_id }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
+                        <a href="{{ route('logs.connections') }}?search={{ $device->rustdesk_id }}" class="fs-13">{{ __('common.all') }}</a>
                     </div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         @forelse ($connections as $c)
                             <div class="rd-def">
                                 <dt class="fw-normal">
@@ -244,7 +250,13 @@
                                         {{-- This device started it (#149): name the device it reached. --}}
                                         <x-outgoing-peer :peer="$peerNames[$c->rustdesk_id] ?? [$c->rustdesk_id, null]"/>
                                     @else
-                                        {{ $c->from_name ?: $c->from_peer ?: 'unknown' }}
+                                        @php $from = $c->from_peer ? ($peerNames[$c->from_peer] ?? null) : null; @endphp
+                                        @if ($from && $from[1])
+                                            {{-- A device the console knows: its alias, linked. --}}
+                                            <a href="{{ route('devices.show', $from[1]) }}" title="{{ $c->from_name ?: $c->from_peer }}">{{ $from[0] }}</a>
+                                        @else
+                                            {{ $c->from_name ?: $c->from_peer ?: 'unknown' }}
+                                        @endif
                                         <span class="text-muted">· {{ $c->ip }}</span>
                                     @endif
                                     @if ($c->note)
@@ -266,13 +278,19 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">{{ __('devices.recent_file_transfers') }}</h5>
-                        <a href="{{ route('logs.file-transfers') }}?search={{ $device->rustdesk_id }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
+                        <a href="{{ route('logs.file-transfers') }}?search={{ $device->rustdesk_id }}" class="fs-13">{{ __('common.all') }}</a>
                     </div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         @forelse ($transfers as $t)
+                            @php
+                                // The device logs direction from the controlled side. On an
+                                // outgoing row this device is the other end, so flip it (#149).
+                                $outgoing = $t->rustdesk_id !== $device->rustdesk_id;
+                                $received = ($t->direction === 1) !== $outgoing;
+                            @endphp
                             <div class="rd-def">
                                 <dt class="fw-normal text-truncate" style="max-width: 70%" title="{{ $t->isClipboard() ? implode(', ', $t->fileNames()) : $t->path }}">
-                                    @if ($t->direction === 1)
+                                    @if ($received)
                                         <i class="ri-arrow-down-line text-warning me-1" title="{{ __('common.receive') }}"></i>
                                     @else
                                         <i class="ri-arrow-up-line text-info me-1" title="{{ __('common.send') }}"></i>
@@ -283,7 +301,7 @@
                                     {{ $t->pathLabel() ?: '—' }}
                                 </dt>
                                 <dd class="text-end text-muted mb-0">
-                                    @if ($t->rustdesk_id !== $device->rustdesk_id)
+                                    @if ($outgoing)
                                         <x-outgoing-peer :peer="$peerNames[$t->rustdesk_id] ?? [$t->rustdesk_id, null]"/> ·
                                     @endif
                                     {{ $t->created_at->diffForHumans() }}
@@ -298,9 +316,9 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">{{ __('common.alarms') }}</h5>
-                        <a href="{{ route('logs.alarms') }}?search={{ $device->rustdesk_id }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
+                        <a href="{{ route('logs.alarms') }}?search={{ $device->rustdesk_id }}" class="fs-13">{{ __('common.all') }}</a>
                     </div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         @forelse ($alarms as $a)
                             <div class="rd-def">
                                 <dt class="fw-normal">
@@ -316,7 +334,7 @@
 
                 <div class="card">
                     <div class="card-header"><h5 class="card-title mb-0">{{ __('devices.notifications') }}</h5></div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         @forelse ($notifications as $n)
                             <div class="rd-def">
                                 <dt class="fw-normal">

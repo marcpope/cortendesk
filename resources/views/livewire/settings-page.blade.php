@@ -716,6 +716,14 @@
                                     </div>
                                 </div>
 
+                                <div class="mb-3">
+                                    <label class="form-label">{{ __('settings.email_footer') }}</label>
+                                    <textarea class="form-control @error('smtpFooter') is-invalid @enderror" rows="2" maxlength="500"
+                                              wire:model="smtpFooter" placeholder="{{ __('mail.sent_by_app_at_url', ['app' => config('app.name'), 'url' => rtrim((string) config('app.url'), '/')]) }}"></textarea>
+                                    @error('smtpFooter') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    <div class="form-text">{{ __('settings.email_footer_help') }}</div>
+                                </div>
+
                                 <button type="submit" class="btn btn-primary" @disabled(! $canManageSettings)><i class="ri-save-line me-1"></i>{{ __('settings.save_settings') }}</button>
                             </form>
 

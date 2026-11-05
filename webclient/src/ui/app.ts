@@ -136,7 +136,10 @@ type SideTab = 'files' | 'chat' | 'details';
 type FitMode = 'fit' | 'actual';
 
 type ChatEntry = { who: 'me' | 'peer'; text: string; at: number };
-type UiWorkerEvent = SessionEvent | { t: 'audioPcm'; pcm: Float32Array; sampleRate: number; channels: number };
+type UiWorkerEvent =
+  | SessionEvent
+  | { t: 'audioPcm'; pcm: Float32Array; sampleRate: number; channels: number }
+  | { t: 'debug'; tag: string; data: unknown };
 
 type RestartFlow = {
   /** restart: the user restarted the device; drop: the connection died by itself (core/reconnect.ts). */
@@ -3082,11 +3085,15 @@ export class RdApp {
         }
         break;
       case 'codecSupport':
+        this.dbg('codecSupport', ev.codecs);
         this.codecSupport = ev.codecs;
         if (!this.codecSupport.includes(this.preferredCodec as never)) this.preferredCodec = 'auto';
         break;
       case 'stats':
         this.onStats(ev.stats);
+        break;
+      case 'debug':
+        this.dbg(ev.tag, ev.data);
         break;
       case 'transport':
         this.el.statTransport.textContent = tl(`transport_${ev.kind.replace('-', '_')}`);

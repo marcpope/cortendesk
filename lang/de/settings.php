@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => 'schaltet es von der Shell aus ab.',
     'from_address' => 'Absenderadresse',
     'from_name' => 'Absendername',
+    'email_footer' => 'E-Mail-Fußzeile',
+    'email_footer_help' => 'Erscheint am Ende jeder E-Mail. Leer lassen, um die Adresse der Konsole anzuzeigen.',
     'geo_tag' => 'Geo-Tag',
     'host_port_of_rendezvous_server' => 'Host:Port des Rendezvous-Servers, bei dem sich Clients registrieren.',
     'id_server' => 'ID-Server',

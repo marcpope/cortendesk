@@ -32,6 +32,7 @@ return [
     'col_memory' => 'Pamäť',
     'col_os' => 'OS',
     'col_owner' => 'Vlastník',
+    'col_strategy' => 'Stratégia',
     'col_status' => 'Stav',
     'col_username' => 'Používateľ',
     'col_uuid' => 'UUID',

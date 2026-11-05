@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => 'szyfrowanie',
         'smtpFromAddress' => 'adres nadawcy',
         'smtpFromName' => 'nazwa nadawcy',
+        'smtpFooter' => 'stopka wiadomości',
         'smtpHost' => 'host SMTP',
         'smtpPassword' => 'hasło SMTP',
         'smtpPort' => 'port SMTP',

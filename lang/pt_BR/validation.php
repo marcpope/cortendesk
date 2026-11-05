@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => 'criptografia',
         'smtpFromAddress' => 'endereço do remetente',
         'smtpFromName' => 'nome do remetente',
+        'smtpFooter' => 'rodapé do e-mail',
         'smtpHost' => 'host SMTP',
         'smtpPassword' => 'senha SMTP',
         'smtpPort' => 'porta SMTP',

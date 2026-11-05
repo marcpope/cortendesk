@@ -85,8 +85,16 @@ class ActiveSessions extends Component
             ->limit(8)
             ->get();
 
+        // Aliases (#154), from devices this user can see. The target is already
+        // scoped by the query above; a controlling peer may be any device.
+        $devices = Device::query()->visibleTo($user)
+            ->whereIn('rustdesk_id', $sessions->pluck('rustdesk_id')->merge($sessions->pluck('from_peer'))->unique()->all())
+            ->get(['rustdesk_id', 'alias', 'hostname'])
+            ->keyBy('rustdesk_id');
+
         return view('livewire.active-sessions', [
             'sessions' => $sessions,
+            'devices' => $devices,
             'canDisconnect' => $user->consoleAllows('device', 'rw'),
             'activeCount' => $sessions->count(),
         ]);

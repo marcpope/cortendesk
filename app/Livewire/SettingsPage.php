@@ -152,6 +152,8 @@ class SettingsPage extends Component
 
     public string $smtpFromName = '';
 
+    public string $smtpFooter = '';
+
     public string $smtpTestTo = '';
 
     public string $smtpTestMessage = '';
@@ -266,6 +268,7 @@ class SettingsPage extends Component
         $this->smtpPasswordSet = trim((string) Setting::get('smtp_password', '')) !== '';
         $this->smtpFromAddress = Setting::get('smtp_from_address', '') ?? '';
         $this->smtpFromName = Setting::get('smtp_from_name', '') ?? '';
+        $this->smtpFooter = Setting::get('smtp_footer', '') ?? '';
         $this->smtpTestTo = (string) (auth()->user()?->email ?: '');
         $this->emailLoginVerification = Setting::get('email_login_verification', '0') === '1';
         $this->emailTrustedDeviceDays = (int) (Setting::get('email_trusted_device_days', '30') ?: 30);
@@ -409,6 +412,7 @@ class SettingsPage extends Component
                 'smtpPassword' => 'nullable|string|max:512',
                 'smtpFromAddress' => 'nullable|email|max:255',
                 'smtpFromName' => 'nullable|string|max:64',
+                'smtpFooter' => 'nullable|string|max:500',
                 'emailTrustedDeviceDays' => 'required|integer|min:1|max:365',
                 'appriseEndpoint' => 'nullable|url:http,https|max:2048',
                 'appriseMode' => 'required|in:config,urls',
@@ -540,6 +544,7 @@ class SettingsPage extends Component
         Setting::put('smtp_username', trim($this->smtpUsername));
         Setting::put('smtp_from_address', trim($this->smtpFromAddress));
         Setting::put('smtp_from_name', trim($this->smtpFromName));
+        Setting::put('smtp_footer', trim($this->smtpFooter));
         Setting::put('email_trusted_device_days', (string) $this->emailTrustedDeviceDays);
 
         Setting::put('apprise_enabled', $this->appriseEnabled ? '1' : '0');

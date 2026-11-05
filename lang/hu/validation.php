@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => 'titkosítás',
         'smtpFromAddress' => 'feladó címe',
         'smtpFromName' => 'feladó neve',
+        'smtpFooter' => 'e-mail lábléc',
         'smtpHost' => 'SMTP-kiszolgáló',
         'smtpPassword' => 'SMTP-jelszó',
         'smtpPort' => 'SMTP-port',

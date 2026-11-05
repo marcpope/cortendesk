@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => 'wymusza wyłączenie z poziomu powłoki.',
     'from_address' => 'Adres nadawcy',
     'from_name' => 'Nazwa nadawcy',
+    'email_footer' => 'Stopka wiadomości',
+    'email_footer_help' => 'Wyświetlana na dole każdej wiadomości. Zostaw puste, aby pokazać adres konsoli.',
     'geo_tag' => 'Tag geo',
     'host_port_of_rendezvous_server' => 'Host:port serwera rendezvous, w którym rejestrują się klienci.',
     'id_server' => 'Serwer ID',

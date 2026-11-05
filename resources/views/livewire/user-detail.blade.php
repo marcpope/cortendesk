@@ -30,7 +30,7 @@
         <div class="col-lg-5">
             <div class="card">
                 <div class="card-header"><h5 class="card-title mb-0">{{ __('common.profile') }}</h5></div>
-                <div class="card-body pt-0">
+                <div class="card-body">
                     <dl class="rd-deflist">
                         <div class="rd-def"><dt>{{ __('common.username') }}</dt><dd>{{ $user->username }}</dd></div>
                         <div class="rd-def"><dt>{{ __('common.name') }}</dt><dd>{{ $user->name ?: '—' }}</dd></div>
@@ -92,10 +92,10 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">{{ __('common.devices') }} <span class="text-muted fw-normal fs-13">({{ $deviceCount }})</span></h5>
                         @if ($deviceCount > $devices->count() && auth()->user()?->is_admin)
-                            <a href="{{ route('devices') }}?owner={{ $user->id }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
+                            <a href="{{ route('devices') }}?owner={{ $user->id }}" class="fs-13">{{ __('common.all') }}</a>
                         @endif
                     </div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         @forelse ($devices as $d)
                             <div class="rd-def">
                                 <dt class="fw-normal min-width-0">
@@ -121,7 +121,7 @@
             @if ($canBooks)
                 <div class="card">
                     <div class="card-header"><h5 class="card-title mb-0">{{ __('common.address_books_2') }}</h5></div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         @forelse ($books as $book)
                             <div class="rd-def">
                                 <dt class="fw-normal">
@@ -148,9 +148,9 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">{{ __('users.recent_sign_ins') }}</h5>
-                        <a href="{{ route('logs.logins') }}?search={{ urlencode($user->username) }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
+                        <a href="{{ route('logs.logins') }}?search={{ urlencode($user->username) }}" class="fs-13">{{ __('common.all') }}</a>
                     </div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         @forelse ($signIns as $log)
                             <div class="rd-def">
                                 <dt class="fw-normal">
@@ -181,9 +181,9 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">{{ __('users.recent_console_actions') }}</h5>
-                        <a href="{{ route('logs.console') }}?search={{ urlencode($user->username) }}" class="fs-13 text-muted">{{ __('common.all') }}</a>
+                        <a href="{{ route('logs.console') }}?search={{ urlencode($user->username) }}" class="fs-13">{{ __('common.all') }}</a>
                     </div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         @forelse ($actions as $a)
                             <div class="rd-def">
                                 <dt class="fw-normal min-width-0">
@@ -205,7 +205,7 @@
                         <div class="card-header">
                             <h5 class="card-title mb-0">{{ __('users.connections_to_their_devices') }}</h5>
                         </div>
-                        <div class="card-body pt-0">
+                        <div class="card-body">
                             @forelse ($incoming as $c)
                                 <div class="rd-def">
                                     <dt class="fw-normal">
@@ -229,7 +229,7 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">{{ __('users.connections_from_devices_they_signed') }}</h5>
                     </div>
-                    <div class="card-body pt-0">
+                    <div class="card-body">
                         <p class="fs-13 text-muted">
                             {{ __('users.matched_by_controlling_devices_rustdesk') }}
                         </p>

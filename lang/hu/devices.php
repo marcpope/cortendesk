@@ -32,6 +32,7 @@ return [
     'col_memory' => 'Memória',
     'col_os' => 'OS',
     'col_owner' => 'Tulajdonos',
+    'col_strategy' => 'Stratégia',
     'col_status' => 'Állapot',
     'col_username' => 'Felhasználó',
     'col_uuid' => 'UUID',

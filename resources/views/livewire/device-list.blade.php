@@ -81,7 +81,7 @@
                 <select class="form-select rd-toolbar-filter" aria-label="{{ __('devices.sort_devices_by') }}"
                         wire:change="selectSort($event.target.value)">
                     @foreach (\App\Livewire\DeviceList::SORTABLE as $key => $unused)
-                        @continue($key === 'owner' && ! auth()->user()?->is_admin)
+                        @continue(in_array($key, \App\Livewire\DeviceList::ADMIN_COLUMNS, true) && ! auth()->user()?->is_admin)
                         <option value="{{ $key }}" @selected($sortField === $key)>
                             {{ __('devices.sort_column', ['column' => __('devices.col_'.($key === 'id' || isset(\App\Livewire\DeviceList::COLUMNS[$key]) ? $key : 'status'))]) }}
                         </option>
@@ -136,7 +136,7 @@
                     <div class="rd-inset w-100">
                         <div class="d-flex flex-wrap gap-3 align-items-center">
                             @foreach (\App\Livewire\DeviceList::COLUMNS as $key => $label)
-                                @continue ($key === 'owner' && ! auth()->user()?->is_admin)
+                                @continue (in_array($key, \App\Livewire\DeviceList::ADMIN_COLUMNS, true) && ! auth()->user()?->is_admin)
                                 <div class="form-check form-check-inline m-0">
                                     <input type="checkbox" class="form-check-input" id="col-{{ $key }}"
                                            value="{{ $key }}" wire:model.live="columns">
@@ -213,14 +213,14 @@
                         @endunless
                     </th>
                     <x-sortable-th field="id" :sort="$sortField" :dir="$sortDirection">{{ __('devices.id') }}</x-sortable-th>
-                    @foreach (['device' => 'Device', 'alias' => 'Alias', 'group' => 'Group', 'owner' => 'Owner', 'version' => 'Version'] as $key => $label)
+                    @foreach (['device' => 'Device', 'alias' => 'Alias', 'group' => 'Group', 'owner' => 'Owner', 'strategy' => 'Strategy', 'version' => 'Version'] as $key => $label)
                         @if ($cols[$key])
                             <x-sortable-th :field="$key" :sort="$sortField" :dir="$sortDirection">{{ __('devices.col_'.$key) }}</x-sortable-th>
                         @endif
                     @endforeach
                     @if ($cols['os'])<x-sortable-th field="os" :sort="$sortField" :dir="$sortDirection">OS</x-sortable-th>@endif
                     @if ($cols['username'])<th>User</th>@endif
-                    @if ($cols['ip'])<th>IP</th>@endif
+                    @if ($cols['ip'])<x-sortable-th field="ip" :sort="$sortField" :dir="$sortDirection">IP</x-sortable-th>@endif
                     @if ($cols['lan_ip'])<th title="Last seen during a connection">LAN IP</th>@endif
                     @if ($cols['cpu'])<th>CPU</th>@endif
                     @if ($cols['memory'])<th>Memory</th>@endif
@@ -292,6 +292,9 @@
                                     <span class="text-muted">—</span>
                                 @endif
                             </td>
+                        @endif
+                        @if ($cols['strategy'])
+                            <td>@if ($device->resolvedStrategy)<span class="badge bg-primary-subtle text-primary">{{ $device->resolvedStrategy->name }}</span>@else<span class="text-muted">—</span>@endif</td>
                         @endif
                         @if ($cols['version'])
                             <td>@if ($device->version)<span class="badge bg-secondary-subtle text-secondary">{{ $device->version }}</span>@else<span class="text-muted">—</span>@endif</td>

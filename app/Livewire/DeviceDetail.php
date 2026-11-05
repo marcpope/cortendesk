@@ -17,6 +17,7 @@ use App\Services\DeviceAddressBooks;
 use App\Services\DuplicateDevices;
 use App\Services\ReleaseId;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Livewire\Component;
 
 /**
@@ -308,6 +309,13 @@ class DeviceDetail extends Component
             ? DeviceAddressBooks::writableBooks($user)->whereNotIn('id', $books->pluck('id'))->values()
             : collect();
 
+        $connections = $canAudit
+            ? $this->both(AuditConnection::query(), $device)->with(['noteUser', 'relaySession'])->latest()->limit(10)->get()
+            : collect();
+        $transfers = $canAudit
+            ? $this->both(AuditFileTransfer::query(), $device)->latest()->limit(10)->get()
+            : collect();
+
         return view('livewire.device-detail', $this->editorViewData() + [
             'device' => $device,
             'books' => $books,
@@ -321,13 +329,9 @@ class DeviceDetail extends Component
             'canWriteBooks' => $canWriteBooks,
             'deleteState' => $this->deleteConfirmState(),
             'twins' => $this->twins($device),
-            'connections' => $canAudit
-                ? $this->both(AuditConnection::query(), $device)->with(['noteUser', 'relaySession'])->latest()->limit(10)->get()
-                : collect(),
-            'transfers' => $canAudit
-                ? $this->both(AuditFileTransfer::query(), $device)->latest()->limit(10)->get()
-                : collect(),
-            'peerNames' => $canAudit ? $this->outgoingTargets($device) : [],
+            'connections' => $connections,
+            'transfers' => $transfers,
+            'peerNames' => $this->peerNames($device, $connections->concat($transfers)),
             'alarms' => $canAudit
                 ? AlarmLog::where('rustdesk_id', $device->rustdesk_id)->latest()->limit(10)->get()
                 : collect(),
@@ -355,27 +359,30 @@ class DeviceDetail extends Component
     }
 
     /**
-     * Names of the devices this one reached, for its outgoing rows: RustDesk
-     * ID => [label, device id or null when the user cannot open it].
+     * Names for the other end of each log row: the device this one reached on
+     * an outgoing row (#149), and the device that connected on an incoming one
+     * when the console knows it. RustDesk ID => [label, device id or null when
+     * the user cannot open it]. Incoming peers are listed only when visible.
      *
      * @return array<string, array{0: string, 1: ?int}>
      */
-    private function outgoingTargets(Device $device): array
+    private function peerNames(Device $device, Collection $rows): array
     {
-        $ids = AuditConnection::where('from_peer', $device->rustdesk_id)->latest()->limit(10)->pluck('rustdesk_id')
-            ->merge(AuditFileTransfer::where('from_peer', $device->rustdesk_id)->latest()->limit(10)->pluck('rustdesk_id'))
-            ->unique()->values();
+        $outgoing = $rows->where('rustdesk_id', '!=', $device->rustdesk_id)->pluck('rustdesk_id')->unique();
+        $incoming = $rows->where('rustdesk_id', $device->rustdesk_id)->pluck('from_peer')->filter()->unique();
+        $ids = $outgoing->merge($incoming)->unique()->values();
         if ($ids->isEmpty()) {
             return [];
         }
         $visible = Device::query()->visibleTo(auth()->user())->whereIn('rustdesk_id', $ids)
             ->get(['id', 'rustdesk_id', 'alias', 'hostname'])->keyBy('rustdesk_id');
 
-        return $ids->mapWithKeys(function (string $rid) use ($visible) {
-            $d = $visible->get($rid);
+        return $ids->filter(fn (string $rid) => $visible->has($rid) || $outgoing->contains($rid))
+            ->mapWithKeys(function (string $rid) use ($visible) {
+                $d = $visible->get($rid);
 
-            return [$rid => [$d ? ($d->alias ?: $d->hostname ?: $rid) : $rid, $d?->id]];
-        })->all();
+                return [$rid => [$d ? ($d->alias ?: $d->hostname ?: $rid) : $rid, $d?->id]];
+            })->all();
     }
 
     /**

@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => 'versleuteling',
         'smtpFromAddress' => 'afzenderadres',
         'smtpFromName' => 'afzendernaam',
+        'smtpFooter' => 'e-mailvoettekst',
         'smtpHost' => 'SMTP-host',
         'smtpPassword' => 'SMTP-wachtwoord',
         'smtpPort' => 'SMTP-poort',

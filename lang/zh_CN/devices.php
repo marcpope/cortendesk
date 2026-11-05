@@ -32,6 +32,7 @@ return [
     'col_memory' => '内存',
     'col_os' => '操作系统',
     'col_owner' => '所有者',
+    'col_strategy' => '策略',
     'col_status' => '状态',
     'col_username' => '用户',
     'col_uuid' => 'UUID',

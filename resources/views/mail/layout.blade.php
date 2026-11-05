@@ -25,7 +25,12 @@
                 </tr>
                 <tr>
                     <td style="padding:14px 24px;background:#fafbfc;border-top:1px solid #e3e6ea;font-size:12px;color:#7b8794;">
-                        {{ __('mail.sent_by_app_at_url', ['app' => config('app.name'), 'url' => rtrim((string) config('app.url'), '/')]) }}
+                        @php($footer = trim((string) \App\Models\Setting::get('smtp_footer', '')))
+                        @if ($footer !== '')
+                            {!! nl2br(e($footer)) !!}
+                        @else
+                            {{ __('mail.sent_by_app_at_url', ['app' => config('app.name'), 'url' => rtrim((string) config('app.url'), '/')]) }}
+                        @endif
                     </td>
                 </tr>
             </table>

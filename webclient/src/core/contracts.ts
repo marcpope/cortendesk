@@ -92,7 +92,7 @@ export type UiCommand =                           // main -> worker
   | { c:'rtcLocalCandidate'; json:string }
   | { c:'rtcOpen'; viaTurn:boolean }
   | { c:'rtcData'; data:ArrayBuffer }
-  | { c:'rtcBuffered'; bytes:number }
+  | { c:'rtcBuffered'; bytes:number; taken:number }   // channel queue, and all bytes the page has taken from rtcSend
   | { c:'rtcClosed' }
   | { c:'preferredCodec'; prefer:SupportedDecoding_PreferCodec }
   | { c:'displayOption'; option:'showRemoteCursor'|'followRemoteCursor'|'followRemoteWindow'; enabled:boolean }

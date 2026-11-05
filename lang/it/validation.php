@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => 'crittografia',
         'smtpFromAddress' => 'indirizzo mittente',
         'smtpFromName' => 'nome mittente',
+        'smtpFooter' => 'piè di pagina email',
         'smtpHost' => 'host SMTP',
         'smtpPassword' => 'password SMTP',
         'smtpPort' => 'porta SMTP',

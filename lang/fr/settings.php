@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => 'le désactive de force depuis le shell.',
     'from_address' => 'Adresse d’expéditeur',
     'from_name' => 'Nom d’expéditeur',
+    'email_footer' => 'Pied de page des e-mails',
+    'email_footer_help' => 'Affiché en bas de chaque e-mail. Laissez vide pour afficher l’adresse de la console.',
     'geo_tag' => 'Étiquette géo',
     'host_port_of_rendezvous_server' => 'Hôte:port du serveur de rendez-vous auprès duquel les clients s’enregistrent.',
     'id_server' => 'Serveur ID',

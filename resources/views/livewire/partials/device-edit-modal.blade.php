@@ -63,7 +63,10 @@
                             <hr class="my-3">
                             <label class="form-label" for="dl-strategy">{{ __('devices.strategy') }}</label>
                             <select id="dl-strategy" class="form-select" wire:model="formStrategyId">
-                                <option value="0">{{ __('devices.inherit_owner_group_or_default') }}</option>
+                                {{-- Name what inheriting gives (#154): the first enabled
+                                     strategy below this device's own level. --}}
+                                @php($inherited = collect($strategyExplain['steps'])->first(fn ($st) => $st['level'] !== \App\Models\Strategy::LEVEL_DEVICE && in_array($st['state'], ['applied', 'overridden'], true)))
+                                <option value="0">{{ __('devices.inherit_owner_group_or_default') }}{{ $inherited ? ': '.$inherited['strategy']->name : '' }}</option>
                                 @foreach ($strategies as $s)
                                     <option value="{{ $s->id }}">
                                         {{ $s->name }}@unless ($s->enabled) (disabled)@endunless

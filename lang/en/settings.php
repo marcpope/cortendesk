@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => 'forces it off from the shell.',
     'from_address' => 'From address',
     'from_name' => 'From name',
+    'email_footer' => 'Email footer',
+    'email_footer_help' => 'Shown at the bottom of every email. Leave blank to show the console address.',
     'geo_tag' => 'Geo tag',
     'host_port_of_rendezvous_server' => 'Host:port of the rendezvous server clients register with.',
     'id_server' => 'ID Server',

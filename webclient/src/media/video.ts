@@ -114,6 +114,10 @@ export class VideoPipeline {
   // Set by the session: fires once per codec the pipeline disables, so a fresh
   // supported_decoding (minus disabledCodecs()) can be re-advertised.
   onNeedReadvertise: ((disabled: EncodedCase) => void) | null = null;
+  // Set by the session: decoder events for ?debug=1. Rare by design, never per
+  // frame, so a black screen's log says whether frames came and what the
+  // decoder did with them (#139).
+  onDebug: ((what: string, data: Record<string, unknown>) => void) | null = null;
 
   private decoder: VideoDecoder | null = null;
   private currentCase: EncodedCase | null = null;
@@ -134,6 +138,10 @@ export class VideoPipeline {
   // and how many stalls in a row have passed with nothing rendered.
   private waitingSinceMs: number | null = null;
   private stallStreak = 0;
+  // Per decoder, so each logs its first picture and first key-frame wait once.
+  private pictured = false;
+  private keyWaitLogged = false;
+  private readonly disabledSeen = new Set<EncodedCase>();
 
   constructor(
     private readonly canvas: OffscreenCanvas,
@@ -177,6 +185,10 @@ export class VideoPipeline {
         return; // rgb/yuv raw frames are never sent over relay to us
     }
     if (this.disabled.has(kase)) {
+      if (!this.disabledSeen.has(kase)) {
+        this.disabledSeen.add(kase);
+        this.log('frames in a disabled codec', { codec: kase });
+      }
       this.requestRefresh();
       return;
     }
@@ -185,6 +197,7 @@ export class VideoPipeline {
     }
     for (const f of frames) {
       if (this.stalled()) {
+        this.log('stall', { codec: kase, streak: this.stallStreak + 1, queued: this.decoder?.decodeQueueSize ?? 0 });
         if (++this.stallStreak >= MAX_STALLS) {
           this.fatal(kase);
           return;
@@ -192,6 +205,10 @@ export class VideoPipeline {
         if (!this.configure(kase)) return;
       }
       if (this.awaitingKey && !f.key) {
+        if (!this.keyWaitLogged) {
+          this.keyWaitLogged = true;
+          this.log('waiting for a key frame', { codec: kase });
+        }
         this.framesDropped++;
         this.requestRefresh();
         continue;
@@ -220,7 +237,8 @@ export class VideoPipeline {
           }),
         );
         this.awaitingKey = false;
-      } catch {
+      } catch (e) {
+        this.log('decode failed', { codec: kase, error: String(e) });
         this.noteFailure(kase);
         if (this.disabled.has(kase) || !this.decoder || this.decoder.state === 'closed') break;
       }
@@ -244,16 +262,23 @@ export class VideoPipeline {
     this.teardownDecoder();
     this.awaitingKey = true;
     this.failStreak = 0;
+    this.pictured = false;
+    this.keyWaitLogged = false;
     try {
       const dec = new VideoDecoder({
         output: (frame) => this.handleOutput(frame),
-        error: () => this.fatal(kase),
+        error: (e) => {
+          this.log('decoder error', { codec: kase, error: String(e) });
+          this.fatal(kase);
+        },
       });
       dec.configure({ codec: CODEC_STRING[kase], optimizeForLatency: true });
       this.decoder = dec;
       this.currentCase = kase;
+      this.log('decoder', { codec: kase });
       return true;
-    } catch {
+    } catch (e) {
+      this.log('configure failed', { codec: kase, error: String(e) });
       this.fatal(kase);
       return false;
     }
@@ -274,6 +299,10 @@ export class VideoPipeline {
       this.ctx?.drawImage(frame, 0, 0);
       this.lastW = w;
       this.lastH = h;
+      if (!this.pictured) {
+        this.pictured = true;
+        this.log('first picture', { codec: this.currentCase, width: w, height: h });
+      }
     } finally {
       frame.close(); // decoder-owned; must release before the next output
     }
@@ -294,6 +323,7 @@ export class VideoPipeline {
     this.teardownDecoder();
     this.currentCase = null;
     if (!this.disabled.has(kase)) {
+      this.log('codec disabled', { codec: kase });
       this.disabled.add(kase);
       this.onNeedReadvertise?.(kase);
     }
@@ -312,6 +342,10 @@ export class VideoPipeline {
         // already closed by an error callback
       }
     }
+  }
+
+  private log(what: string, data: Record<string, unknown>): void {
+    this.onDebug?.(what, data);
   }
 
   private requestRefresh(): void {

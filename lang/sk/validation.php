@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => 'šifrovanie',
         'smtpFromAddress' => 'adresa odosielateľa',
         'smtpFromName' => 'meno odosielateľa',
+        'smtpFooter' => 'päta e-mailu',
         'smtpHost' => 'Hostiteľ SMTP',
         'smtpPassword' => 'SMTP heslo',
         'smtpPort' => 'port SMTP',

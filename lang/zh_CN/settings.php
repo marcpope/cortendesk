@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => '文件中）可在服务器端强制关闭此功能。',
     'from_address' => '发件人地址',
     'from_name' => '发件人名称',
+    'email_footer' => '邮件页脚',
+    'email_footer_help' => '显示在每封邮件底部。留空则显示控制台地址。',
     'geo_tag' => '地理标签',
     'host_port_of_rendezvous_server' => '客户端注册所用的注册服务器的“主机:端口”。',
     'id_server' => 'ID 服务器',

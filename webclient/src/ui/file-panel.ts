@@ -46,7 +46,6 @@ type PermissionedHandle = FileSystemDirectoryHandle & {
 };
 
 const MEM_DOWNLOAD_WARN = 512 * 1024 * 1024; // fallback downloads buffer in RAM
-const UPLOAD_BACKLOG_LIMIT = 8 * 1024 * 1024; // pause while ws send buffer exceeds this
 
 type ConflictDecision = { action: 'overwrite' | 'skip' | 'cancel'; applyAll: boolean };
 type ConflictPolicy = 'ask' | 'overwrite' | 'skip';
@@ -476,8 +475,13 @@ export class FilePanel {
         if (side === 'local') this.localAnchor = idx;
         else this.remoteAnchor = idx;
       }
-      if (side === 'local') this.renderLocal();
-      else this.renderRemote();
+      // Repaint the selection in place: replacing the rows would make Chrome
+      // drop the dblclick that opens a folder (#157).
+      for (const row of tbody.querySelectorAll<HTMLElement>('tr[data-idx]')) {
+        row.classList.toggle('rd-sel', sel.has(Number(row.dataset.idx)));
+      }
+      if (side === 'local') this.renderLocalFoot();
+      else this.renderRemoteFoot();
       this.updateButtons();
     });
     tbody.addEventListener('dblclick', (e) => {
@@ -636,6 +640,10 @@ export class FilePanel {
     this.el.remoteBody.innerHTML = rows.join('');
     this.el.remoteEmpty.hidden = this.remoteEntries.length > 0;
     this.el.remoteEmpty.textContent = this.state === 'streaming' ? tl('empty_folder') : tl('not_connected');
+    this.renderRemoteFoot();
+  }
+
+  private renderRemoteFoot(): void {
     const selSize = [...this.remoteSel].reduce((s, i) => s + (this.remoteEntries[i]?.size ?? 0), 0);
     this.el.remoteFoot.textContent = tl('n_of_m_selected', { n: this.remoteSel.size, m: this.remoteEntries.length }) +
       (selSize > 0 ? ` · ${formatBytes(selSize)}` : '');
@@ -841,6 +849,10 @@ export class FilePanel {
     });
     this.el.localBody.innerHTML = rows.join('');
     this.updateLocalEmpty();
+    this.renderLocalFoot();
+  }
+
+  private renderLocalFoot(): void {
     const selSize = [...this.localSel].reduce((s, i) => s + (this.localEntries[i]?.size ?? 0), 0);
     this.el.localFoot.textContent = tl('n_of_m_selected', { n: this.localSel.size, m: this.localEntries.length }) +
       (selSize > 0 ? ` · ${formatBytes(selSize)}` : '');
@@ -1206,17 +1218,14 @@ export class FilePanel {
           if (this.jobStopped(job)) return;
           const end = Math.min(offset + FT_BLOCK_SIZE, file.size);
           const buf = new Uint8Array(await file.slice(offset, end).arrayBuffer());
-          const buffered = await new Promise<number>((resolve) => {
+          // The worker acks once its send queue is short: that clocks the upload.
+          await new Promise<number>((resolve) => {
             job.sentWaiter = resolve;
             this.post({ c: 'ftBlock', id, fileNum: i, data: buf, blkId: 0 }, [buf.buffer]);
           });
           job.sentWaiter = undefined;
           job.doneBytes += end - offset;
           offset = end;
-          // Self-clock: if the socket backlog is deep, let TCP drain.
-          if (buffered > UPLOAD_BACKLOG_LIMIT) {
-            await new Promise((r) => setTimeout(r, 120));
-          }
         }
         // Empty block = end-of-file marker.
         this.post({ c: 'ftBlock', id, fileNum: i, data: new Uint8Array(0), blkId: 0 });

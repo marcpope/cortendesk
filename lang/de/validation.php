@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => 'Verschlüsselung',
         'smtpFromAddress' => 'Absenderadresse',
         'smtpFromName' => 'Absendername',
+        'smtpFooter' => 'E-Mail-Fußzeile',
         'smtpHost' => 'SMTP-Host',
         'smtpPassword' => 'SMTP-Passwort',
         'smtpPort' => 'SMTP-Port',

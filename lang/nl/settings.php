@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => 'schakelt het vanuit de shell geforceerd uit.',
     'from_address' => 'Afzenderadres',
     'from_name' => 'Afzendernaam',
+    'email_footer' => 'E-mailvoettekst',
+    'email_footer_help' => 'Onderaan elke e-mail. Laat leeg om het adres van de console te tonen.',
     'geo_tag' => 'Geo-tag',
     'host_port_of_rendezvous_server' => 'Host:poort van de rendezvous-server waarbij clients zich registreren.',
     'id_server' => 'ID-server',

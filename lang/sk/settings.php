@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => 'vynúti vypnutie z príkazového riadka.',
     'from_address' => 'Adresa odosielateľa',
     'from_name' => 'Meno odosielateľa',
+    'email_footer' => 'Päta e-mailu',
+    'email_footer_help' => 'Zobrazí sa na konci každého e-mailu. Nechajte prázdne, ak chcete zobraziť adresu konzoly.',
     'geo_tag' => 'Geografická značka',
     'host_port_of_rendezvous_server' => 'Adresa a port servera ID, ku ktorému sa klienti registrujú.',
     'id_server' => 'ID server',

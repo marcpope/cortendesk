@@ -6,7 +6,7 @@
                 <i class="ri-add-line me-1"></i>{{ __('shares.new_share') }}</button>
         @endif
     </div>
-    <div class="card-body pt-0">
+    <div class="card-body">
         <p class="text-muted fs-13">{{ __('shares.card_intro') }}</p>
         @if ($passwordOnly)
             <div class="alert alert-warning fs-13" role="alert"><i class="ri-error-warning-line me-1"></i>{{ __('shares.password_only', ['option' => __('labels.strategy_opt_approve_mode')]) }}</div>
@@ -28,13 +28,13 @@
         @if ($creating)
             <form wire:submit="create" class="border rounded p-3 mb-3">
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label class="form-label" for="share-label">{{ __('shares.label') }}</label>
                         <input id="share-label" type="text" class="form-control @error('label') is-invalid @enderror" maxlength="100"
                                wire:model="label" placeholder="{{ __('shares.label_placeholder') }}" required>
                         @error('label') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-6">
                         <label class="form-label" for="share-duration">{{ __('shares.duration') }}</label>
                         <select id="share-duration" class="form-select" wire:model="duration">
                             @foreach (\App\Models\DeviceShare::DURATIONS as $key => $minutes)
@@ -42,7 +42,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-6">
                         <label class="form-label" for="share-viewers">{{ __('shares.max_viewers') }}</label>
                         <input id="share-viewers" type="number" min="1" max="{{ \App\Models\DeviceShare::MAX_VIEWERS }}" class="form-control @error('maxViewers') is-invalid @enderror" wire:model="maxViewers">
                         @error('maxViewers') <div class="invalid-feedback">{{ $message }}</div> @enderror

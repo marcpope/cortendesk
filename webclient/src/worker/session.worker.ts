@@ -43,6 +43,8 @@ import { setCatalog, tl } from '../i18n';
 export type WorkerOutMessage =
   | SessionEvent
   | { t: 'audioPcm'; pcm: Float32Array; sampleRate: number; channels: number }
+  // A line for the page's ?debug=1 log; the page drops it when debug is off.
+  | { t: 'debug'; tag: string; data: unknown }
   // RustDesk 1.5 WebRTC, to the page that owns the peer connection.
   | { t: 'rtcOffer'; iceServers: IceServerConfig[] }
   | { t: 'rtcAnswer'; sdp: string }
@@ -52,6 +54,8 @@ export type WorkerOutMessage =
 
 /** How long the page gets to produce an offer before we connect without one. */
 const RTC_OFFER_TIMEOUT_MS = 3000;
+/** Hold upload acks while more than this is queued for sending. */
+const UPLOAD_BACKLOG_LIMIT = 4 * 1024 * 1024;
 
 export function codecNames(sd: SupportedDecoding): Array<'auto'|'vp9'|'h264'|'h265'|'vp8'|'av1'> {
   const codecs: Array<'auto'|'vp9'|'h264'|'h265'|'vp8'|'av1'> = ['auto'];
@@ -120,6 +124,7 @@ export interface SessionLike {
 
 export interface VideoPipelineLike {
   onNeedReadvertise: ((disabled: EncodedCase) => void) | null;
+  onDebug?: ((what: string, data: Record<string, unknown>) => void) | null;
   disabledCodecs(): EncodedCase[];
   pushFrame(vf: VideoFrame): void;
   reset(): void;
@@ -189,7 +194,9 @@ export class WorkerHost {
   private rtcOfferWaiter: ((offer: WebRtcOffer | undefined) => void) | null = null;
   private readonly reassembler = new Reassembler();
   private rtcBuffered = 0;
-  private rtcSentSinceReport = 0;
+  /** Bytes posted to the page for the channel, and bytes it has taken so far. */
+  private rtcPosted = 0;
+  private rtcTaken = 0;
   private relayClosedByUs = false;
 
   constructor(deps: WorkerDeps) {
@@ -302,8 +309,7 @@ export class WorkerHost {
             blk_id: cmd.blkId,
           }),
         });
-        // Ack with the socket backlog so the UI can self-clock the upload.
-        this.deps.post({ t: 'ftSent', id: cmd.id, fileNum: cmd.fileNum, buffered: this.ws2?.buffered?.() ?? 0 });
+        void this.ackBlock(cmd.id, cmd.fileNum);
         return;
       case 'ftDone':
         this.session?.sendFileResponse({
@@ -454,10 +460,12 @@ export class WorkerHost {
         return;
       case 'rtcBuffered':
         this.rtcBuffered = cmd.bytes;
-        this.rtcSentSinceReport = 0;
+        this.rtcTaken = cmd.taken;
         return;
       case 'rtcClosed':
         this.rtcActive = false;
+        this.rtcBuffered = 0;
+        this.rtcTaken = this.rtcPosted;
         this.session?.onWebRtcClosed?.();
         return;
       default:
@@ -502,6 +510,7 @@ export class WorkerHost {
               (s) => this.postStats(s),
             );
         video.onNeedReadvertise = () => this.readvertise();
+        video.onDebug = (what, data) => this.deps.post({ t: 'debug', tag: 'video', data: { what, ...data } });
         this.video = video;
 
         const audio = this.deps.createAudioPipeline();
@@ -528,7 +537,7 @@ export class WorkerHost {
           else this.ws2?.send(b);
         },
         relayBuffered: () =>
-          this.transport === 'webrtc' ? this.rtcBuffered + this.rtcSentSinceReport : this.ws2?.buffered?.() ?? 0,
+          this.backlog(),
         webrtcAnswer: (sdp) => this.deps.post({ t: 'rtcAnswer', sdp }),
         webrtcRemoteCandidate: (candidate) => this.deps.post({ t: 'rtcCandidate', candidate }),
         webrtcClose: () => this.closeRtc(),
@@ -841,11 +850,28 @@ export class WorkerHost {
     });
   }
 
+  /** Bytes queued on the transport but not yet sent. */
+  private backlog(): number {
+    return this.transport === 'webrtc' ? this.rtcBuffered + this.rtcPosted - this.rtcTaken : this.ws2?.buffered?.() ?? 0;
+  }
+
+  /**
+   * Ack an uploaded block once the backlog is under the limit, so the upload
+   * self-clocks. The panel waits for each ack before reading the next block.
+   * A WebRTC data channel closes when its queue passes 16 MB (#155).
+   */
+  private async ackBlock(id: number, fileNum: number): Promise<void> {
+    while (this.backlog() > UPLOAD_BACKLOG_LIMIT && !this.tornDown) {
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    this.deps.post({ t: 'ftSent', id, fileNum, buffered: this.backlog() });
+  }
+
   /** One message onto the data channel, fragmented, in a single post so fragments never interleave. */
   private sendRtc(b: Uint8Array): void {
     if (!this.rtcActive) return;
     const frags = fragment(b).map((f) => f.buffer as ArrayBuffer);
-    this.rtcSentSinceReport += b.length;
+    for (const f of frags) this.rtcPosted += f.byteLength;
     this.deps.post({ t: 'rtcSend', frags }, frags);
   }
 

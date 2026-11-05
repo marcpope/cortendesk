@@ -30,6 +30,8 @@ export class WebRtcHost {
   private reportTimer: ReturnType<typeof setTimeout> | undefined;
   private traced = 0;
   private lastPair = '';
+  /** Bytes taken from rtcSend, so the worker can count what is still in flight. */
+  private taken = 0;
 
   constructor(private readonly post: Post) {}
 
@@ -134,6 +136,7 @@ export class WebRtcHost {
   }
 
   private send(frags: ArrayBuffer[]): void {
+    for (const f of frags) this.taken += f.byteLength;
     const dc = this.dc;
     if (!dc || dc.readyState !== 'open') return;
     if (this.traced++ < 8) dbg('out', frags.map((f) => ({ bytes: f.byteLength, head: Array.from(new Uint8Array(f, 0, Math.min(8, f.byteLength))) })));
@@ -152,7 +155,7 @@ export class WebRtcHost {
   }
 
   private reportBuffered(): void {
-    if (this.dc) this.post({ c: 'rtcBuffered', bytes: this.dc.bufferedAmount });
+    if (this.dc) this.post({ c: 'rtcBuffered', bytes: this.dc.bufferedAmount, taken: this.taken });
   }
 
   private async opened(): Promise<void> {

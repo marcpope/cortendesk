@@ -42,7 +42,9 @@
                         <tbody>
                         @foreach ($sessions as $s)
                             @php
-                                $who = $s->from_name ?: $s->from_peer;
+                                $who = $s->from_name ?: ($devices[$s->from_peer]->alias ?? null) ?: $s->from_peer;
+                                $target = $devices[$s->rustdesk_id] ?? null;
+                                $targetName = $target ? ($target->alias ?: $target->hostname) : null;
                                 $tone = $tones[crc32((string) $s->from_peer) % count($tones)];
                             @endphp
                             <tr wire:key="s{{ $s->id }}">
@@ -56,6 +58,9 @@
                                     </div>
                                 </td>
                                 <td>
+                                    @if ($targetName)
+                                        <span class="rd-cell-title text-truncate">{{ $targetName }}</span>
+                                    @endif
                                     <a href="{{ \App\Support\ClientLink::to($s->rustdesk_id) }}" title="{{ __('common.connect_with_rustdesk') }}" class="fs-13">{{ $s->rustdesk_id }}</a>
                                 </td>
                                 <td>
@@ -90,7 +95,9 @@
                 <div class="d-md-none rd-cardlist p-0">
                     @foreach ($sessions as $s)
                         @php
-                            $who = $s->from_name ?: $s->from_peer;
+                            $who = $s->from_name ?: ($devices[$s->from_peer]->alias ?? null) ?: $s->from_peer;
+                            $target = $devices[$s->rustdesk_id] ?? null;
+                            $targetName = $target ? ($target->alias ?: $target->hostname) : null;
                             $tone = $tones[crc32((string) $s->from_peer) % count($tones)];
                         @endphp
                         <div class="rd-mini" wire:key="ms{{ $s->id }}">
@@ -116,7 +123,7 @@
                             @endif
                             <div class="rd-mini-foot">
                                 <a href="{{ \App\Support\ClientLink::to($s->rustdesk_id) }}" title="{{ __('common.connect_with_rustdesk') }}"
-                                   class="fs-13 text-truncate">{{ $s->rustdesk_id }}</a>
+                                   class="fs-13 text-truncate">@if ($targetName){{ $targetName }} · @endif{{ $s->rustdesk_id }}</a>
                                 <span class="rd-mini-sub text-nowrap"><i class="rd-dot text-success"></i><span
                                         title="{{ $s->created_at }}">{{ $s->created_at->diffForHumans(short: true) }}</span></span>
                             </div>

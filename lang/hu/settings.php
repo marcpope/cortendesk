@@ -71,6 +71,8 @@ return [
     'forces_it_off_from_shell' => 'fájlban a shellből is kikapcsolható.',
     'from_address' => 'Feladó címe',
     'from_name' => 'Feladó neve',
+    'email_footer' => 'E-mail lábléc',
+    'email_footer_help' => 'Minden e-mail alján megjelenik. Hagyja üresen a konzol címének megjelenítéséhez.',
     'geo_tag' => 'Földrajzi címke',
     'host_port_of_rendezvous_server' => 'A rendezvous kiszolgáló címe host:port formában, amelyen a kliensek regisztrálnak.',
     'id_server' => 'ID-kiszolgáló',

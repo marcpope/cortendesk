@@ -183,6 +183,7 @@ return [
         'smtpEncryption' => 'шифрование',
         'smtpFromAddress' => 'адрес отправителя',
         'smtpFromName' => 'имя отправителя',
+        'smtpFooter' => 'подпись письма',
         'smtpHost' => 'SMTP-хост',
         'smtpPassword' => 'пароль SMTP',
         'smtpPort' => 'порт SMTP',
