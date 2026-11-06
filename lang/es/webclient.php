@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'No se pudo leer la carpeta: :message',
     'follow_remote_cursor' => 'Seguir el cursor remoto',
     'follow_remote_window_focus' => 'Seguir el foco de la ventana remota',
+    'force_relay_connection' => 'Forzar conexión por relé',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Velocidad de fotogramas y códec',
     'frames_dropped' => 'Fotogramas perdidos',

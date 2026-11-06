@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'Kan map niet lezen: :message',
     'follow_remote_cursor' => 'Externe cursor volgen',
     'follow_remote_window_focus' => 'Focus van extern venster volgen',
+    'force_relay_connection' => 'Relayverbinding afdwingen',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Framerate en codec',
     'frames_dropped' => 'Frames overgeslagen',

@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'Nie udało się odczytać folderu: :message',
     'follow_remote_cursor' => 'Podążaj za zdalnym kursorem',
     'follow_remote_window_focus' => 'Podążaj za aktywnością zdalnych okien',
+    'force_relay_connection' => 'Wymuś połączenie przez przekaźnik',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Liczba klatek i kodek',
     'frames_dropped' => 'Utracone klatki',

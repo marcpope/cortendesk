@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'Nepodarilo sa načítať priečinok: :message',
     'follow_remote_cursor' => 'Sledovať vzdialený kurzor',
     'follow_remote_window_focus' => 'Sledovať aktívne vzdialené okno',
+    'force_relay_connection' => 'Vynútiť pripojenie cez relé',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Snímková frekvencia a kodek',
     'frames_dropped' => 'Vynechané snímky',

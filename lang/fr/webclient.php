@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'Impossible de lire le dossier : :message',
     'follow_remote_cursor' => 'Suivre le curseur distant',
     'follow_remote_window_focus' => 'Suivre la focalisation de fenêtre distante',
+    'force_relay_connection' => 'Forcer la connexion par relais',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Fréquence d’images et codec',
     'frames_dropped' => 'Images perdues',

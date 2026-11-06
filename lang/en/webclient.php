@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'Could not read folder: :message',
     'follow_remote_cursor' => 'Follow remote cursor',
     'follow_remote_window_focus' => 'Follow remote window focus',
+    'force_relay_connection' => 'Force relay connection',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Frame rate and codec',
     'frames_dropped' => 'Frames dropped',

@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'A mappát nem sikerült beolvasni: :message',
     'follow_remote_cursor' => 'Távoli kurzor követése',
     'follow_remote_window_focus' => 'Távoli ablakfókusz követése',
+    'force_relay_connection' => 'Relékapcsolat kényszerítése',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Képkockasebesség és kodek',
     'frames_dropped' => 'Eldobott képkockák',
