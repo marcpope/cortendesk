@@ -2,8 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Support\IceServers;
-use App\Support\Label;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\ConsoleAudit;
 use App\Models\Device;
@@ -13,6 +11,8 @@ use App\Models\StrategyRevision;
 use App\Models\User;
 use App\Services\StrategyCompliance;
 use App\Services\StrategyImpact;
+use App\Support\IceServers;
+use App\Support\Label;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
@@ -264,8 +264,28 @@ class StrategyList extends Component
     {
         $this->authorizeConsole('strategy', 'rw');
 
-        $strategy = Strategy::findOrFail($id);
+        $this->fillForm(Strategy::findOrFail($id));
+    }
 
+    /** Open the editor on a new strategy that starts as a copy of $id. */
+    public function duplicate(int $id): void
+    {
+        $this->authorizeConsole('strategy', 'rw');
+
+        $source = Strategy::findOrFail($id);
+        $this->fillForm($source);
+        $this->editingId = 0;
+        $this->formIsDefault = false;
+
+        $name = __('strategies.copy_of', ['name' => $source->name]);
+        for ($n = 2; Strategy::query()->where('name', $name)->exists(); $n++) {
+            $name = __('strategies.copy_of', ['name' => $source->name]).' '.$n;
+        }
+        $this->formName = mb_substr($name, 0, 255);
+    }
+
+    private function fillForm(Strategy $strategy): void
+    {
         $this->resetForm();
         $this->editingId = $strategy->id;
         $this->formName = $strategy->name;

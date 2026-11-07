@@ -83,6 +83,7 @@
                                 @endif
                                 <a href="javascript:void(0);" class="rd-act me-2" wire:click="openAssign({{ $strategy->id }})">{{ __('strategies.assign') }}</a>
                                 <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $strategy->id }})">{{ __('common.edit') }}</a>
+                                <a href="javascript:void(0);" class="rd-act me-2" wire:click="duplicate({{ $strategy->id }})">{{ __('strategies.duplicate') }}</a>
                                 <a href="javascript:void(0);" class="text-danger"
                                    wire:click="deleteStrategy({{ $strategy->id }})">{{ __('common.delete') }}</a>
                             </td>
@@ -146,6 +147,8 @@
                                        wire:click="openAssign({{ $strategy->id }})"><i class="ri-links-line"></i></a>
                                     <a href="javascript:void(0);" class="rd-iconbtn" title="{{ __('common.edit') }}"
                                        wire:click="edit({{ $strategy->id }})"><i class="ri-pencil-line"></i></a>
+                                    <a href="javascript:void(0);" class="rd-iconbtn" title="{{ __('strategies.duplicate') }}"
+                                       wire:click="duplicate({{ $strategy->id }})"><i class="ri-file-copy-line"></i></a>
                                     <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="{{ __('common.delete') }}"
                                        wire:click="deleteStrategy({{ $strategy->id }})"><i class="ri-delete-bin-line"></i></a>
                                 </div>

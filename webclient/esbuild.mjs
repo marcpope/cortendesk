@@ -17,6 +17,7 @@ import { build, context } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
+import { rmSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -54,16 +55,21 @@ const shared = {
   },
 };
 
-const entryPoints = {
-  app: resolve(__dirname, 'src/ui/app.ts'),
-  'session.worker': resolve(__dirname, 'src/worker/session.worker.ts'),
-};
+// The app is split so code it loads on demand (xterm, for the terminal) lands
+// in chunks/ instead of app.js. Chunk names carry a content hash, so a cached
+// app.js never pairs with a newer chunk. The worker stays a single file.
+const builds = [
+  { ...shared, entryPoints: { app: resolve(__dirname, 'src/ui/app.ts') }, outdir, splitting: true, chunkNames: 'chunks/[name]-[hash]' },
+  { ...shared, entryPoints: { 'session.worker': resolve(__dirname, 'src/worker/session.worker.ts') }, outdir },
+];
+
+// Chunks from earlier builds are never referenced again.
+rmSync(resolve(outdir, 'chunks'), { recursive: true, force: true });
 
 if (watch) {
-  const ctx = await context({ ...shared, entryPoints, outdir });
-  await ctx.watch();
+  for (const options of builds) await (await context(options)).watch();
   console.log(`[esbuild] watching -> ${outdir}`);
 } else {
-  await build({ ...shared, entryPoints, outdir });
+  await Promise.all(builds.map((options) => build(options)));
   console.log(`[esbuild] built -> ${outdir}`);
 }

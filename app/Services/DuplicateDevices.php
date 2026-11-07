@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Support\Label;
 use App\Models\Device;
 use App\Models\DeviceDuplicateDismissal;
+use App\Support\Label;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +28,11 @@ use Illuminate\Support\Facades\DB;
  * names do match: a reinstall draws a new one, so a shared one means the same
  * install or a clone. Pairs an operator dismissed are dropped.
  *
+ * Two rows that both kept reporting in after the later one appeared are two
+ * machines, not one: a reinstalled machine stops reporting under its old ID.
+ * This clears machines cloned from one image, which share a MachineGuid and
+ * so a UUID (issue #159).
+ *
  * Only rows in the given scope take part, so a scoped user never learns about
  * a device outside their fleet. Recycle-bin and pending devices are outside
  * every scope callers pass, which is also how a flag clears: delete one twin.
@@ -44,6 +49,9 @@ final class DuplicateDevices
     ];
 
     private const STRENGTH = ['uuid' => 2, 'hostname_user' => 1];
+
+    /** How long both rows must report in side by side to count as two machines. */
+    private const CONCURRENT_SECONDS = 3600;
 
     /** Lower-cased hostname and OS user, the same keys as matchKey(). */
     private const HOST_SQL = 'LOWER(TRIM(devices.hostname))';
@@ -175,6 +183,9 @@ final class DuplicateDevices
             for ($j = $i + 1; $j < $group->count(); $j++) {
                 $a = $group[$i];
                 $b = $group[$j];
+                if (self::concurrent($a, $b)) {
+                    continue;
+                }
                 $why = $reason($a, $b);
                 $current = $this->pairs[$a->id][$b->id] ?? null;
                 if ($current === null || self::STRENGTH[$why] > self::STRENGTH[$current]) {
@@ -183,6 +194,19 @@ final class DuplicateDevices
                 }
             }
         }
+    }
+
+    /** Both rows reported in well after the later one was created. */
+    private static function concurrent(Device $a, Device $b): bool
+    {
+        if ($a->last_online_at === null || $b->last_online_at === null || $a->created_at === null || $b->created_at === null) {
+            return false;
+        }
+
+        $lastSeen = min($a->last_online_at->getTimestamp(), $b->last_online_at->getTimestamp());
+        $appeared = max($a->created_at->getTimestamp(), $b->created_at->getTimestamp());
+
+        return $lastSeen > $appeared + self::CONCURRENT_SECONDS;
     }
 
     private function dropDismissed(): void

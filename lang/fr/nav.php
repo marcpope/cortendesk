@@ -1,9 +1,16 @@
 <?php
 
 return [
+    'about_copyright' => '©:year CortenDesk par :author',
+    'about_cortendesk' => 'À propos de CortenDesk',
+    'about_license' => 'Licence AGPL-3.0',
+    'about_new_version' => 'Une nouvelle version est disponible : v:version',
+    'about_release_notes_for' => 'Notes de version de la v:version',
+    'about_released' => 'Publiée le :date',
+    'about_version' => 'Version :version',
+    'auth_footer' => '©:year CortenDesk. Une console open source compatible avec RustDesk Pro',
     'close_menu' => 'Fermer le menu',
     'cortendesk_compares_running_version_agai' => 'CortenDesk compare la version en cours d’exécution à la dernière version publiée.',
-    'cortendesk_self_hosted_rustdesk_console' => 'CortenDesk — console RustDesk auto-hébergée',
     'diagnostics' => 'Diagnostics',
     'file_transfers' => 'Transferts de fichiers',
     'full_screen' => 'Plein écran',
@@ -11,12 +18,11 @@ return [
     'logout' => 'Déconnexion',
     'monitor' => 'Surveillance',
     'release_check_unavailable' => 'Vérification des versions indisponible',
-    'running_latest_release' => 'Dernière version installée',
     'sponsor_cortendesk' => 'Soutenir CortenDesk',
-    'sponsor_cortendesk_title' => 'Soutenir CortenDesk sur GitHub Sponsors (s\'ouvre dans un nouvel onglet)',
+    'sponsor_cortendesk_title' => 'Soutenir CortenDesk (s\'ouvre dans un nouvel onglet)',
     'theme_mode' => 'Thème',
     'toggle_menu' => 'Afficher/masquer le menu',
-    'update_available' => 'Mise à jour disponible',
+    'up_to_date' => 'À jour',
     'update_to_v_version' => 'Mettre à jour vers v:version',
     'version_version_is_available_opens' => 'La version :version est disponible. Ouvre les notes de version.',
 ];

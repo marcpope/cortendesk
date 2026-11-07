@@ -83,7 +83,6 @@ return [
     'save_assignment' => 'Toewijzing opslaan',
     'saving' => 'Opslaan…',
     'search_id_alias_hostname' => 'Zoek ID, alias, hostnaam…',
-    'self_hosted_rustdesk_console' => 'Zelf gehoste RustDesk-console',
     'send' => 'Verzenden',
     'sending' => 'Verzenden…',
     'sessions' => 'Sessies',

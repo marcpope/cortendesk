@@ -125,6 +125,9 @@ export class VideoPipeline {
   private awaitingKey = true;
   private failStreak = 0;
   private readonly disabled = new Set<EncodedCase>();
+  // Codecs that failed on the default (usually GPU) decoder and now decode in
+  // software. Some GPUs and drivers fail every frame where software works (#139).
+  private readonly software = new Set<EncodedCase>();
   private lastRefreshMs = 0;
   private framesDropped = 0;
   private readonly startedAtMs = Date.now();
@@ -272,10 +275,15 @@ export class VideoPipeline {
           this.fatal(kase);
         },
       });
-      dec.configure({ codec: CODEC_STRING[kase], optimizeForLatency: true });
+      const software = this.software.has(kase);
+      dec.configure({
+        codec: CODEC_STRING[kase],
+        optimizeForLatency: true,
+        ...(software ? { hardwareAcceleration: 'prefer-software' as const } : {}),
+      });
       this.decoder = dec;
       this.currentCase = kase;
-      this.log('decoder', { codec: kase });
+      this.log('decoder', software ? { codec: kase, software } : { codec: kase });
       return true;
     } catch (e) {
       this.log('configure failed', { codec: kase, error: String(e) });
@@ -322,6 +330,15 @@ export class VideoPipeline {
     if (this.closed) return;
     this.teardownDecoder();
     this.currentCase = null;
+    // Try the codec once in software before giving up on it: the next frame
+    // configures a software decoder and waits for the key frame asked for here.
+    if (!this.software.has(kase)) {
+      this.software.add(kase);
+      this.stallStreak = 0;
+      this.log('trying software decoder', { codec: kase });
+      this.requestRefresh();
+      return;
+    }
     if (!this.disabled.has(kase)) {
       this.log('codec disabled', { codec: kase });
       this.disabled.add(kase);

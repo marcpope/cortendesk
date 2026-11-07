@@ -83,21 +83,53 @@ body.rd-auth-bg::before {
     background: url('../images/login-bkg.jpg') center center / cover no-repeat;
 }
 
-/* Sidebar version footer — pinned bottom-left of the full sidebar.
-   .rd-sidebar is already position:fixed, so this anchors to it; do NOT
-   re-position .rd-sidebar here (it breaks the fixed sidebar). */
-.rd-sidebar-version {
+/* Sidebar footer: the sponsor link and the release status, pinned to the
+   bottom of the full sidebar under the scrolling menu. .rd-sidebar is already
+   position:fixed, so this anchors to it; do NOT re-position .rd-sidebar here
+   (it breaks the fixed sidebar). .rd-sidebar reserves its height in shell.css
+   (--rd-sidebar-foot-height). */
+.rd-sidebar-foot {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
+    padding: 14px 14px 12px;
+    background: var(--rd-shell-bg);
+    border-top: 1px solid var(--rd-shell-border);
+}
+
+/* A boxed button of its own above the release status. */
+.rd-sidebar-foot .rd-sidebar-sponsor {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: color-mix(in srgb, var(--rd-shell-ink) 4%, transparent);
+    border: 1px solid var(--rd-shell-border-strong);
+    border-radius: 8px;
+    color: var(--rd-shell-ink);
+}
+
+.rd-sidebar-foot .rd-sidebar-sponsor:hover,
+.rd-sidebar-foot .rd-sidebar-sponsor:focus {
+    background: color-mix(in srgb, var(--rd-shell-ink) 8%, transparent);
+}
+
+/* The menu's fixed 40px icon slot is too wide inside the box. */
+.rd-sidebar-foot .rd-sidebar-sponsor > i {
+    width: auto;
+}
+
+.rd-sidebar-foot .rd-sidebar-sponsor > .rd-sidebar-sponsor-ext {
+    color: var(--rd-shell-ink-muted);
+    font-size: 15px;
+}
+
+.rd-sidebar-version {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
     font-size: 12px;
-    background: var(--rd-shell-bg);
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 .rd-sidebar-version-num {
     color: var(--rd-shell-ink-muted);
@@ -418,10 +450,6 @@ hr {
     border-top-color: var(--rd-border);
 }
 
-.rd-footer {
-    color: var(--rd-ink-dim);
-}
-
 /* Scrollbars: match the surfaces instead of the OS default light track. */
 * {
     scrollbar-color: var(--rd-border-strong) transparent;
@@ -514,17 +542,15 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     color: var(--rd-shell-accent);
 }
 
-/* Sidebar footer (markup already exists — this restyles it, see the
-   .rd-sidebar-version rules further up). Two rows: a status line, then the
-   running version with its badge. The sidebar already reserves the space —
-   .rd-sidebar carries a padding-bottom of a footer height plus change —
-   so the block can grow to two lines without covering the last nav item. */
+/* Release status row in the sidebar footer (see .rd-sidebar-foot further
+   up): status and running version on one line, or the version and its
+   upgrade badge. */
 .rd-sidebar-version {
     flex-wrap: wrap;
     row-gap: 6px;
-    column-gap: 8px;
-    padding: 12px 16px;
-    border-top: 1px solid var(--rd-shell-border);
+    column-gap: 10px;
+    justify-content: space-between;
+    padding: 12px 2px 0;
     color: var(--rd-shell-ink-dim);
 }
 
@@ -532,18 +558,24 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     color: var(--rd-shell-ink-muted);
 }
 
-/* Status line for the sidebar footer. flex-basis:100% puts it on its own row
-   above the version. The dot inherits the line's colour, so the state is set
-   by a modifier on the line — the bootstrap text-* utilities are no use here
-   because their light-theme values are tuned for a white surface and this
-   block sits on the dark chrome in both themes. */
+/* Status in the sidebar footer. The icon inherits the line's colour, so the
+   state is set by a modifier on the line: the bootstrap text-* utilities are
+   no use here because their light-theme values are tuned for a white surface
+   and this block sits on the dark chrome in both themes. */
 .rd-sidebar-status {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 7px;
-    flex-basis: 100%;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--rd-shell-ink) 6%, transparent);
     font-size: 12px;
     font-weight: 500;
+}
+
+.rd-sidebar-status > i[class^="ri-"] {
+    font-size: 15px;
+    line-height: 1;
 }
 
 .rd-sidebar-status .rd-dot {
@@ -552,11 +584,8 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
 }
 
 .rd-sidebar-status-ok {
+    background: color-mix(in srgb, var(--rd-shell-green) 14%, transparent);
     color: var(--rd-shell-green);
-}
-
-.rd-sidebar-status-warn {
-    color: var(--rd-shell-amber);
 }
 
 .rd-sidebar-status-unknown {
@@ -621,12 +650,6 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
 .rd-topbar-menu .nav-link.rd-topbar-btn i {
     font-size: inherit;
     line-height: 1;
-}
-
-/* The upgrade notice reads as a badge, not as a button, so it gets no hover
-   chrome of its own — only the badge inside it is interactive-looking. */
-.rd-topbar-menu .rd-topbar-upgrade .rd-shell-badge {
-    padding: 6px 10px;
 }
 
 /* User chip. */
@@ -1726,6 +1749,62 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     background-color: var(--rd-tone);
 }
 
+/* --- Path list (Overview: how sessions connected) ------------------------
+   A bar list row with an icon and a one-line description; the whole row
+   links to the filtered connection log. */
+.rd-pathlist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rd-pathlist-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    margin: 0 -8px;
+    border-radius: var(--rd-radius-sm);
+    color: inherit;
+    text-decoration: none;
+}
+
+.rd-pathlist-row:hover,
+.rd-pathlist-row:focus-visible {
+    background-color: var(--rd-surface-2);
+}
+
+.rd-pathlist-body {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.rd-pathlist-body .rd-barlist-head {
+    margin-bottom: 0;
+}
+
+.rd-pathlist-hint {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--rd-ink-dim);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rd-pathlist-body .rd-barlist-track {
+    display: block;
+}
+
+.rd-pathlist-body .rd-barlist-fill {
+    display: block;
+}
+
 /* --- Alert feed ----------------------------------------------------------
    A short list of recent events: hairline between rows, no outer rules. */
 .rd-feed {
@@ -1749,47 +1828,6 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
 
 .rd-feed-item:last-child {
     padding-bottom: 0;
-}
-
-/* How sessions connected, under the connections chart: one stacked bar and
-   its legend in a row. Each part takes its colour from a .rd-tone-* class. */
-.rd-pathmix {
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--rd-border);
-}
-
-.rd-pathmix-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-.rd-split {
-    display: flex;
-    gap: 2px;
-    height: 8px;
-    border-radius: var(--rd-radius-pill);
-    overflow: hidden;
-    background-color: var(--rd-surface-2);
-}
-
-.rd-split-part {
-    min-width: 3px;
-    background-color: var(--rd-tone);
-}
-
-.rd-legend-inline {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 8px 22px;
-    margin-top: 10px;
-}
-
-.rd-legend-inline .rd-legend-count {
-    margin-left: 4px;
 }
 
 
@@ -2169,6 +2207,16 @@ a.rd-mini-sub:hover {
 .rd-rowact .rd-act:hover,
 .rd-rowact .rd-act:focus-visible {
     color: var(--rd-ink);
+}
+
+/* Icon row actions (the device list): the card strip, right-aligned. */
+.rd-rowact .rd-mini-acts {
+    justify-content: flex-end;
+}
+
+.rd-rowact .rd-iconbtn:hover,
+.rd-rowact .rd-iconbtn:focus-visible {
+    text-decoration: none;
 }
 
 
@@ -2715,6 +2763,17 @@ a.rd-mini-sub:hover {
     color: rgba(230, 237, 243, 0.62);
 }
 
+.rd-auth-note a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.rd-auth-note a:hover,
+.rd-auth-note a:focus-visible {
+    color: rgba(230, 237, 243, 0.9);
+    text-decoration: underline;
+}
+
 
 /* =========================================================================
    19. PHONE — the 390px contract
@@ -3103,6 +3162,563 @@ a.rd-mini-sub:hover {
 .rd-check-grid { display: grid; grid-template-columns: 1fr; gap: 6px 20px; max-height: 220px; overflow-y: auto; padding: 10px 12px; border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius); }
 @media (min-width: 768px) { .rd-check-grid { grid-template-columns: 1fr 1fr; } }
 
-/* Sidebar: the sponsor link sits apart from the System section, heart in red. */
-.rd-nav-sponsor { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rd-shell-border); }
-.rd-nav-sponsor .rd-nav-link > i { color: #e5484d; }
+/* Sidebar footer: the sponsor link, heart in red. */
+.rd-sidebar-sponsor > i { color: #e5484d; }
+
+
+/* =========================================================================
+   DEVICE PAGE (resources/views/livewire/device-detail.blade.php)
+   Tab strip, hardware snapshot, connection map, activity strip and the
+   shortcut tiles on the Overview tab.
+   ========================================================================= */
+
+.rd-dd-tabs {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--rd-border);
+}
+
+.rd-dd-tabs .nav-tabs.nav-bordered {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-bottom: 0;
+}
+
+.rd-dd-seen {
+    flex: none;
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+    white-space: nowrap;
+}
+
+/* --- Hardware snapshot -------------------------------------------------- */
+.rd-hw {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 20px;
+    align-items: stretch;
+    height: 100%;
+}
+
+/* The platform glyph on a lit floor: a perspective grid, a glow and four
+   accent corner brackets. */
+.rd-hw-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    overflow: hidden;
+    border-radius: var(--rd-radius-sm);
+    background:
+        linear-gradient(var(--rd-accent), var(--rd-accent)) left 10px top 10px / 18px 2px no-repeat,
+        linear-gradient(var(--rd-accent), var(--rd-accent)) left 10px top 10px / 2px 18px no-repeat,
+        linear-gradient(var(--rd-accent), var(--rd-accent)) right 10px top 10px / 18px 2px no-repeat,
+        linear-gradient(var(--rd-accent), var(--rd-accent)) right 10px top 10px / 2px 18px no-repeat,
+        linear-gradient(var(--rd-accent), var(--rd-accent)) left 10px bottom 10px / 18px 2px no-repeat,
+        linear-gradient(var(--rd-accent), var(--rd-accent)) left 10px bottom 10px / 2px 18px no-repeat,
+        linear-gradient(var(--rd-accent), var(--rd-accent)) right 10px bottom 10px / 18px 2px no-repeat,
+        linear-gradient(var(--rd-accent), var(--rd-accent)) right 10px bottom 10px / 2px 18px no-repeat,
+        radial-gradient(ellipse at 50% 45%, rgba(var(--rd-accent-rgb), 0.16), transparent 62%),
+        var(--rd-surface-2);
+}
+
+.rd-hw-stage::before {
+    content: "";
+    position: absolute;
+    left: -30%;
+    right: -30%;
+    bottom: -40%;
+    height: 80%;
+    background-image:
+        linear-gradient(rgba(var(--rd-accent-rgb), 0.28) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--rd-accent-rgb), 0.28) 1px, transparent 1px);
+    background-size: 28px 28px;
+    transform: perspective(260px) rotateX(62deg);
+    transform-origin: 50% 0;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 85%);
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 85%);
+}
+
+.rd-hw-glyph {
+    position: relative;
+    font-size: 104px;
+    line-height: 1;
+    filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.55));
+}
+
+.rd-hw-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rd-hw-tile {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    padding: 14px 16px;
+}
+
+.rd-hw-tile:nth-child(odd) {
+    border-right: 1px solid var(--rd-border);
+}
+
+.rd-hw-tile:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--rd-border);
+}
+
+.rd-hw-tile > i {
+    margin-bottom: 10px;
+    font-size: 26px;
+    line-height: 1;
+    color: var(--rd-accent);
+}
+
+.rd-hw-value {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--rd-ink);
+}
+
+.rd-hw-label {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+}
+
+@media (max-width: 575.98px) {
+    .rd-hw {
+        grid-template-columns: 1fr;
+    }
+
+    .rd-hw-stage {
+        min-height: 170px;
+    }
+
+    .rd-hw-glyph {
+        font-size: 80px;
+    }
+}
+
+/* --- Connection map -----------------------------------------------------
+   Grid: [incoming] [links] [this device] [links] [outgoing]. Nodes are one
+   fixed height and spread with space-around, so node i of n is centred at
+   (i + 0.5) / n of the column: the curves in the link SVG are drawn to
+   those same fractions. */
+.rd-flow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
+    align-items: stretch;
+}
+
+.rd-flow.rd-flow-has-in.rd-flow-has-out {
+    grid-template-columns: minmax(0, 1fr) 56px minmax(0, 0.9fr) 56px minmax(0, 1fr);
+}
+
+.rd-flow-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    min-width: 0;
+}
+
+.rd-flow-node {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 56px;
+    margin: 6px 0;
+    padding: 0 12px;
+    border: 1px solid var(--rd-border);
+    border-radius: var(--rd-radius-sm);
+    background-color: var(--rd-surface-2);
+    color: inherit;
+    text-decoration: none;
+}
+
+a.rd-flow-node:hover,
+a.rd-flow-node:focus-visible {
+    border-color: var(--rd-border-strong);
+    background-color: var(--rd-surface-3);
+}
+
+.rd-flow-node > i {
+    flex: none;
+    color: var(--rd-ink-muted);
+}
+
+.rd-flow-more {
+    justify-content: center;
+    border-style: dashed;
+    background-color: transparent;
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+}
+
+.rd-flow-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rd-flow-link svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.rd-flow-link path {
+    fill: none;
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.rd-flow-link-in path {
+    stroke: var(--rd-teal);
+}
+
+.rd-flow-link-out path {
+    stroke: var(--rd-purple);
+}
+
+.rd-flow-link > i {
+    display: none;
+}
+
+.rd-flow-center {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.rd-flow-self {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    padding: 18px 12px;
+    border: 1px solid var(--rd-accent);
+    border-radius: var(--rd-radius-sm);
+    background-color: rgba(var(--rd-accent-rgb), 0.06);
+    font-weight: 600;
+    color: var(--rd-ink);
+    text-align: center;
+}
+
+.rd-flow-self > span {
+    max-width: 100%;
+}
+
+/* Arrowheads where a curve meets a box. */
+.rd-flow-has-in .rd-flow-self::before,
+.rd-flow-out .rd-flow-node::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: -7px;
+    margin-top: -5px;
+    border-style: solid;
+    border-width: 5px 0 5px 7px;
+    border-color: transparent transparent transparent var(--rd-teal);
+}
+
+.rd-flow-out .rd-flow-node::before {
+    border-left-color: var(--rd-purple);
+}
+
+.rd-flow-out .rd-flow-more::before {
+    display: none;
+}
+
+.rd-flow-foot {
+    margin-top: 18px;
+}
+
+.rd-flow-split {
+    display: flex;
+    gap: 2px;
+    height: 8px;
+    margin: 8px 0 10px;
+    overflow: hidden;
+    border-radius: var(--rd-radius-pill);
+    background-color: var(--rd-surface-2);
+}
+
+.rd-flow-split-in {
+    background-color: var(--rd-teal);
+}
+
+.rd-flow-split-out {
+    background-color: var(--rd-purple);
+}
+
+.rd-flow-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 18px;
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+}
+
+.rd-flow-key::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 2px;
+    vertical-align: -1px;
+}
+
+.rd-flow-key-in::before {
+    background-color: var(--rd-teal);
+}
+
+.rd-flow-key-out::before {
+    background-color: var(--rd-purple);
+}
+
+/* Phones: one column, the curves become a down arrow between groups. */
+@media (max-width: 767.98px) {
+    .rd-flow,
+    .rd-flow.rd-flow-has-in.rd-flow-has-out {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rd-flow-link {
+        height: 28px;
+    }
+
+    .rd-flow-link svg,
+    .rd-flow-has-in .rd-flow-self::before,
+    .rd-flow-out .rd-flow-node::before {
+        display: none;
+    }
+
+    .rd-flow-link > i {
+        display: block;
+        font-size: 18px;
+    }
+
+    .rd-flow-link-in > i {
+        color: var(--rd-teal);
+    }
+
+    .rd-flow-link-out > i {
+        color: var(--rd-purple);
+    }
+}
+
+/* --- Activity strip and shortcut tiles ---------------------------------- */
+.rd-dd-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rd-dd-strip-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px 20px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.rd-dd-strip-item + .rd-dd-strip-item {
+    border-left: 1px solid var(--rd-border);
+}
+
+.rd-dd-strip-item:hover,
+.rd-dd-strip-item:focus-visible {
+    background-color: var(--rd-surface-2);
+}
+
+.rd-dd-strip-item > i,
+.rd-dd-tile > i:first-child {
+    flex: none;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--rd-ink-muted);
+}
+
+.card.rd-dd-tile {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.card.rd-dd-tile:hover,
+.card.rd-dd-tile:focus-visible {
+    border-color: var(--rd-border-strong);
+}
+
+.rd-dd-tile-title {
+    flex: none;
+    font-weight: 600;
+    color: var(--rd-ink);
+}
+
+.rd-dd-tile-sub {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+}
+
+.rd-dd-tile-action {
+    flex: none;
+    font-size: 13px;
+    color: var(--rd-accent-ink);
+}
+
+.rd-dd-tile-go {
+    flex: none;
+    color: var(--rd-ink-muted);
+}
+
+@media (max-width: 767.98px) {
+    .rd-dd-strip {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rd-dd-strip-item + .rd-dd-strip-item {
+        border-left: 0;
+        border-top: 1px solid var(--rd-border);
+    }
+
+    .rd-dd-seen {
+        display: none;
+    }
+}
+
+/* --- ABOUT DIALOG (layouts/partials/about-modal.blade.php) ----------------
+   Opened from the version and the status pill in the sidebar footer. */
+button.rd-sidebar-version-num,
+button.rd-sidebar-status {
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+}
+button.rd-sidebar-version-num {
+    padding: 2px 4px;
+    margin-left: -4px;
+    border-radius: 4px;
+    background: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+button.rd-sidebar-version-num:hover,
+button.rd-sidebar-version-num:focus-visible {
+    color: var(--rd-shell-ink);
+    background: color-mix(in srgb, var(--rd-shell-ink) 8%, transparent);
+}
+button.rd-sidebar-status {
+    font-size: 12px;
+    font-weight: 500;
+}
+button.rd-sidebar-status:hover {
+    filter: brightness(1.15);
+}
+
+.rd-about-dialog {
+    max-width: 360px;
+}
+.rd-about {
+    position: relative;
+    align-items: center;
+    padding: 32px 28px 22px;
+    text-align: center;
+}
+.rd-about-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+}
+.rd-about-logo {
+    margin-bottom: 14px;
+}
+.rd-about-title {
+    margin-bottom: 4px;
+    font-size: 20px;
+    font-weight: 700;
+}
+.rd-about-version {
+    color: var(--rd-ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+}
+.rd-about-released {
+    margin-top: 2px;
+    color: var(--rd-ink-dim);
+    font-size: 12.5px;
+}
+.rd-about-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 18px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--rd-ink) 6%, transparent);
+    color: var(--rd-ink-dim);
+    font-size: 13px;
+    font-weight: 600;
+}
+.rd-about-status > i[class^="ri-"] {
+    font-size: 16px;
+    line-height: 1;
+}
+.rd-about-status .rd-dot {
+    margin-right: 0;
+    top: 0;
+}
+.rd-about-status-ok {
+    background: color-mix(in srgb, var(--rd-green) 14%, transparent);
+    color: var(--rd-green);
+}
+.rd-about-status-new {
+    background: color-mix(in srgb, var(--rd-amber) 16%, transparent);
+    color: var(--rd-amber);
+}
+.rd-about-notes {
+    margin-top: 14px;
+}
+.rd-about-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rd-border);
+    color: var(--rd-ink-dim);
+    font-size: 12px;
+}
+.rd-about-foot p {
+    margin: 0;
+}
+.rd-about-foot a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.rd-about-foot a:hover {
+    color: var(--rd-ink);
+}

@@ -163,6 +163,8 @@ return [
     'signed_in_users_without_2fa' => 'A 2FA nélküli bejelentkezett felhasználók a beállítási képernyőre kerülnek, és a regisztrációig nem használhatják a konzolt. A RustDesk-kliens addig elutasítja a jelszavas bejelentkezésüket.',
     'single_sign_on_oidc' => 'Egyszeri bejelentkezés (OIDC)',
     'smtp_host' => 'SMTP-kiszolgáló',
+    'smtp_skip_cert_check' => 'Tanúsítvány-ellenőrzés kihagyása',
+    'smtp_skip_cert_check_help' => 'Csak olyan továbbítóhoz, amelynek tanúsítványa nem egyezik a gépnévvel. A konzol ekkor bármelyik válaszoló szervernek elküldi az SMTP-jelszót. Biztonságosabb, ha a tanúsítványon szereplő nevet adja meg gépnévként.',
     'snooze_alerts' => 'Értesítések szüneteltetése',
     'sso' => 'SSO',
     'starttls_usually_port_587' => 'STARTTLS (általában a 587-es port)',

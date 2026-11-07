@@ -17,6 +17,7 @@ import {
   resolveWorkerUrl,
   saveSavedHash,
   setLoggedOutParam,
+  webRtcAvailable,
   type RdGlobalConfig,
 } from './common';
 import {
@@ -52,6 +53,8 @@ type Els = ConnectCardEls & {
   toast: HTMLElement;
   keepCheckbox: HTMLInputElement;
   keepRow: HTMLElement;
+  forceRelayCheckbox: HTMLInputElement;
+  forceRelayRow: HTMLElement;
 };
 
 type PanelLike = Pick<TerminalPanel, 'open' | 'connect' | 'setTitle' | 'submitTwoFactor' | 'destroy' | 'connected'>;
@@ -80,6 +83,10 @@ export class TerminalApp {
       <label class="rd-save" id="rd-terminal-keep-row">
         <input type="checkbox" id="rd-terminal-keep">
         <span>${htl('keep_terminal_available_after_disconnect')}</span>
+      </label>
+      <label class="rd-save" id="rd-terminal-force-relay-row"${this.cfg?.webrtc && webRtcAvailable() ? '' : ' hidden'}>
+        <input type="checkbox" id="rd-terminal-force-relay">
+        <span>${htl('force_relay_connection')}</span>
       </label>`;
     Object.assign(this.el, renderConnectCard(this.el.overlay, {
       tagline: `${htl('remote_terminal')} ${overlayVersion(this.cfg)}`,
@@ -87,6 +94,8 @@ export class TerminalApp {
     }));
     this.el.keepCheckbox = this.el.overlay.querySelector<HTMLInputElement>('#rd-terminal-keep')!;
     this.el.keepRow = this.el.overlay.querySelector<HTMLElement>('#rd-terminal-keep-row')!;
+    this.el.forceRelayCheckbox = this.el.overlay.querySelector<HTMLInputElement>('#rd-terminal-force-relay')!;
+    this.el.forceRelayRow = this.el.overlay.querySelector<HTMLElement>('#rd-terminal-force-relay-row')!;
 
     this.panel = new TerminalPanel({
       root: this.el.viewport,
@@ -183,6 +192,7 @@ export class TerminalApp {
   private hooks(): TerminalPageHooks {
     return {
       persistent: () => this.el.keepCheckbox.checked,
+      forceRelay: () => this.el.forceRelayCheckbox.checked,
       onProgress: (state, detail) => this.onProgress(state, detail),
       onLive: () => this.onLive(),
       onTwoFactor: (wrong) => this.onTwoFactor(wrong),
@@ -257,6 +267,7 @@ export class TerminalApp {
   private twoFactorView(on: boolean): void {
     showTwoFactor(this.el, on, !!this.fixedPeerId);
     this.el.keepRow.hidden = on;
+    this.el.forceRelayRow.hidden = on || !(this.cfg?.webrtc && webRtcAvailable());
   }
 
   private onLive(): void {
@@ -332,7 +343,7 @@ export class TerminalApp {
   }
 
   private setBusy(busy: boolean): void {
-    for (const control of [this.el.connectBtn, this.el.peerIdInput, this.el.passwordInput, this.el.twoFactorInput, this.el.twoFactorBtn]) {
+    for (const control of [this.el.connectBtn, this.el.peerIdInput, this.el.passwordInput, this.el.twoFactorInput, this.el.twoFactorBtn, this.el.forceRelayCheckbox]) {
       control.disabled = busy;
     }
     if (busy) this.setError(null);

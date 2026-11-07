@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'Não foi possível ler a pasta: :message',
     'follow_remote_cursor' => 'Seguir cursor remoto',
     'follow_remote_window_focus' => 'Seguir janela remota ativa',
+    'force_relay_connection' => 'Forçar conexão por relay',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Taxa de quadros e codec',
     'frames_dropped' => 'Quadros descartados',

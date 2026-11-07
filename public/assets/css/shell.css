@@ -25,14 +25,14 @@
 :root {
     /* Shell metrics. */
     --rd-topbar-height: 70px;
-    --rd-footer-height: 60px;
+    --rd-sidebar-foot-height: 106px;
     --rd-sidebar-width: 240px;
     --rd-sidebar-width-sm: 70px;
     --rd-nav-font-size: 0.875rem;
     --rd-nav-icon-size: 1.125rem;
     --rd-nav-icon-width: 40px;
     --rd-nav-pad-x: 8px;
-    --rd-nav-pad-y: 9px;
+    --rd-nav-pad-y: 8px;
 }
 
 
@@ -683,7 +683,9 @@ textarea.form-control {
     --bs-modal-box-shadow: 0 0.125rem 0.25rem rgba(var(--bs-body-color-rgb), 0.15);
 }
 
-.modal-dialog {
+/* On the content, not the dialog: a centred dialog is full viewport height,
+   so a shadow there draws two faint lines down the screen. */
+.modal-content {
     box-shadow: var(--bs-box-shadow);
 }
 
@@ -842,7 +844,7 @@ textarea.form-control {
        .rd-topbar > .rd-topbar-inner      sticky bar right of the sidebar
        .rd-sidebar                        fixed left column
          .rd-sidebar-logo, .rd-sidebar-scroll > .rd-nav
-       .rd-main > .rd-content             page; .rd-footer pinned at bottom
+       .rd-main > .rd-content             page
 
    <html data-rd-sidebar> picks the sidebar form: expanded, condensed or
    offcanvas (theme-init.js / shell.js). The sidebar and topbar sit on the
@@ -969,7 +971,7 @@ textarea.form-control {
     z-index: 1000;
     width: var(--rd-sidebar-width);
     min-width: var(--rd-sidebar-width);
-    padding-bottom: calc(var(--rd-footer-height) + 0.75rem);
+    padding-bottom: var(--rd-sidebar-foot-height);
     background: var(--rd-shell-bg);
     border-right: 1px solid var(--bs-border-color);
     box-shadow: var(--bs-box-shadow);
@@ -1140,13 +1142,13 @@ textarea.form-control {
     font-weight: 500;
 }
 
-/* --- Content area, page title, footer ------------------------------------ */
+/* --- Content area, page title -------------------------------------------- */
 
 .rd-main {
     position: relative;
     min-height: calc(100vh - var(--rd-topbar-height) - 2px);
     margin-left: var(--rd-sidebar-width);
-    padding: 0 0.75rem var(--rd-footer-height);
+    padding: 0 0.75rem 24px;
     transition: all 0.25s ease-in-out;
 }
 
@@ -1168,19 +1170,6 @@ textarea.form-control {
     padding-top: 8px;
 }
 
-.rd-footer {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    display: flex;
-    align-items: center;
-    height: var(--rd-footer-height);
-    padding: 0 1.5rem;
-    border-top: 1px solid var(--bs-border-color);
-    transition: all 0.25s ease-in-out;
-}
-
 @media (max-width: 767.98px) {
     .rd-page-title {
         display: block;
@@ -1189,10 +1178,6 @@ textarea.form-control {
 
     .rd-page-crumbs {
         display: none;
-    }
-
-    .rd-footer {
-        text-align: center;
     }
 }
 
@@ -1236,8 +1221,24 @@ html[data-rd-sidebar="condensed"] .rd-sidebar-logo .rd-logo-sm {
 }
 
 html[data-rd-sidebar="condensed"] .rd-nav-title,
-html[data-rd-sidebar="condensed"] .rd-sidebar-version {
+html[data-rd-sidebar="condensed"] .rd-sidebar-version,
+html[data-rd-sidebar="condensed"] .rd-sidebar-sponsor span,
+html[data-rd-sidebar="condensed"] .rd-sidebar-sponsor-ext {
     display: none;
+}
+
+/* Icons only: the footer keeps just the heart, centred like the menu icons. */
+html[data-rd-sidebar="condensed"] {
+    --rd-sidebar-foot-height: 58px;
+}
+
+html[data-rd-sidebar="condensed"] .rd-sidebar-foot {
+    padding: 8px 10px;
+}
+
+html[data-rd-sidebar="condensed"] .rd-sidebar-foot .rd-sidebar-sponsor {
+    justify-content: center;
+    padding: 9px 0;
 }
 
 html[data-rd-sidebar="condensed"] .rd-nav .collapse,
@@ -1366,8 +1367,7 @@ html[data-rd-sidebar="offcanvas"].rd-sidebar-open .rd-sidebar {
 @media print {
     .rd-sidebar,
     .rd-topbar,
-    .rd-page-head,
-    .rd-footer {
+    .rd-page-head {
         display: none;
     }
 

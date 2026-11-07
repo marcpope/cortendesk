@@ -163,6 +163,8 @@ return [
     'signed_in_users_without_2fa' => 'Ingelogde gebruikers zonder 2FA worden naar het instelscherm gestuurd en kunnen de console pas gebruiken als ze 2FA hebben ingesteld. Tot die tijd weigert de RustDesk-client het inloggen met hun wachtwoord.',
     'single_sign_on_oidc' => 'Single sign-on (OIDC)',
     'smtp_host' => 'SMTP-host',
+    'smtp_skip_cert_check' => 'Certificaatcontrole overslaan',
+    'smtp_skip_cert_check_help' => 'Alleen voor een relay waarvan het certificaat niet bij de hostnaam past. De console stuurt het SMTP-wachtwoord dan naar elke server die antwoordt. Veiliger is het om als host de naam op het certificaat in te vullen.',
     'snooze_alerts' => 'Meldingen pauzeren',
     'sso' => 'SSO',
     'starttls_usually_port_587' => 'STARTTLS (meestal poort 587)',

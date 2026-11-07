@@ -83,7 +83,6 @@ return [
     'save_assignment' => 'Hozzárendelés mentése',
     'saving' => 'Mentés…',
     'search_id_alias_hostname' => 'Keresés: azonosító, álnév, gépnév…',
-    'self_hosted_rustdesk_console' => 'Saját üzemeltetésű RustDesk-konzol',
     'send' => 'Küldés',
     'sending' => 'Küldés…',
     'sessions' => 'Munkamenetek',

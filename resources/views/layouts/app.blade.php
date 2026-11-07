@@ -52,24 +52,11 @@
 
                 </div>
             </div>
-
-            <footer class="rd-footer">
-                <div class="container-fluid">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <script>document.write(new Date().getFullYear())</script> © CortenDesk
-                        </div>
-                        <div class="col-md-6">
-                            <div class="text-md-end d-none d-md-block">
-                                <span class="text-muted">{{ __('common.self_hosted_rustdesk_console') }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </footer>
         </div>
 
     </div>
+
+    @include('layouts.partials.about-modal')
 
     <script src="{{ \App\Support\Asset::url('assets/vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ \App\Support\Asset::url('assets/js/shell.js') }}"></script>

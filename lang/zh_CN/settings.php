@@ -163,6 +163,8 @@ return [
     'signed_in_users_without_2fa' => '未启用 2FA 的已登录用户会被引导到设置页面，在完成绑定前无法使用控制台。在此之前，RustDesk 客户端也会拒绝其密码登录。',
     'single_sign_on_oidc' => '单点登录（OIDC）',
     'smtp_host' => 'SMTP 主机',
+    'smtp_skip_cert_check' => '跳过证书检查',
+    'smtp_skip_cert_check_help' => '仅用于证书与主机名不匹配的邮件服务器。启用后，控制台会把 SMTP 密码发送给任何应答的服务器。更安全的做法是把主机设为证书上的名称。',
     'snooze_alerts' => '静默提醒',
     'sso' => 'SSO',
     'starttls_usually_port_587' => 'STARTTLS（通常为 587 端口）',

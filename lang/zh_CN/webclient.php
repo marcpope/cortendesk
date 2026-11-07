@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => '无法读取文件夹：:message',
     'follow_remote_cursor' => '跟随远程光标',
     'follow_remote_window_focus' => '跟随远程窗口焦点',
+    'force_relay_connection' => '强制走中继连接',
     'fps' => '帧率',
     'frame_rate_and_codec' => '帧率和编解码',
     'frames_dropped' => '丢帧',

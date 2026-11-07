@@ -142,6 +142,8 @@ class SettingsPage extends Component
 
     public string $smtpUsername = '';
 
+    public bool $smtpSkipCertCheck = false;
+
     /** Write-only. Left blank on load; a blank value on save keeps the stored password. */
     public string $smtpPassword = '';
 
@@ -265,6 +267,7 @@ class SettingsPage extends Component
         $this->smtpPort = (int) (Setting::get('smtp_port', '587') ?: 587);
         $this->smtpEncryption = Setting::get('smtp_encryption', 'starttls') ?? 'starttls';
         $this->smtpUsername = Setting::get('smtp_username', '') ?? '';
+        $this->smtpSkipCertCheck = Setting::get('smtp_skip_cert_check', '0') === '1';
         $this->smtpPasswordSet = trim((string) Setting::get('smtp_password', '')) !== '';
         $this->smtpFromAddress = Setting::get('smtp_from_address', '') ?? '';
         $this->smtpFromName = Setting::get('smtp_from_name', '') ?? '';
@@ -542,6 +545,7 @@ class SettingsPage extends Component
         Setting::put('smtp_port', (string) $this->smtpPort);
         Setting::put('smtp_encryption', $this->smtpEncryption);
         Setting::put('smtp_username', trim($this->smtpUsername));
+        Setting::put('smtp_skip_cert_check', $this->smtpSkipCertCheck ? '1' : '0');
         Setting::put('smtp_from_address', trim($this->smtpFromAddress));
         Setting::put('smtp_from_name', trim($this->smtpFromName));
         Setting::put('smtp_footer', trim($this->smtpFooter));

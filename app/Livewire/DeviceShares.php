@@ -8,6 +8,7 @@ use App\Models\Device;
 use App\Models\DeviceShare;
 use App\Models\Strategy;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -55,6 +56,8 @@ class DeviceShares extends Component
         $this->maxViewers = 1;
     }
 
+    /** The device overview's Share screen tile. */
+    #[On('device-share-start')]
     public function startCreate(): void
     {
         $this->authorizeConsole('device', 'rw');

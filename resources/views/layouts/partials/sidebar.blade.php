@@ -176,52 +176,51 @@
                     </li>
                 @endif
             @endif
-
-            {{-- For everyone, admin or not: the project's GitHub Sponsors page. --}}
-            <li class="rd-nav-item rd-nav-sponsor">
-                <a href="https://github.com/sponsors/marcpope" target="_blank" rel="noopener" class="rd-nav-link"
-                   title="{{ __('nav.sponsor_cortendesk_title') }}">
-                    <i class="ri-heart-3-line"></i>
-                    <span> {{ __('nav.sponsor_cortendesk') }} </span>
-                </a>
-            </li>
         </ul>
 
     </div>
 
-    @if ($canSettings)
-        @php
-            $rdUpgrade = \App\Support\UpdateChecker::upgradeAvailable();
-            // The console has no health probe of its own, so the status line
-            // reports the one signal that is real — the release check — and
-            // says so rather than claiming anything about the servers.
-            $rdChecked = \App\Support\UpdateChecker::latestVersion() !== null;
-        @endphp
-        <div class="rd-sidebar-version">
-            {{-- With the update check off there is nothing to report. --}}
-            @if (\App\Support\UpdateChecker::enabled())
-            <span class="rd-sidebar-status {{ $rdUpgrade ? 'rd-sidebar-status-warn' : ($rdChecked ? 'rd-sidebar-status-ok' : 'rd-sidebar-status-unknown') }}"
-                  title="{{ __('nav.cortendesk_compares_running_version_agai') }}">
-                <i class="rd-dot rd-dot-lg"></i>
-                <span class="rd-sidebar-status-label">
-                    @if ($rdUpgrade)
-                        {{ __('nav.update_available') }}
-                    @elseif ($rdChecked)
-                        {{ __('nav.running_latest_release') }}
-                    @else
-                        {{ __('nav.release_check_unavailable') }}
-                    @endif
-                </span>
-            </span>
-            @endif
-            <span class="rd-sidebar-version-num">v{{ config('cortendesk.api_version') }}</span>
-            {{-- The badge only appears when it carries something the status
-                 line above does not: the way to act on an upgrade. --}}
-            @if ($rdUpgrade)
-                <a href="{{ \App\Support\UpdateChecker::releaseNotesUrl($rdUpgrade) }}" target="_blank" rel="noopener"
-                   class="rd-shell-badge"
-                   title="{{ __('nav.version_version_is_available_opens', ['version' => $rdUpgrade]) }}"><i class="ri-download-cloud-2-line"></i>{{ __('nav.update_to_v_version', ['version' => $rdUpgrade]) }}</a>
-            @endif
-        </div>
-    @endif
+    {{-- Pinned under the scrolling menu: the sponsor link for everyone, then
+         the release status for whoever can act on it. --}}
+    <div class="rd-sidebar-foot">
+        <a href="https://cortendesk.com/sponsor" target="_blank" rel="noopener" class="rd-nav-link rd-sidebar-sponsor"
+           title="{{ __('nav.sponsor_cortendesk_title') }}">
+            <i class="ri-heart-3-line"></i>
+            <span>{{ __('nav.sponsor_cortendesk') }}</span>
+            <i class="ri-arrow-right-up-line rd-sidebar-sponsor-ext"></i>
+        </a>
+
+        @if ($canSettings)
+            @php
+                $rdUpgrade = \App\Support\UpdateChecker::upgradeAvailable();
+                // The console has no health probe of its own, so the status line
+                // reports the one signal that is real, the release check, and
+                // says so rather than claiming anything about the servers.
+                $rdChecked = \App\Support\UpdateChecker::latestVersion() !== null;
+            @endphp
+            <div class="rd-sidebar-version">
+                <button type="button" class="rd-sidebar-version-num" data-bs-toggle="modal" data-bs-target="#rd-about"
+                        title="{{ __('nav.about_cortendesk') }}">v{{ config('cortendesk.api_version') }}</button>
+                {{-- With the update check off there is nothing to report. With an
+                     upgrade out, the badge says it. --}}
+                @if (\App\Support\UpdateChecker::enabled() && ! $rdUpgrade)
+                    <button type="button" class="rd-sidebar-status {{ $rdChecked ? 'rd-sidebar-status-ok' : 'rd-sidebar-status-unknown' }}"
+                            data-bs-toggle="modal" data-bs-target="#rd-about"
+                            title="{{ __('nav.cortendesk_compares_running_version_agai') }}">
+                        @if ($rdChecked)
+                            <i class="ri-check-line"></i>{{ __('nav.up_to_date') }}
+                        @else
+                            <i class="rd-dot rd-dot-lg"></i>{{ __('nav.release_check_unavailable') }}
+                        @endif
+                    </button>
+                @endif
+                {{-- The one place an upgrade shows, with the link to act on it. --}}
+                @if ($rdUpgrade)
+                    <a href="{{ \App\Support\UpdateChecker::releaseNotesUrl($rdUpgrade) }}" target="_blank" rel="noopener"
+                       class="rd-shell-badge"
+                       title="{{ __('nav.version_version_is_available_opens', ['version' => $rdUpgrade]) }}"><i class="ri-download-cloud-2-line"></i>{{ __('nav.update_to_v_version', ['version' => $rdUpgrade]) }}</a>
+                @endif
+            </div>
+        @endif
+    </div>
 </div>

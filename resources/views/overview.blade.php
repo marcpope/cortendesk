@@ -25,9 +25,24 @@
 
     @livewire(App\Livewire\LiveStats::class)
 
+    @php
+        // With a path mix the bar chart gives up two columns and the path mix
+        // gets its own card beside the platforms one, so the row is no taller
+        // than the bar chart and the cards below move up.
+        $pathTotal = $pathMix ? array_sum($pathMix) : 0;
+        $pathTones = ['relay' => 'rd-tone-amber', 'direct' => 'rd-tone-green', 'lan' => 'rd-tone-blue', 'unknown' => 'rd-tone-muted'];
+        $pathIcons = ['relay' => 'ri-server-line', 'direct' => 'ri-arrow-left-right-line', 'lan' => 'ri-router-line', 'unknown' => 'ri-question-line'];
+        $pathHints = [
+            'relay' => __('overview.path_relay_short'),
+            'direct' => __('overview.path_direct_short'),
+            'lan' => __('overview.path_lan_short'),
+            'unknown' => __('overview.path_unknown_short'),
+        ];
+        $hasPaths = $connectionSeries !== null && $pathTotal > 0;
+    @endphp
     <div class="row rd-row-equal">
         @if ($connectionSeries !== null)
-        <div class="col-xl-8">
+        <div class="{{ $hasPaths ? 'col-xl-6' : 'col-xl-8' }}">
             <div class="card">
                 <div class="card-header d-flex flex-wrap align-items-center gap-2">
                     <div class="min-width-0">
@@ -47,42 +62,12 @@
                 </div>
                 <div class="card-body">
                     <div id="chart-connections" style="min-height: 300px;"></div>
-                    @if ($pathMix)
-                        @php
-                            $pathTotal = array_sum($pathMix);
-                            $pathTones = ['relay' => 'rd-tone-amber', 'direct' => 'rd-tone-green', 'lan' => 'rd-tone-blue', 'unknown' => 'rd-tone-muted'];
-                        @endphp
-                        {{-- How those sessions got through (issue #130). --}}
-                        <div class="rd-pathmix">
-                            <div class="rd-pathmix-head">
-                                <span class="rd-card-sub">{{ __('overview.how_sessions_connected') }}</span>
-                                <a href="{{ route('logs.connections', ['path' => 'relay']) }}" class="fs-13">{{ __('overview.relayed_sessions') }}</a>
-                            </div>
-                            <div class="rd-split" role="img" aria-label="{{ __('overview.how_sessions_connected') }}">
-                                @foreach ($pathMix as $key => $count)
-                                    @if ($count > 0)
-                                        <span class="rd-split-part {{ $pathTones[$key] }}" style="width: {{ round($count / $pathTotal * 100, 1) }}%"></span>
-                                    @endif
-                                @endforeach
-                            </div>
-                            <ul class="rd-legend rd-legend-inline">
-                                @foreach ($pathMix as $key => $count)
-                                    <li class="rd-legend-item {{ $pathTones[$key] }}">
-                                        <span class="rd-legend-swatch"></span>
-                                        <span class="rd-legend-label">{{ __('logs.path_'.$key) }}</span>
-                                        <span class="rd-legend-count">{{ $count }}</span>
-                                        <span class="rd-legend-pct">{{ round($count / $pathTotal * 100) }}%</span>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
                 </div>
             </div>
         </div>
         @endif
 
-        <div class="{{ $connectionSeries !== null ? 'col-xl-4' : 'col-12' }}">
+        <div class="{{ $hasPaths ? 'col-md-6 col-xl-3' : ($connectionSeries !== null ? 'col-xl-4' : 'col-12') }}">
             @php
                 $platformTotal = array_sum($platformMix['values']);
                 // Same order as the chart series palette in the script below.
@@ -122,6 +107,42 @@
                 </div>
             </div>
         </div>
+
+        @if ($hasPaths)
+            {{-- How those sessions got through (issue #130). --}}
+            <div class="col-md-6 col-xl-3">
+                <div class="card">
+                    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                        <div class="min-width-0">
+                            <h5 class="card-title">{{ __('overview.how_sessions_connected') }}</h5>
+                            <div class="rd-card-sub">{{ __('overview.sessions_last_days', ['days' => $range]) }}</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {{-- One row per path, bar = share of all sessions; each row
+                             opens the connection log filtered to that path. --}}
+                        <ul class="rd-pathlist">
+                            @foreach ($pathMix as $key => $count)
+                                <li class="{{ $pathTones[$key] }}">
+                                    <a href="{{ route('logs.connections', ['path' => $key]) }}" class="rd-pathlist-row">
+                                        <span class="rd-avatar rd-avatar-lg"><i class="{{ $pathIcons[$key] }}"></i></span>
+                                        <span class="rd-pathlist-body">
+                                            <span class="rd-barlist-head">
+                                                <span class="rd-barlist-label">{{ __('logs.path_'.$key) }}</span>
+                                                <span class="rd-barlist-count">{{ $count }}</span>
+                                                <span class="rd-barlist-pct">{{ round($count / $pathTotal * 100) }}%</span>
+                                            </span>
+                                            <span class="rd-pathlist-hint">{{ $pathHints[$key] }}</span>
+                                            <span class="rd-barlist-track"><span class="rd-barlist-fill" style="width: {{ round($count / $pathTotal * 100, 1) }}%"></span></span>
+                                        </span>
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 
     @php
@@ -242,6 +263,7 @@
     var connectionData = @json($connectionSeries);
     var platformData = @json($platformMix);
     var hasPlatformData = platformData.values.length > 0;
+    var totalLabels = @json(['devices' => __('common.devices')]);
 
     var charts = [];
 
@@ -326,7 +348,7 @@
                 plotOptions: { pie: { donut: { size: "78%", labels: { show: true,
                     name: { fontSize: "12px", color: t.muted, offsetY: 20 },
                     value: { fontSize: "26px", fontWeight: 600, color: t.ink, offsetY: -14 },
-                    total: { show: true, label: "Devices", color: t.muted, fontSize: "12px", formatter: function (w) {
+                    total: { show: true, label: totalLabels.devices, color: t.muted, fontSize: "12px", formatter: function (w) {
                         return w.globals.seriesTotals.reduce(function (a, b) { return a + b; }, 0);
                     } }
                 } } } },

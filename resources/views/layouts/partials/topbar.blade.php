@@ -21,21 +21,6 @@
 
         <ul class="rd-topbar-menu d-flex align-items-center">
 
-            @if ($rdUser?->consoleAllows('setting') && ($newVersion = \App\Support\UpdateChecker::upgradeAvailable()))
-                <li class="rd-topbar-upgrade">
-                    <a class="nav-link" href="{{ \App\Support\UpdateChecker::releaseNotesUrl($newVersion) }}" target="_blank" rel="noopener"
-                       data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('nav.version_version_is_available_opens', ['version' => $newVersion]) }}">
-                        {{-- The widest thing in the bar at ~150px. Below sm the icon carries
-                             it alone; the tooltip and the sidebar footer still name the
-                             version, so nothing is lost. Same label, icon and link as the
-                             sidebar badge (#67). --}}
-                        <span class="rd-shell-badge">
-                            <i class="ri-download-cloud-2-line"></i><span class="d-none d-sm-inline">{{ __('nav.update_to_v_version', ['version' => $newVersion]) }}</span>
-                        </span>
-                    </a>
-                </li>
-            @endif
-
             {{-- Reachable at every width. It used to drop below sm, which left the
                  light palette unreachable on a phone — the one screen size where
                  someone is most likely to be outdoors and want it. --}}

@@ -683,6 +683,16 @@
                                     </div>
                                 </div>
 
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="smtpSkipCertCheck" wire:model.live="smtpSkipCertCheck">
+                                        <label class="form-check-label" for="smtpSkipCertCheck">{{ __('settings.smtp_skip_cert_check') }}</label>
+                                    </div>
+                                    <div class="form-text @if ($smtpSkipCertCheck) text-warning @endif">
+                                        {{ __('settings.smtp_skip_cert_check_help') }}
+                                    </div>
+                                </div>
+
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">{{ __('common.username') }}</label>

@@ -10,6 +10,7 @@ use App\Models\ConsoleAudit;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\UserGroup;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -34,6 +35,13 @@ class AddressBookManager extends Component
     public string $bookName = '';
 
     public string $bookNote = '';
+
+    /** Write-only: blank keeps the stored default password (#162). */
+    public string $bookPassword = '';
+
+    public bool $bookPasswordSet = false;
+
+    public bool $bookPasswordClear = false;
 
     // Tag form
     public string $tagName = '';
@@ -164,7 +172,7 @@ class AddressBookManager extends Component
     {
         $this->authorizeConsole('address_book', 'rw');
 
-        $this->reset('bookName', 'bookNote');
+        $this->reset('bookName', 'bookNote', 'bookPassword', 'bookPasswordSet', 'bookPasswordClear');
         $this->resetValidation();
         $this->modal = 'newBook';
     }
@@ -177,6 +185,8 @@ class AddressBookManager extends Component
         }
         $this->bookName = $book->name;
         $this->bookNote = (string) $book->note;
+        $this->reset('bookPassword', 'bookPasswordClear');
+        $this->bookPasswordSet = $book->default_password_enc !== null;
         $this->resetValidation();
         $this->modal = 'renameBook';
     }
@@ -232,16 +242,18 @@ class AddressBookManager extends Component
         $this->validate([
             'bookName' => 'required|string|max:255',
             'bookNote' => 'nullable|string|max:500',
-        ], [], ['bookName' => 'name', 'bookNote' => 'note']);
+            'bookPassword' => 'nullable|string|max:255',
+        ], [], ['bookName' => 'name', 'bookNote' => 'note', 'bookPassword' => 'default password']);
 
         $book = AddressBook::create([
             'name' => trim($this->bookName),
             'note' => $this->bookNote !== '' ? $this->bookNote : null,
             'owner_user_id' => auth()->id() ?? 0,
             'is_personal' => false,
+            'default_password_enc' => $this->bookPassword !== '' ? Crypt::encryptString($this->bookPassword) : null,
         ]);
 
-        ConsoleAudit::record('address-book.create', 'Created address book '.$book->name, 'address-book', $book->name);
+        ConsoleAudit::record('address-book.create', 'Created address book '.$book->name.($this->bookPassword !== '' ? ', default password set' : ''), 'address-book', $book->name);
 
         $this->closeModal();
         $this->selectBook($book->id);
@@ -257,15 +269,27 @@ class AddressBookManager extends Component
         $this->validate([
             'bookName' => 'required|string|max:255',
             'bookNote' => 'nullable|string|max:500',
-        ], [], ['bookName' => 'name', 'bookNote' => 'note']);
+            'bookPassword' => 'nullable|string|max:255',
+        ], [], ['bookName' => 'name', 'bookNote' => 'note', 'bookPassword' => 'default password']);
 
         $oldName = $book->name;
+        $had = $book->default_password_enc !== null;
+        $password = match (true) {
+            $this->bookPassword !== '' => ['default_password_enc' => Crypt::encryptString($this->bookPassword)],
+            $this->bookPasswordClear => ['default_password_enc' => null],
+            default => [],
+        };
         $book->update([
             'name' => trim($this->bookName),
             'note' => $this->bookNote !== '' ? $this->bookNote : null,
-        ]);
+        ] + $password);
 
-        ConsoleAudit::record('address-book.update', $oldName !== $book->name ? 'Renamed address book '.$oldName.' to '.$book->name : 'Updated address book '.$book->name, 'address-book', $book->name);
+        $note = match (true) {
+            $password === [] => '',
+            $password['default_password_enc'] === null => $had ? ', default password cleared' : '',
+            default => $had ? ', default password changed' : ', default password set',
+        };
+        ConsoleAudit::record('address-book.update', ($oldName !== $book->name ? 'Renamed address book '.$oldName.' to '.$book->name : 'Updated address book '.$book->name).$note, 'address-book', $book->name);
 
         $this->closeModal();
     }

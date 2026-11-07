@@ -163,6 +163,8 @@ return [
     'signed_in_users_without_2fa' => 'Používatelia bez 2FA musia dokončiť nastavenie, kým budú môcť používať konzolu.',
     'single_sign_on_oidc' => 'Jednotné prihlásenie (OIDC)',
     'smtp_host' => 'Hostiteľ SMTP',
+    'smtp_skip_cert_check' => 'Preskočiť kontrolu certifikátu',
+    'smtp_skip_cert_check_help' => 'Len pre server, ktorého certifikát nezodpovedá názvu hostiteľa. Konzola potom pošle heslo SMTP akémukoľvek serveru, ktorý odpovie. Bezpečnejšie je zadať ako hostiteľa názov z certifikátu.',
     'snooze_alerts' => 'Odložiť upozornenia',
     'sso' => 'Jednotné prihlásenie',
     'starttls_usually_port_587' => 'STARTTLS (zvyčajne port 587)',

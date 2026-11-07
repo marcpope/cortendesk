@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,8 @@ use Illuminate\Support\Str;
 
 // AddressBookRule constants are referenced in permissionFor().
 
-#[Fillable(['guid', 'name', 'owner_user_id', 'is_personal', 'note'])]
+#[Fillable(['guid', 'name', 'owner_user_id', 'is_personal', 'note', 'default_password_enc'])]
+#[Hidden(['default_password_enc'])]
 class AddressBook extends Model
 {
     protected static function booted(): void

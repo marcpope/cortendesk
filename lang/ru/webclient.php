@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'Не удалось прочитать папку: :message',
     'follow_remote_cursor' => 'Следовать за удалённым курсором',
     'follow_remote_window_focus' => 'Следовать за фокусом удалённого окна',
+    'force_relay_connection' => 'Принудительное подключение через ретранслятор',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Частота кадров и кодек',
     'frames_dropped' => 'Пропущено кадров',

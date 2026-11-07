@@ -127,7 +127,7 @@
                             @if (! $book->is_personal && $canManage)
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-sm btn-light" wire:click="openRenameBook">
-                                        <i class="ri-pencil-line me-1"></i>{{ __('address_books.rename') }}
+                                        <i class="ri-pencil-line me-1"></i>{{ __('common.edit') }}
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger"
                                             wire:click="deleteBook"
@@ -400,7 +400,7 @@
                 <div class="modal-content">
                     <form wire:submit="{{ $modal === 'newBook' ? 'createBook' : 'renameBook' }}">
                         <div class="modal-header">
-                            <h5 class="modal-title">{{ $modal === 'newBook' ? __('address_books.new_shared_address_book') : __('address_books.rename_address_book') }}</h5>
+                            <h5 class="modal-title">{{ $modal === 'newBook' ? __('address_books.new_shared_address_book') : __('address_books.edit_address_book') }}</h5>
                             <button type="button" class="btn-close" wire:click="closeModal" aria-label="{{ __('common.close') }}"></button>
                         </div>
                         <div class="modal-body">
@@ -415,6 +415,21 @@
                                 <textarea id="ab-book-note" class="form-control @error('bookNote') is-invalid @enderror" rows="2"
                                           wire:model="bookNote"></textarea>
                                 @error('bookNote') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="mt-3 mb-0">
+                                <label class="form-label" for="ab-book-password">{{ __('address_books.default_password') }} <span class="text-muted">{{ __('address_books.optional') }}</span></label>
+                                <input type="password" id="ab-book-password" class="form-control @error('bookPassword') is-invalid @enderror"
+                                       wire:model="bookPassword" autocomplete="new-password"
+                                       placeholder="{{ $bookPasswordSet ? __('address_books.default_password_set_placeholder') : '' }}"
+                                       @disabled($bookPasswordClear)>
+                                @error('bookPassword') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                <div class="form-text">{{ __('address_books.default_password_help') }}</div>
+                                @if ($bookPasswordSet)
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="ab-book-password-clear" wire:model.live="bookPasswordClear">
+                                        <label class="form-check-label" for="ab-book-password-clear">{{ __('address_books.remove_default_password') }}</label>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                         <div class="modal-footer">

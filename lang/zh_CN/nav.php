@@ -1,9 +1,16 @@
 <?php
 
 return [
+    'about_copyright' => '©:year CortenDesk，作者 :author',
+    'about_cortendesk' => '关于 CortenDesk',
+    'about_license' => 'AGPL-3.0 许可证',
+    'about_new_version' => '有新版本可用：v:version',
+    'about_release_notes_for' => 'v:version 的发行说明',
+    'about_released' => '发布于 :date',
+    'about_version' => '版本 :version',
+    'auth_footer' => '©:year CortenDesk。兼容 RustDesk Pro 的开源控制台',
     'close_menu' => '关闭菜单',
     'cortendesk_compares_running_version_agai' => 'CortenDesk 会将当前运行的版本与最新发布的版本进行比较。',
-    'cortendesk_self_hosted_rustdesk_console' => 'CortenDesk——自托管 RustDesk 控制台',
     'diagnostics' => '诊断',
     'file_transfers' => '文件传输',
     'full_screen' => '全屏',
@@ -11,12 +18,11 @@ return [
     'logout' => '登出',
     'monitor' => '监控',
     'release_check_unavailable' => '无法检查新版本',
-    'running_latest_release' => '已是最新版本',
     'sponsor_cortendesk' => '赞助 CortenDesk',
-    'sponsor_cortendesk_title' => '在 GitHub Sponsors 上支持 CortenDesk（在新标签页中打开）',
+    'sponsor_cortendesk_title' => '支持 CortenDesk（在新标签页中打开）',
     'theme_mode' => '主题模式',
     'toggle_menu' => '切换菜单',
-    'update_available' => '有可用更新',
+    'up_to_date' => '已是最新',
     'update_to_v_version' => '更新到 v:version',
     'version_version_is_available_opens' => '版本 :version 已发布。点击打开发布说明。',
 ];

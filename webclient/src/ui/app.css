@@ -1374,7 +1374,12 @@
   color: var(--rd-accent);
 }
 
+.rd-pop-type {
+  width: min(92vw, 320px);
+}
 .rd-pop-type textarea {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
   margin-top: 2px;
   background: var(--rd-surface-2);
@@ -1899,6 +1904,7 @@
 
 /* Remote terminal: an independent RustDesk terminal connection. */
 .rd-terminal-modal {
+  box-sizing: border-box;
   position: absolute;
   inset: 0;
   z-index: 90;
@@ -1910,9 +1916,14 @@
 }
 .rd-terminal-card {
   width: min(920px, 96vw);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   height: min(680px, 88vh);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: 'head' 'consent' 'output' 'keys';
   border: 1px solid var(--rd-border);
   border-radius: 16px;
   overflow: hidden;
@@ -1920,8 +1931,7 @@
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
 }
 .rd-terminal-head,
-.rd-terminal-consent,
-.rd-terminal-input-row {
+.rd-terminal-consent {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1929,7 +1939,7 @@
   border-bottom: 1px solid var(--rd-border);
   background: var(--rd-surface);
 }
-.rd-terminal-head { justify-content: space-between; }
+.rd-terminal-head { grid-area: head; justify-content: space-between; }
 .rd-terminal-head strong { display: block; color: var(--rd-fg); }
 .rd-terminal-head span { display: block; margin-top: 2px; color: var(--rd-muted); font-size: 12px; }
 .rd-terminal-head button {
@@ -1939,10 +1949,11 @@
   font: 24px/1 system-ui;
   cursor: pointer;
 }
-.rd-terminal-consent { justify-content: space-between; font-size: 13px; color: var(--rd-muted); }
+.rd-terminal-consent { grid-area: consent; justify-content: space-between; font-size: 13px; color: var(--rd-muted); }
+.rd-terminal-consent[hidden] { display: none; }
+.rd-terminal-options { display: grid; gap: 8px; }
 .rd-terminal-consent input { accent-color: var(--rd-accent); }
-.rd-terminal-consent button,
-.rd-terminal-input-row button {
+.rd-terminal-consent button {
   border: 0;
   border-radius: 9px;
   padding: 8px 13px;
@@ -1951,38 +1962,59 @@
   cursor: pointer;
 }
 .rd-terminal-output {
+  grid-area: output;
+  min-width: 0;
   min-height: 0;
   margin: 0;
   padding: 16px;
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: contain;
   color: #d9e3ee;
   background: #080b0f;
   font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
-.rd-terminal-input-row {
-  border-top: 1px solid var(--rd-border);
-  border-bottom: 0;
-}
-.rd-terminal-input-row label { color: var(--rd-muted); font-size: 12px; }
-.rd-terminal-input-row input {
-  flex: 1;
+.rd-terminal-output .xterm { width: 100%; height: 100%; min-width: 0; }
+.rd-terminal-output .xterm .xterm-viewport { overflow: hidden; }
+.rd-terminal-output .xterm-scrollable-element > .scrollbar.vertical > .slider { border-radius: 2px; }
+.rd-terminal-keys { grid-area: keys; display: none; }
+.rd-terminal-keys[hidden] { display: none; }
+.rd-terminal-key {
   min-width: 0;
+  height: 42px;
   border: 1px solid var(--rd-border);
-  border-radius: 9px;
-  padding: 9px 11px;
+  border-radius: 6px;
+  padding: 0;
   color: var(--rd-fg);
   background: var(--rd-surface-2);
-  font: 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
-.rd-terminal-input-row button:disabled,
-.rd-terminal-input-row input:disabled { opacity: 0.5; cursor: default; }
+.rd-terminal-key:active,
+.rd-terminal-key[aria-pressed='true'] { color: #fff; background: var(--rd-accent); border-color: var(--rd-accent); }
+.rd-terminal-key-wide { grid-column: span 2; }
+.rd-terminal-key i { font-size: 18px; }
+.rd-terminal-key svg { width: 18px; height: 18px; vertical-align: middle; }
+@media (max-width: 640px), (pointer: coarse) {
+  .rd-terminal-output { padding: 8px 2px; }
+  .rd-terminal-keys {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 5px;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--rd-border);
+    background: var(--rd-surface);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
 @media (max-width: 640px) {
   .rd-terminal-modal { padding: 0; }
   .rd-terminal-card { width: 100%; height: 100%; border-radius: 0; }
   .rd-terminal-consent { align-items: flex-start; flex-direction: column; }
-  .rd-terminal-input-row label { display: none; }
 }
 
 /* Terminal page (?mode=terminal): the terminal is the whole page. */
@@ -1994,7 +2026,6 @@
 .rd-terminal-page .rd-terminal-card {
   width: 100%;
   height: 100%;
-  grid-template-rows: auto minmax(0, 1fr) auto;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -2009,7 +2040,7 @@
 }
 #rd-root[data-mode='terminal'] .rd-save + .rd-save { margin-top: 10px; }
 @media (max-width: 640px) {
-  .rd-terminal-page .rd-terminal-output { padding: 12px; font-size: 13px; }
+  .rd-terminal-page .rd-terminal-output { font-size: 13px; }
 }
 
 .rd-camera-modal {

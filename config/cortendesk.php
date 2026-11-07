@@ -12,6 +12,10 @@ return [
     // by release tags and the Docker image); env can still override.
     'api_version' => env('CORTENDESK_API_VERSION', trim((string) @file_get_contents(base_path('VERSION'))) ?: '0.0.0'),
 
+    // Release date of that version (YYYY-MM-DD), written alongside VERSION at
+    // release time. Shown in the About dialog; null hides the line.
+    'released_at' => trim((string) @file_get_contents(base_path('RELEASED'))) ?: null,
+
     /*
     |--------------------------------------------------------------------------
     | RustDesk infrastructure this console fronts

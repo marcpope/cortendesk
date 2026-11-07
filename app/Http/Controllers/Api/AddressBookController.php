@@ -439,6 +439,9 @@ class AddressBookController extends Controller
             $peer['hash'] = (string) $e->hash;
         } elseif ($e->password_enc !== null) {
             $peer['password'] = Crypt::decryptString($e->password_enc);
+        } elseif ($book->default_password_enc !== null) {
+            // The book's default covers every entry without its own (#162).
+            $peer['password'] = Crypt::decryptString($book->default_password_enc);
         }
 
         return $peer;

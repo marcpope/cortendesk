@@ -18,6 +18,7 @@ use App\Services\DuplicateDevices;
 use App\Services\ReleaseId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -31,7 +32,13 @@ class DeviceDetail extends Component
 {
     use AuthorizesConsole, DeletesDevices, EditsDevices;
 
+    public const TABS = ['overview', 'connections', 'activity', 'details'];
+
     public int $deviceId;
+
+    /** Every pane is rendered; this only picks the visible one. */
+    #[Url(except: 'overview')]
+    public string $tab = 'overview';
 
     public string $note = '';
 
@@ -61,6 +68,32 @@ class DeviceDetail extends Component
         $this->authorizeConsole('device', 'r');
         $this->deviceId = $deviceId;
         $this->note = (string) $this->device()->note;
+        // The list's Share action lands on the share card (?share=1#share).
+        if (request()->boolean('share')) {
+            $this->tab = 'details';
+        }
+        if (! in_array($this->tab, self::TABS, true)) {
+            $this->tab = 'overview';
+        }
+    }
+
+    public function setTab(string $tab): void
+    {
+        $this->tab = in_array($tab, self::TABS, true) ? $tab : 'overview';
+    }
+
+    /** The Note tile on the overview: edit it where it lives. */
+    public function openNote(): void
+    {
+        $this->tab = 'details';
+        $this->editNote();
+    }
+
+    /** The Share screen tile: open the new-link form on the share card. */
+    public function startShare(): void
+    {
+        $this->tab = 'details';
+        $this->dispatch('device-share-start')->to(DeviceShares::class);
     }
 
     /**
@@ -315,6 +348,7 @@ class DeviceDetail extends Component
         $transfers = $canAudit
             ? $this->both(AuditFileTransfer::query(), $device)->latest()->limit(10)->get()
             : collect();
+        $peerNames = $this->peerNames($device, $connections->concat($transfers));
 
         return view('livewire.device-detail', $this->editorViewData() + [
             'device' => $device,
@@ -331,12 +365,111 @@ class DeviceDetail extends Component
             'twins' => $this->twins($device),
             'connections' => $connections,
             'transfers' => $transfers,
-            'peerNames' => $this->peerNames($device, $connections->concat($transfers)),
+            'peerNames' => $peerNames,
+            'flow' => self::flow($device, $connections, $peerNames),
             'alarms' => $canAudit
                 ? AlarmLog::where('rustdesk_id', $device->rustdesk_id)->latest()->limit(10)->get()
                 : collect(),
             'notifications' => $canAudit ? $this->notifications($device) : collect(),
+            'hardware' => self::hardware($device),
         ]);
+    }
+
+    /**
+     * The overview's hardware tiles, from what sysinfo carries. The client
+     * reports the CPU as "<brand>, <current>GHz, <logical>/<physical> cores";
+     * older clients send the brand alone.
+     *
+     * @return array{cpu: string, cpu_detail: string, memory: string, os: string, os_detail: string}
+     */
+    public static function hardware(Device $device): array
+    {
+        $parts = array_map('trim', explode(',', (string) $device->cpu));
+        $brand = $parts[0] ?? '';
+        // Intel brands carry "(R)", "(TM)", "CPU", the base clock and, on
+        // some Xeons, a lone "0" for the first revision.
+        $name = trim(preg_replace(['/\((R|TM)\)/i', '/\s+CPU\b/i', '/\s*@\s*[\d.]+\s*GHz/i', '/\s+0$/', '/\s+/'], ['', '', '', '', ' '], $brand));
+
+        $freq = null;
+        $cores = null;
+        $threads = null;
+        foreach (array_slice($parts, 1) as $part) {
+            if (preg_match('/^([\d.]+)\s*GHz$/i', $part, $m)) {
+                $freq = $m[1];
+            } elseif (preg_match('/^(\d+)\/(\d+)\s*cores?$/i', $part, $m)) {
+                [$threads, $cores] = [(int) $m[1], (int) $m[2]];
+            }
+        }
+        if ($freq === null && preg_match('/@\s*([\d.]+)\s*GHz/i', $brand, $m)) {
+            $freq = $m[1];
+        }
+
+        $detail = [];
+        if ($cores) {
+            $detail[] = trans_choice('devices.hw_cores', $cores);
+            if ($threads && $threads !== $cores) {
+                $detail[] = trans_choice('devices.hw_threads', $threads);
+            }
+        }
+        if ($freq !== null) {
+            $detail[] = $freq.' GHz';
+        }
+
+        // "31.94GB" reads as the 32 GB the machine was sold with.
+        $memory = (string) $device->memory;
+        if (preg_match('/^([\d.]+)\s*GB$/i', trim($memory), $m) && (float) $m[1] >= 2) {
+            $memory = round((float) $m[1]).' GB';
+        }
+
+        // Windows reports "Windows 11 Pro - 11 (26200)": the build moves under the name.
+        $os = $device->osDescription();
+        $osDetail = '';
+        if (preg_match('/^(.*?)\s+-\s+[\d.]+\s*\((\d+)\)$/', $os, $m)) {
+            [$os, $osDetail] = [$m[1], __('devices.hw_build', ['build' => $m[2]])];
+        }
+
+        return ['cpu' => $name, 'cpu_detail' => implode(' · ', $detail), 'memory' => $memory, 'os' => $os, 'os_detail' => $osDetail];
+    }
+
+    /**
+     * The overview's connection map from the recent sessions: who reached
+     * this device, and what it reached, busiest first. Each side keeps three
+     * nodes; the rest fold into a count.
+     *
+     * @param  array<string, array{0: string, 1: ?int, 2?: string}>  $peerNames
+     * @return array{in: list<array>, out: list<array>, in_more: int, out_more: int, in_count: int, out_count: int}
+     */
+    public static function flow(Device $device, Collection $connections, array $peerNames): array
+    {
+        $node = fn (string $label, ?int $id, string $platform, int $count) => compact('label', 'id', 'platform', 'count');
+
+        $in = $connections->where('rustdesk_id', $device->rustdesk_id)
+            ->groupBy(fn (AuditConnection $c) => $c->from_peer ?: 'name:'.$c->from_name)
+            ->map(function (Collection $rows) use ($peerNames, $node) {
+                $c = $rows->first();
+                $known = $c->from_peer ? ($peerNames[$c->from_peer] ?? null) : null;
+
+                return $node($known[0] ?? ($c->from_name ?: $c->from_peer ?: __('common.unknown')), $known[1] ?? null, $known[2] ?? '', $rows->count());
+            })
+            ->sortByDesc('count')->values();
+
+        $out = $connections->where('rustdesk_id', '!=', $device->rustdesk_id)
+            ->groupBy('rustdesk_id')
+            ->map(function (Collection $rows, string $rid) use ($peerNames, $node) {
+                $known = $peerNames[$rid] ?? [$rid, null];
+
+                return $node($known[0], $known[1], $known[2] ?? '', $rows->count());
+            })
+            ->sortByDesc('count')->values();
+
+        return [
+            'in' => $in->take(3)->all(),
+            'out' => $out->take(3)->all(),
+            'in_more' => max(0, $in->count() - 3),
+            'out_more' => max(0, $out->count() - 3),
+            'in_count' => (int) $in->sum('count'),
+            'out_count' => (int) $out->sum('count'),
+        ];
     }
 
     /**
@@ -362,9 +495,10 @@ class DeviceDetail extends Component
      * Names for the other end of each log row: the device this one reached on
      * an outgoing row (#149), and the device that connected on an incoming one
      * when the console knows it. RustDesk ID => [label, device id or null when
-     * the user cannot open it]. Incoming peers are listed only when visible.
+     * the user cannot open it, platform slug or '']. Incoming peers are listed
+     * only when visible.
      *
-     * @return array<string, array{0: string, 1: ?int}>
+     * @return array<string, array{0: string, 1: ?int, 2: string}>
      */
     private function peerNames(Device $device, Collection $rows): array
     {
@@ -375,13 +509,13 @@ class DeviceDetail extends Component
             return [];
         }
         $visible = Device::query()->visibleTo(auth()->user())->whereIn('rustdesk_id', $ids)
-            ->get(['id', 'rustdesk_id', 'alias', 'hostname'])->keyBy('rustdesk_id');
+            ->get(['id', 'rustdesk_id', 'alias', 'hostname', 'os'])->keyBy('rustdesk_id');
 
         return $ids->filter(fn (string $rid) => $visible->has($rid) || $outgoing->contains($rid))
             ->mapWithKeys(function (string $rid) use ($visible) {
                 $d = $visible->get($rid);
 
-                return [$rid => [$d ? ($d->alias ?: $d->hostname ?: $rid) : $rid, $d?->id]];
+                return [$rid => [$d ? ($d->alias ?: $d->hostname ?: $rid) : $rid, $d?->id, $d ? $d->platform() : '']];
             })->all();
     }
 

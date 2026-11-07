@@ -30,7 +30,7 @@
                     @yield('content')
 
                     <div class="text-center mt-3">
-                        <p class="rd-auth-note">{{ __('nav.cortendesk_self_hosted_rustdesk_console') }}</p>
+                        <p class="rd-auth-note"><a href="https://cortendesk.com/">{{ __('nav.auth_footer', ['year' => now()->year]) }}</a></p>
                     </div>
                 </div>
             </div>

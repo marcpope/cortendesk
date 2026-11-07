@@ -83,7 +83,6 @@ return [
     'save_assignment' => 'Uložiť priradenie',
     'saving' => 'Ukladá sa…',
     'search_id_alias_hostname' => 'Hľadať ID, alias alebo názov hostiteľa…',
-    'self_hosted_rustdesk_console' => 'Vlastná konzola RustDesk',
     'send' => 'Odoslať',
     'sending' => 'Odosiela sa…',
     'sessions' => 'Relácie',

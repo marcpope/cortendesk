@@ -344,47 +344,47 @@
                             @include('livewire.partials.device-duplicate-badge', ['class' => 'ms-1'])
                         </td>
                         <td class="text-end rd-rowact">
+                            {{-- Icons, as on the cards: text labels made this the widest
+                                 column in the table (issue #161). The title is the label. --}}
+                            <div class="rd-mini-acts">
                             @if ($trashed)
                                 @if (auth()->user()?->consoleAllows('device', 'rw'))
-                                    <a href="javascript:void(0);" class="text-success me-2" wire:click="restoreDevice({{ $device->id }})">{{ __('common.restore') }}</a>
-                                    <a href="javascript:void(0);" class="text-danger"
+                                    <a href="javascript:void(0);" class="rd-iconbtn text-success" title="{{ __('common.restore') }}" wire:click="restoreDevice({{ $device->id }})"><i class="ri-arrow-go-back-line"></i></a>
+                                    <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="{{ __('devices.destroy') }}"
                                        wire:click="forceDeleteDevice({{ $device->id }})"
-                                       wire:confirm="{{ __('devices.permanently_delete_device_id_this', ['id' => $device->rustdesk_id]) }}">{{ __('devices.destroy') }}</a>
+                                       wire:confirm="{{ __('devices.permanently_delete_device_id_this', ['id' => $device->rustdesk_id]) }}"><i class="ri-close-circle-line"></i></a>
                                 @endif
                             @else
-                                {{-- Row actions are neutral; only the destructive one
-                                     takes a colour. Two full-colour ordinary actions
-                                     side by side read louder than Edit and make this
-                                     the only cell in the console with four colours. --}}
                                 @if (! $device->canBeControlled())
                                     {{-- Nothing to connect to: "Outgoing only" shows in the status column. --}}
                                 @elseif (config('cortendesk.native_webclient'))
                                     <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}"
-                                       target="cortendesk-webclient" rel="noopener" class="rd-act me-2"
-                                       title="{{ __('devices.connect_in_browser_native_client') }}"><i class="ri-remote-control-line me-1"></i>{{ __('devices.connect') }}</a>
+                                       target="cortendesk-webclient" rel="noopener" class="rd-iconbtn"
+                                       title="{{ __('devices.connect_in_browser_native_client') }}"><i class="ri-remote-control-line"></i></a>
                                     {{-- The terminal is desktop only (RustDesk 1.4.1+). --}}
                                     @unless (in_array($device->platform(), ['android', 'ios'], true))
                                         <a href="{{ route('webclient') }}?id={{ $device->rustdesk_id }}&amp;mode=terminal"
-                                           target="cortendesk-terminal" rel="noopener" class="rd-act me-2"
-                                           title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line me-1"></i>{{ __('devices.terminal') }}</a>
+                                           target="cortendesk-terminal" rel="noopener" class="rd-iconbtn"
+                                           title="{{ __('devices.open_terminal_in_browser') }}"><i class="ri-terminal-box-line"></i></a>
                                     @endunless
                                 @endif
                                 @if (config('cortendesk.share_links') && $device->canBeControlled() && auth()->user()?->consoleAllows('device', 'rw'))
-                                    <a href="{{ route('devices.show', $device->id) }}?share=1#share" class="rd-act me-2"
-                                       title="{{ __('shares.share_button') }}"><i class="ri-share-forward-line me-1"></i>{{ __('shares.share_button') }}</a>
+                                    <a href="{{ route('devices.show', $device->id) }}?share=1#share" class="rd-iconbtn"
+                                       title="{{ __('shares.share_button') }}"><i class="ri-share-forward-line"></i></a>
                                 @endif
                                 @if (config('cortendesk.webclient_url') && $device->canBeControlled())
                                     <a href="{{ config('cortendesk.webclient_url') }}?id={{ $device->rustdesk_id }}"
-                                       target="cortendesk-webclient" rel="noopener" class="rd-act me-2"
-                                       title="{{ __('devices.connect_in_browser') }}">{{ __('common.web_client') }}</a>
+                                       target="cortendesk-webclient" rel="noopener" class="rd-iconbtn"
+                                       title="{{ __('devices.connect_in_browser') }}"><i class="ri-global-line"></i></a>
                                 @endif
-                                <a href="{{ route('devices.show', $device->id) }}" class="rd-act me-2" title="{{ __('common.view_details') }}"><i class="ri-eye-line"></i></a>
+                                <a href="{{ route('devices.show', $device->id) }}" class="rd-iconbtn" title="{{ __('common.view_details') }}"><i class="ri-eye-line"></i></a>
                                 @if (auth()->user()?->consoleAllows('device', 'rw'))
-                                    <a href="javascript:void(0);" class="rd-act me-2" wire:click="edit({{ $device->id }})">{{ __('common.edit') }}</a>
-                                    <a href="javascript:void(0);" class="text-danger"
-                                       wire:click="confirmDelete({{ $device->id }})">{{ __('common.delete') }}</a>
+                                    <a href="javascript:void(0);" class="rd-iconbtn" title="{{ __('common.edit') }}" wire:click="edit({{ $device->id }})"><i class="ri-pencil-line"></i></a>
+                                    <a href="javascript:void(0);" class="rd-iconbtn text-danger" title="{{ __('common.delete') }}"
+                                       wire:click="confirmDelete({{ $device->id }})"><i class="ri-delete-bin-line"></i></a>
                                 @endif
                             @endif
+                            </div>
                         </td>
                     </tr>
                 @empty
@@ -418,6 +418,12 @@
                 <div class="rd-mini" wire:key="m{{ $device->id }}">
                     <div class="rd-mini-head">
                         <div class="d-flex align-items-center gap-2 min-width-0">
+                            {{-- Left, where a checkbox is expected; it used to float
+                                 between the name and the badge (issue #161). --}}
+                            @unless ($trashed)
+                                <input type="checkbox" class="form-check-input flex-shrink-0 m-0" value="{{ $device->id }}"
+                                       wire:model.live="selected" aria-label="{{ __('devices.select_device_id', ['id' => $device->rustdesk_id]) }}">
+                            @endunless
                             <x-platform-icon :platform="$device->platform()" size="fs-22"/>
                             <div class="min-width-0">
                                 @if ($trashed)
@@ -435,10 +441,6 @@
                                 @endif
                             </div>
                         </div>
-                        @unless ($trashed)
-                            <input type="checkbox" class="form-check-input flex-shrink-0" value="{{ $device->id }}"
-                                   wire:model.live="selected" aria-label="{{ __('devices.select_device_id', ['id' => $device->rustdesk_id]) }}">
-                        @endunless
                         @if ($trashed)
                             <span class="badge bg-warning-subtle text-warning flex-shrink-0">{{ $device->isPending() ? __('devices.rejected') : __('devices.deleted') }}</span>
                         @elseif ($device->isOnline())

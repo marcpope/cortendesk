@@ -83,7 +83,6 @@ return [
     'save_assignment' => 'Сохранить назначение',
     'saving' => 'Сохранение…',
     'search_id_alias_hostname' => 'Поиск по ID, псевдониму, имени хоста…',
-    'self_hosted_rustdesk_console' => 'Собственная консоль RustDesk',
     'send' => 'Отправить',
     'sending' => 'Отправка…',
     'sessions' => 'Сеансы',

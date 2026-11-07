@@ -145,6 +145,7 @@ return [
     'folder_read_failed' => 'Ordner konnte nicht gelesen werden: :message',
     'follow_remote_cursor' => 'Dem entfernten Cursor folgen',
     'follow_remote_window_focus' => 'Dem Fokus des entfernten Fensters folgen',
+    'force_relay_connection' => 'Relay-Verbindung erzwingen',
     'fps' => 'FPS',
     'frame_rate_and_codec' => 'Bildrate und Codec',
     'frames_dropped' => 'Verworfene Frames',

@@ -87,6 +87,9 @@ class MailSettings
             // plain scheme. See encryption() for why "none" is not plaintext.
             'mail.mailers.smtp.scheme' => $this->encryption() === 'ssl' ? 'smtps' : 'smtp',
             'mail.mailers.smtp.url' => null,
+            // Symfony can only turn off the whole certificate check, name and
+            // chain together (issue #160).
+            'mail.mailers.smtp.verify_peer' => $this->setting('smtp_skip_cert_check') !== '1',
             'mail.mailers.smtp.timeout' => self::TIMEOUT,
             'mail.mailers.smtp.local_domain' => parse_url((string) config('app.url'), PHP_URL_HOST),
             'mail.from.address' => $this->fromAddress(),

@@ -83,7 +83,6 @@ return [
     'save_assignment' => '保存分配',
     'saving' => '正在保存…',
     'search_id_alias_hostname' => '搜索 ID、别名、主机名…',
-    'self_hosted_rustdesk_console' => '自托管 RustDesk 控制台',
     'send' => '发送',
     'sending' => '正在发送…',
     'sessions' => '会话',

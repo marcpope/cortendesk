@@ -83,7 +83,6 @@ return [
     'save_assignment' => 'Zapisz przypisanie',
     'saving' => 'Zapisywanie…',
     'search_id_alias_hostname' => 'Szukaj ID, aliasu, nazwy hosta…',
-    'self_hosted_rustdesk_console' => 'Samodzielnie hostowana konsola RustDesk',
     'send' => 'Wysyłanie',
     'sending' => 'Wysyłanie…',
     'sessions' => 'Sesje',
