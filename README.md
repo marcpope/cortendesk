@@ -12,7 +12,7 @@
 
 Built on Laravel + Livewire with precompiled assets: **there is no frontend build step**. Clone, configure, migrate, serve.
 
-> **This is the 2.0 beta branch.** It adds Monitoring (below). It is very early, for testing only, and not recommended for production. The stable release is on `main`. To try the beta: `ghcr.io/marcpope/cortendesk:beta`. Back up first; going back to 1.23 keeps your data, because the beta only adds tables and columns.
+> **This is the 2.0 beta branch.** It adds Monitoring (below), which is completely optional: everything else works exactly as before without it, and it stays off until you turn it on. The beta is very early, for testing only, and not recommended for production. The stable release is on `main`. To try the beta: `ghcr.io/marcpope/cortendesk:beta`. Back up first; going back to 1.23 keeps your data, because the beta only adds tables and columns.
 
 ## Features
 
@@ -34,7 +34,7 @@ Built on Laravel + Livewire with precompiled assets: **there is no frontend buil
 - **Mobile-first** — every screen works on a phone; wide tables degrade to card lists. Dark and light themes.
 - **12 languages** — English, Deutsch, Español, Français, Italiano, Magyar, Nederlands, Polski, Português (Brasil), Русский, Slovenčina and 简体中文, including emails and the web client. Each user picks their own; without a choice the console follows the browser.
 
-**Monitoring (beta, optional, off by default)**
+**Monitoring (beta, completely optional, off by default; nothing else needs it)**
 - Install the [CortenDesk Agent](https://github.com/marcpope/cortendesk-agent) on Windows, macOS and Linux machines with one command from **Monitoring > Add agent**. It reports CPU, memory, disks, network, uptime, signed-in users, RustDesk state, hardware and software inventory, antivirus, firewall, disk encryption, pending updates and SMART health. No listening ports.
 - A fleet dashboard with what needs attention, per-machine history charts, and an acknowledge button for issues you accept (a firewall you keep off on purpose).
 - Remote commands, off until you allow them: upgrade RustDesk to a chosen official release, install OS updates and reboot, one machine or many at once. The agent runs only these built-in commands, never scripts.
