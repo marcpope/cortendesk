@@ -3722,3 +3722,568 @@ button.rd-sidebar-status:hover {
 .rd-about-foot a:hover {
     color: var(--rd-ink);
 }
+
+/* =========================================================================
+   MONITORING (docs/monitoring)
+   =========================================================================
+   .rd-meter is a usage bar with its percent beside it; colour comes from a
+   .rd-tone-* class (green, amber from 75%, red from 90%).
+   ========================================================================= */
+
+.rd-meter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.rd-meter-track {
+    flex: 1 1 auto;
+    min-width: 40px;
+    height: 6px;
+    border-radius: var(--rd-radius-pill);
+    background-color: var(--rd-surface-2);
+    overflow: hidden;
+}
+.rd-meter-fill {
+    height: 100%;
+    min-width: 3px;
+    border-radius: var(--rd-radius-pill);
+    background-color: var(--rd-tone);
+}
+.rd-meter-value {
+    flex: 0 0 auto;
+    min-width: 4ch;
+    text-align: right;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--rd-ink);
+}
+
+.rd-agent-hero-icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    font-size: 32px;
+    color: var(--rd-accent-ink);
+    background: color-mix(in srgb, var(--rd-accent-ink) 14%, transparent);
+}
+.rd-agent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 14px;
+}
+.rd-agent-list li {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+.rd-agent-list i {
+    color: var(--rd-green);
+    font-size: 16px;
+    line-height: 1.3;
+}
+.rd-agent-list-muted i {
+    color: var(--rd-ink-muted);
+}
+
+/* The install command: a read-only textarea with its copy button under it. */
+.rd-agent-cmd {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+.rd-agent-cmd textarea {
+    resize: none;
+    word-break: break-all;
+}
+
+.rd-agent-kpi-label {
+    font-size: 12px;
+    color: var(--rd-ink-muted);
+    margin-bottom: 6px;
+}
+
+.rd-agent-mini-meters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+.rd-agent-mini-label {
+    display: block;
+    font-size: 11px;
+    color: var(--rd-ink-muted);
+    margin-bottom: 2px;
+}
+
+/* --- One machine (agent-detail, Marc's mockup 2026-11-07) ------------------ */
+
+.rd-mon-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-bottom: 12px;
+}
+.rd-mon-strip > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.rd-mon-head .card-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+}
+.rd-mon-head-id {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    flex: 1 1 240px;
+}
+.rd-mon-head-os {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 24px;
+    border-left: 1px solid var(--rd-border);
+}
+.rd-mon-head-os i {
+    font-size: 20px;
+    color: var(--rd-ink-muted);
+}
+.rd-mon-head-meta,
+.rd-mon-head-acts {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+@media (max-width: 767.98px) {
+    .rd-mon-head-os {
+        padding-left: 0;
+        border-left: 0;
+    }
+}
+
+/* Needs attention: one amber band, items separated by hairlines. */
+.rd-mon-attn {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 0;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    border: 1px solid color-mix(in srgb, var(--rd-amber) 45%, transparent);
+    border-radius: var(--rd-radius-sm);
+    background: color-mix(in srgb, var(--rd-amber) 10%, transparent);
+    font-size: 14px;
+}
+.rd-mon-attn-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--rd-amber);
+    padding-right: 16px;
+}
+.rd-mon-attn-title i {
+    font-size: 20px;
+}
+.rd-mon-attn-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-left: 1px solid color-mix(in srgb, var(--rd-amber) 30%, transparent);
+    color: var(--rd-ink);
+}
+.rd-mon-attn-ack {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 4px;
+    padding: 1px 8px;
+    border: 1px solid color-mix(in srgb, var(--rd-amber) 35%, transparent);
+    border-radius: var(--rd-radius-pill);
+    background: transparent;
+    color: var(--rd-ink-muted);
+    font-size: 12px;
+    line-height: 18px;
+}
+.rd-mon-attn-ack:hover,
+.rd-mon-attn-ack:focus-visible {
+    color: var(--rd-ink);
+    border-color: var(--rd-amber);
+}
+.rd-mon-cmd {
+    padding: 8px 0;
+}
+.rd-mon-cmd + .rd-mon-cmd {
+    border-top: 1px solid var(--rd-border);
+}
+.rd-mon-cmd-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    font-size: 14px;
+}
+.rd-mon-cmd-output {
+    max-height: 320px;
+    margin: 6px 0 0;
+    padding: 10px 12px;
+    overflow: auto;
+    border-radius: var(--rd-radius-sm);
+    background: var(--rd-surface-2, rgba(127, 127, 127, .08));
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.rd-mon-tabrow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--rd-border);
+}
+.rd-mon-tabrow .rd-tabbar {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-bottom: 0;
+}
+.rd-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--rd-accent) 18%, transparent);
+    color: var(--rd-accent-ink);
+    font-size: 13px;
+    font-weight: 600;
+    vertical-align: 1px;
+}
+.rd-mon-details > summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--rd-ink);
+}
+.rd-mon-opts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 16px;
+}
+.rd-mon-opts dd {
+    margin: 0;
+    color: var(--rd-ink-muted);
+}
+@media (max-width: 575.98px) {
+    .rd-mon-opts {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+    .rd-mon-opts dd {
+        margin-bottom: 8px;
+    }
+}
+.rd-mon-acked {
+    margin-bottom: 16px;
+    padding: 6px 16px;
+    border: 1px solid var(--rd-border);
+    border-radius: var(--rd-radius-sm);
+    font-size: 14px;
+}
+.rd-mon-acked-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+}
+.rd-mon-acked-item + .rd-mon-acked-item {
+    border-top: 1px solid var(--rd-border);
+}
+
+.rd-mon-dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rd-ink-muted);
+}
+.rd-mon-dot-ok { background: var(--rd-green); }
+.rd-mon-dot-warn { background: var(--rd-amber); }
+.rd-mon-dot-bad { background: var(--rd-red); }
+.rd-mon-dot-muted { background: var(--rd-ink-muted); opacity: .6; }
+
+/* Tiles: icon, label over value, sparkline on the right. */
+.rd-mon-tile {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    height: 100%;
+}
+.rd-mon-tile-icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    font-size: 22px;
+    color: var(--rd-tone);
+    background: rgba(var(--rd-tone-rgb), .14);
+}
+.rd-mon-tile-label {
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+    white-space: nowrap;
+}
+.rd-mon-tile > .min-width-0 {
+    flex: 0 0 auto;
+}
+.rd-mon-tile-value {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.rd-mon-spark {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 140px;
+    margin-left: auto;
+    overflow: hidden;
+}
+
+.rd-mon-vol {
+    display: flex;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--rd-border);
+}
+.rd-mon-vol-icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 18px;
+    color: var(--rd-ink-muted);
+    background: var(--rd-surface-2);
+}
+.rd-mon-vol .rd-meter-track {
+    height: 8px;
+}
+
+/* Label rows with a state on the right (security, services, RustDesk). */
+.rd-mon-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.rd-mon-rows li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rd-border);
+    min-width: 0;
+}
+.rd-mon-rows li:last-child {
+    border-bottom: 0;
+}
+.rd-mon-rows li > i {
+    font-size: 18px;
+    color: var(--rd-ink-muted);
+}
+.rd-mon-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+    white-space: nowrap;
+}
+
+.rd-mon-count {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--rd-border);
+    border-radius: var(--rd-radius-sm);
+}
+.rd-mon-count > i {
+    font-size: 24px;
+}
+.rd-mon-count-value {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.rd-mon-kv {
+    margin: 0;
+}
+.rd-mon-kv > div {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--rd-border);
+}
+.rd-mon-kv > div:last-child {
+    border-bottom: 0;
+}
+.rd-mon-kv dt {
+    flex: 0 0 45%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 400;
+    color: var(--rd-ink);
+}
+.rd-mon-kv dt i {
+    color: var(--rd-ink-muted);
+}
+.rd-mon-kv dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Inventory summary: three buttons that open a panel below. */
+.rd-mon-inv {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.rd-mon-inv-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border: 0;
+    border-right: 1px solid var(--rd-border);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    min-width: 0;
+}
+.rd-mon-inv-item:last-child {
+    border-right: 0;
+}
+.rd-mon-inv-item:hover,
+.rd-mon-inv-item.active {
+    background: var(--rd-surface-2);
+}
+.rd-mon-inv-item > i {
+    font-size: 26px;
+    color: var(--rd-ink-muted);
+}
+.rd-mon-inv-title {
+    display: block;
+    font-weight: 600;
+}
+.rd-mon-inv-sub {
+    display: block;
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+@media (max-width: 767.98px) {
+    .rd-mon-inv {
+        grid-template-columns: 1fr;
+    }
+    .rd-mon-inv-item {
+        border-right: 0;
+        border-bottom: 1px solid var(--rd-border);
+    }
+    .rd-mon-attn-item {
+        padding: 0;
+        border-left: 0;
+        flex: 1 1 100%;
+    }
+    .rd-mon-attn-ack {
+        margin-left: auto;
+    }
+}
+
+/* --- Fleet overview (Monitoring > Overview) ------------------------------ */
+
+@media (min-width: 1400px) {
+    .rd-stat-grid.rd-mon-stat-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+.rd-mon-donut {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+.rd-mon-donut-chart {
+    width: 200px;
+    max-width: 100%;
+}
+.rd-mon-donut .rd-legend {
+    width: 100%;
+}
+.rd-legend-link {
+    display: contents;
+    color: inherit;
+}
+.rd-mon-feed {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.rd-mon-feed li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--rd-border);
+}
+.rd-mon-feed li:last-child {
+    border-bottom: 0;
+}
+.rd-mon-feed-issues {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin-top: 2px;
+}
+.rd-mon-issue {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--rd-ink-muted);
+}
+/* The global .apexcharts-text rule sets 11px, which also shrinks the
+   donut's centre figure. */
+.rd-mon-donut .apexcharts-datalabel-value {
+    font-size: 26px;
+}
+.rd-mon-donut .apexcharts-datalabel-label {
+    font-size: 13px;
+}

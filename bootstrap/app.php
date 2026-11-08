@@ -5,6 +5,7 @@ use App\Http\Middleware\ApiTokenCan;
 use App\Http\Middleware\ConsoleCan;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\MonitoringEnabled;
 use App\Http\Middleware\RequireEmailAddress;
 use App\Http\Middleware\RequireMailHealthy;
 use App\Http\Middleware\RequireTwoFactor;
@@ -33,6 +34,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // never the configured default store (which can be database-backed).
             Route::get('/health/live', [HealthController::class, 'live'])->middleware('health-probe:live');
             Route::get('/health/ready', [HealthController::class, 'ready'])->middleware('health-probe:ready');
+
+            // CortenDesk Agent API (docs/monitoring). Outside the web group:
+            // no session or CSRF, and a 404 while Monitoring is off.
+            Route::prefix('agent/v1')->middleware(MonitoringEnabled::class)->group(base_path('routes/agent.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -43,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // gate; `console-can` is the per-area one.
             'console-can' => ConsoleCan::class,
             'health-probe' => ThrottleHealthProbe::class,
+            'monitoring' => MonitoringEnabled::class,
         ]);
         $middleware->prependToGroup('web', SessionCookieFollowsScheme::class);
         $middleware->appendToGroup('web', SetLocale::class);
@@ -78,7 +84,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // The web client's address-book sign-in is fetched by the session
         // worker: a sign-in redirect or an HTML error page means nothing there.
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*', 'webclient/address-book-password'),
+            fn (Request $request) => $request->is('api/*', 'agent/*', 'webclient/address-book-password'),
         );
 
         // HTTPS-only cookies over plain HTTP: the browser drops the session

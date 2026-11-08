@@ -20,6 +20,7 @@ use App\Services\ServerLink;
 use App\Support\ClientLink;
 use App\Support\IceServers;
 use App\Support\LoginEmailVerification;
+use App\Support\Monitoring;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
@@ -214,6 +215,20 @@ class SettingsPage extends Component
 
     public int $emailTrustedDeviceDays = 30;
 
+    // Monitoring and the CortenDesk Agent (docs/monitoring).
+    public bool $monitoringEnabled = false;
+
+    public int $monitoringInterval = Monitoring::DEFAULT_INTERVAL;
+
+    public int $monitoringRetentionDays = Monitoring::DEFAULT_RETENTION;
+
+    public bool $monitoringCommands = false;
+
+    /** Agent connection URL; empty uses this console's address. */
+    public string $monitoringAgentUrl = '';
+
+    public bool $monitoringAutoUpdate = true;
+
     public bool $saved = false;
 
     public string $pruneResult = '';
@@ -230,6 +245,12 @@ class SettingsPage extends Component
 
         $this->idServer = Setting::server('id_server');
         $this->relayServer = Setting::server('relay_server');
+        $this->monitoringEnabled = Monitoring::enabled();
+        $this->monitoringInterval = Monitoring::interval();
+        $this->monitoringRetentionDays = Monitoring::retentionDays();
+        $this->monitoringCommands = Monitoring::commandsEnabled();
+        $this->monitoringAgentUrl = Monitoring::agentUrl();
+        $this->monitoringAutoUpdate = Monitoring::autoUpdate();
         $this->publicKey = Setting::server('public_key');
         $this->onlineWindow = (int) (Setting::get('online_window', (string) config('cortendesk.online_window')) ?: 60);
         $this->rdgenUrl = Setting::get('rdgen_url', config('cortendesk.rdgen_url')) ?? '';
@@ -374,6 +395,7 @@ class SettingsPage extends Component
             str_starts_with($root, 'oidc') => 'sso',
             str_starts_with($root, 'smtp') => 'email',
             str_starts_with($root, 'apprise') => 'notifications',
+            str_starts_with($root, 'monitoring') => 'monitoring',
             $root === 'logRetentionDays' => 'maintenance',
             in_array($root, ['twoFactorRequired', 'twoFactorRequiredAdmins', 'emailLoginVerification', 'emailTrustedDeviceDays'], true) => 'security',
             in_array($root, ['idServer', 'relayServer', 'publicKey', 'onlineWindow', 'rdgenUrl', 'clientUrlScheme', 'downloadsOnLogin', 'relayServers', 'requireDeviceApproval', 'autoApproveSignedIn', 'newDevicesIncomingOnly', 'defaultDeviceGroupId', 'serverAccessMode', 'serverIpMatch', 'webClientWebRtc', 'webClientIceServers'], true) => 'server',
@@ -423,6 +445,16 @@ class SettingsPage extends Component
                 'appriseUrls' => 'nullable|string|max:10000',
                 'appriseCooldownMinutes' => 'required|integer|min:0|max:1440',
                 'appriseOfflineGraceMinutes' => 'required|integer|min:0|max:1440',
+                'monitoringInterval' => 'required|integer|min:'.Monitoring::MIN_INTERVAL.'|max:'.Monitoring::MAX_INTERVAL,
+                'monitoringRetentionDays' => 'required|integer|min:1|max:'.Monitoring::MAX_RETENTION,
+                'monitoringAgentUrl' => ['nullable', 'url:http,https', 'max:255', function ($attribute, $value, $fail) {
+                    if ($value !== '' && ! Monitoring::agentUrlWorks($value)) {
+                        $fail(__('monitoring.agent_url_needs_https'));
+                    }
+                    if (preg_match('/[?#\s\'"`$]/', (string) $value)) {
+                        $fail(__('monitoring.agent_url_plain'));
+                    }
+                }],
             ]);
         } catch (ValidationException $e) {
             $this->tab = self::tabForField((string) array_key_first($e->errors())) ?? $this->tab;
@@ -515,6 +547,26 @@ class SettingsPage extends Component
             Setting::put('server_ip_match', $this->serverIpMatch ? '1' : '0');
             ConsoleAudit::record('settings.server-ip-match', 'Signed-out devices '.($this->serverIpMatch ? 'identified' : 'not identified').' by IP address', 'settings', null);
         }
+        if ($this->monitoringEnabled !== Monitoring::enabled()) {
+            Setting::put(Monitoring::SETTING_ENABLED, $this->monitoringEnabled ? '1' : '0');
+            ConsoleAudit::record('settings.monitoring', 'Monitoring '.($this->monitoringEnabled ? 'enabled' : 'disabled'), 'settings', null);
+        }
+        if ($this->monitoringCommands !== Monitoring::commandsEnabled()) {
+            Setting::put(Monitoring::SETTING_COMMANDS, $this->monitoringCommands ? '1' : '0');
+            ConsoleAudit::record('settings.monitoring-commands', 'Remote commands '.($this->monitoringCommands ? 'allowed' : 'turned off'), 'settings', null);
+        }
+        $agentUrl = rtrim(trim($this->monitoringAgentUrl), '/');
+        if ($agentUrl !== Monitoring::agentUrl()) {
+            Setting::put(Monitoring::SETTING_AGENT_URL, $agentUrl);
+            ConsoleAudit::record('settings.monitoring-agent-url', 'Agent connection URL set to '.($agentUrl ?: 'this console'), 'settings', null);
+        }
+        $this->monitoringAgentUrl = $agentUrl;
+        if ($this->monitoringAutoUpdate !== Monitoring::autoUpdate()) {
+            Setting::put(Monitoring::SETTING_AUTO_UPDATE, $this->monitoringAutoUpdate ? '1' : '0');
+            ConsoleAudit::record('settings.monitoring-auto-update', 'Automatic agent updates '.($this->monitoringAutoUpdate ? 'on' : 'off'), 'settings', null);
+        }
+        Setting::put(Monitoring::SETTING_INTERVAL, (string) $this->monitoringInterval);
+        Setting::put(Monitoring::SETTING_RETENTION, (string) $this->monitoringRetentionDays);
         Setting::put('two_factor_required', $this->twoFactorRequired ? '1' : '0');
         Setting::put('two_factor_required_admins', $this->twoFactorRequiredAdmins ? '1' : '0');
 

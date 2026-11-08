@@ -29,6 +29,7 @@
             $canAudit = $u?->consoleAllows('audit');
             $canAuditManage = $u?->consoleAllows('audit', 'rw');
             $canSettings = $u?->consoleAllows('setting');
+            $canMonitoring = $u?->consoleAllows('monitoring') && \App\Support\Monitoring::enabled();
             $canRoles = $u?->is_admin;
         @endphp
 
@@ -117,9 +118,20 @@
                 </li>
             @endif
 
-            @if ($canAudit)
+            @if ($canAudit || $canMonitoring)
                 <li class="rd-nav-title">{{ __('nav.monitor') }}</li>
+            @endif
 
+            @if ($canMonitoring)
+                <li class="rd-nav-item {{ request()->routeIs('monitoring*') ? 'rd-current' : '' }}">
+                    <a href="{{ route('monitoring') }}" class="rd-nav-link {{ request()->routeIs('monitoring*') ? 'active' : '' }}">
+                        <i class="ri-pulse-line"></i>
+                        <span> {{ __('monitoring.monitoring') }} </span>
+                    </a>
+                </li>
+            @endif
+
+            @if ($canAudit)
                 <li class="rd-nav-item {{ request()->routeIs('logs.*') ? 'rd-current' : '' }}">
                     <a data-bs-toggle="collapse" href="#sidebarLogs" aria-expanded="{{ request()->routeIs('logs.*') ? 'true' : 'false' }}" aria-controls="sidebarLogs" class="rd-nav-link">
                         <i class="ri-file-list-3-line"></i>

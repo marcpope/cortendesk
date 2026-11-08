@@ -73,6 +73,14 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(6000)->by('address|'.$request->ip()),
         ]);
 
+        // CortenDesk Agent reports (docs/monitoring). The shortest interval is
+        // 30 s, so 10 a minute per agent covers retries; the address ceiling
+        // is for a fleet behind one NAT.
+        RateLimiter::for('agent', fn (Request $request) => [
+            Limit::perMinute(10)->by('agent|'.strtok((string) $request->bearerToken(), '.')),
+            Limit::perMinute(6000)->by('agent-address|'.$request->ip()),
+        ]);
+
         // Guard for the RustDesk client API: Authorization: Bearer <token>
         // issued by POST /api/login and stored in client_tokens.
         Auth::viaRequest('client-token', function (Request $request) {

@@ -1,0 +1,31 @@
+{
+    "version": "0.2.0",
+    "base_url": "https://github.com/marcpope/cortendesk-agent/releases/download/v0.2.0",
+    "files": {
+        "darwin-universal": {
+            "name": "cortendesk-agent_darwin_universal",
+            "sha256": "6ed2e07ad52785ff6fcc4d5c1dfaf9512f07e85548ffdaec83fc2ae3a50fa517",
+            "signature": "C6jN1168Y5c4w4VsO1dTejSsOw4lPY71eGCTik0CiEL7qOKQggY3ZXdkHSbiGUw9wImAwn4V4Mh1yThr6B3fBA=="
+        },
+        "linux-amd64": {
+            "name": "cortendesk-agent_linux_amd64",
+            "sha256": "4cd46342986925beebea09a5f8ec09700b069a61bad693d7b23af29ab9dbbeb9",
+            "signature": "sd1eiUlQrSedwucTyEtJEfju3WIZAmZFLtZzdQVP1FZ/H960aI2SmgEEMFl6GJgeVER/Bldy+9IzlbilAe83DA=="
+        },
+        "linux-arm64": {
+            "name": "cortendesk-agent_linux_arm64",
+            "sha256": "11347c232519c477043dccbc30fb76e84e7b14abb7d317d253ab3a846046c801",
+            "signature": "DIeG7W0hhFFiS/9+kuBpEKlMwV9B0P1tSY53N3/RrY8iRGE5NmF65ete8F9FHIYhsuTA3GmloIQZaCV/OQIVCw=="
+        },
+        "windows-amd64": {
+            "name": "cortendesk-agent_windows_amd64.exe",
+            "sha256": "4023475b2ceb9886c6dfe600295271f4f7ec4ae7f2ddf8e8d4b91629aa4bb381",
+            "signature": "n+xp3fQj2S5Oy6eM0A/0KhD1POn+eVggm3CB2Oae+pB0rIjIy9E51jRk9oZz9ux+gHAH1/PYZNSSRoPIzoG+CA=="
+        },
+        "windows-arm64": {
+            "name": "cortendesk-agent_windows_arm64.exe",
+            "sha256": "47f451045212a701c98d51fca69d0e1dd4239b9df4f465a0f46d4e3f3e0f6fc0",
+            "signature": "YPWpDxcrKubL0y0FI/2vDXFjOkHQR3YpfMLsA9OE9MzfCyNoyGWJoYPcLB1vmbeafHsHJ+UrfFcTQG+gMyEZBw=="
+        }
+    }
+}

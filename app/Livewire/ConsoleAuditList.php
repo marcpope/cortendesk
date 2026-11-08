@@ -2,10 +2,10 @@
 
 namespace App\Livewire;
 
-use App\Support\Label;
 use App\Livewire\Concerns\AuthorizesConsole;
 use App\Models\ConsoleAudit;
 use App\Support\Csv;
+use App\Support\Label;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -82,12 +82,31 @@ class ConsoleAuditList extends Component
         'settings.update' => 'Settings updated',
         'settings.server-access' => 'Server access changed',
         'settings.server-ip-match' => 'Server IP matching changed',
+        'settings.monitoring' => 'Monitoring turned on or off',
+        'settings.monitoring-commands' => 'Remote commands allowed or turned off',
+        'settings.monitoring-auto-update' => 'Automatic agent updates turned on or off',
+        'settings.monitoring-agent-url' => 'Agent connection URL changed',
         'settings.relay-limits' => 'Relay bandwidth changed',
         'settings.mail-test' => 'Test email sent',
         'settings.notification-test' => 'Test notification sent',
         'settings.presence-snooze' => 'Presence alerts snoozed',
         'settings.presence-snooze-clear' => 'Presence snooze cleared',
         'setup.complete' => 'Setup completed',
+        'agent.enroll' => 'Agent enrolled',
+        'agent.re-enroll' => 'Agent re-enrolled',
+        'agent.enable' => 'Agent enabled',
+        'agent.disable' => 'Agent disabled',
+        'agent.link' => 'Agent linked to a device',
+        'agent.unlink' => 'Agent unlinked from a device',
+        'agent.watch-services' => 'Watched services changed',
+        'agent.issue-ack' => 'Issue acknowledged',
+        'agent.issue-restore' => 'Acknowledged issue restored',
+        'agent.command' => 'Command queued',
+        'agent.command-cancel' => 'Command cancelled',
+        'agent.command-result' => 'Command finished',
+        'agent.delete' => 'Agent deleted',
+        'agent.token-create' => 'Enrollment token created',
+        'agent.token-revoke' => 'Enrollment token revoked',
         'setup.dismiss' => 'Setup guide dismissed',
         'strategy.create' => 'Strategy created',
         'strategy.update' => 'Strategy updated',
@@ -129,6 +148,7 @@ class ConsoleAuditList extends Component
         'settings' => 'Settings',
         'setup' => 'Setup',
         'logs' => 'Logs',
+        'agent' => 'Monitoring',
     ];
 
     #[Url(except: '')]

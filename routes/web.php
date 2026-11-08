@@ -153,6 +153,15 @@ Route::middleware('auth')->group(function () {
         ->whereNumber('device')->name('devices.show')
         ->middleware('console-can:device,r');
 
+    // Monitoring and the CortenDesk Agent (docs/monitoring). 404 while the
+    // feature is off; agents are scoped through visibleTo in the components.
+    Route::middleware(['monitoring', 'console-can:monitoring,r'])->group(function () {
+        Route::view('/monitoring', 'monitoring.index')->name('monitoring');
+        Route::view('/monitoring/add', 'monitoring.add')->middleware('console-can:monitoring,rw')->name('monitoring.add');
+        Route::get('/monitoring/agents/{agent}', fn (int $agent) => view('monitoring.show', ['agent' => $agent]))
+            ->whereNumber('agent')->name('monitoring.agent');
+    });
+
     Route::view('/settings', 'settings.index')->name('settings')
         ->middleware('console-can:setting,r');
 

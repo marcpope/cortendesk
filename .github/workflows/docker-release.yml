@@ -1,6 +1,6 @@
 # Build and publish the CortenDesk Docker image to GHCR and Docker Hub
 # whenever a GitHub release is published. Pre-releases get their version tag
-# only; stable releases also move :latest and :<major>.<minor>.
+# and :beta; stable releases also move :latest and :<major>.<minor>.
 #
 # Actions are pinned to commit SHAs (the tag is in the trailing comment) so a
 # moved tag cannot change what runs with publish rights. Bump by hand.
@@ -46,6 +46,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
+            type=raw,value=beta,enable=${{ github.event_name == 'release' && github.event.release.prerelease }}
 
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:

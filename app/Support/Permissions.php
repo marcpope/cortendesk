@@ -27,7 +27,7 @@ final class Permissions
 
     /** Console areas a role can grant. Superset of ApiToken::RESOURCES. */
     public const CONSOLE_RESOURCES = [
-        'device', 'user', 'group', 'address_book', 'audit', 'strategy', 'setting', 'token',
+        'device', 'user', 'group', 'address_book', 'audit', 'strategy', 'setting', 'token', 'monitoring', 'agent_command',
     ];
 
     /** @return array<string,string> level => translated label */
@@ -68,6 +68,8 @@ final class Permissions
         'strategy' => 'Strategies',
         'setting' => 'Settings',
         'token' => 'API tokens',
+        'monitoring' => 'Monitoring',
+        'agent_command' => 'Remote commands',
     ];
 
     /** One-line explanation of what each area actually unlocks, for the editor. */
@@ -80,6 +82,8 @@ final class Permissions
         'strategy' => 'Client strategies pushed to devices over the heartbeat.',
         'setting' => 'Server settings, SSO, SMTP, retention and the sidebar version banner.',
         'token' => 'Tokens for the automation REST API. A new token can never be granted more than its creator already has.',
+        'monitoring' => 'View grants the Monitoring dashboard and agent details. Manage adds enrollment tokens and disabling, linking and deleting agents. Which agents are listed follows device-group access.',
+        'agent_command' => 'View shows the commands run on a machine. Manage queues RustDesk upgrades, system updates and reboots on machines running the agent, when Settings allows remote commands.',
     ];
 
     /**
@@ -97,6 +101,8 @@ final class Permissions
         'strategy' => 'none',
         'setting' => 'none',
         'token' => 'none',
+        'monitoring' => 'r',
+        'agent_command' => 'none',
     ];
 
     public static function rank(string $level): int

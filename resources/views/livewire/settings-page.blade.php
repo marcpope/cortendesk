@@ -49,6 +49,7 @@
             'sso'         => ['ri-shield-user-line', __('settings.sso')],
             'email'       => ['ri-mail-send-line', __('common.email')],
             'notifications' => ['ri-notification-3-line', __('devices.notifications')],
+            'monitoring' => ['ri-pulse-line', __('monitoring.monitoring')],
             'maintenance' => ['ri-database-2-line', __('settings.maintenance')],
             'backups' => ['ri-archive-line', __('backups.backups')],
         ];
@@ -889,6 +890,78 @@
                             @empty
                                 <p class="text-muted mb-0">{{ __('settings.no_delivery_attempts_yet') }}</p>
                             @endforelse
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ========================== MONITORING ========================= --}}
+        <div class="tab-pane {{ $tab === 'monitoring' ? 'show active' : '' }}">
+            <div class="row">
+                <div class="col-lg-7">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">{{ __('monitoring.monitoring') }} <span class="badge bg-warning-subtle text-warning ms-1">{{ __('monitoring.beta') }}</span></h5>
+                        </div>
+                        <div class="card-body">
+                            <form wire:submit="save">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="monitoringEnabled"
+                                               wire:model="monitoringEnabled">
+                                        <label class="form-check-label" for="monitoringEnabled">{{ __('monitoring.enable_monitoring') }}</label>
+                                    </div>
+                                    <div class="form-text">{{ __('monitoring.enable_monitoring_help') }}</div>
+                                    <div class="form-text">{{ __('monitoring.enable_monitoring_off_help') }}</div>
+                                </div>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-sm-6">
+                                        <label class="form-label" for="monitoringInterval">{{ __('monitoring.report_interval') }}</label>
+                                        <div class="input-group" style="max-width: 200px;">
+                                            <input type="number" id="monitoringInterval" class="form-control @error('monitoringInterval') is-invalid @enderror"
+                                                   wire:model="monitoringInterval" min="{{ \App\Support\Monitoring::MIN_INTERVAL }}" max="{{ \App\Support\Monitoring::MAX_INTERVAL }}">
+                                            <span class="input-group-text">{{ __('monitoring.seconds') }}</span>
+                                        </div>
+                                        @error('monitoringInterval') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                        <div class="form-text">{{ __('monitoring.report_interval_help') }}</div>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label class="form-label" for="monitoringRetentionDays">{{ __('monitoring.keep_history_for') }}</label>
+                                        <div class="input-group" style="max-width: 200px;">
+                                            <input type="number" id="monitoringRetentionDays" class="form-control @error('monitoringRetentionDays') is-invalid @enderror"
+                                                   wire:model="monitoringRetentionDays" min="1" max="{{ \App\Support\Monitoring::MAX_RETENTION }}">
+                                            <span class="input-group-text">{{ __('monitoring.days') }}</span>
+                                        </div>
+                                        @error('monitoringRetentionDays') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                        <div class="form-text">{{ __('monitoring.keep_history_help') }}</div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="monitoringAgentUrl">{{ __('monitoring.agent_url') }}</label>
+                                    <input type="url" id="monitoringAgentUrl" class="form-control @error('monitoringAgentUrl') is-invalid @enderror" style="max-width: 420px;"
+                                           wire:model="monitoringAgentUrl" placeholder="{{ rtrim(url('/'), '/') }}" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore>
+                                    @error('monitoringAgentUrl') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                    <div class="form-text">{{ __('monitoring.agent_url_help') }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="monitoringCommands"
+                                               wire:model="monitoringCommands">
+                                        <label class="form-check-label" for="monitoringCommands">{{ __('monitoring.allow_commands') }}</label>
+                                    </div>
+                                    <div class="form-text">{{ __('monitoring.allow_commands_help') }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="monitoringAutoUpdate"
+                                               wire:model="monitoringAutoUpdate">
+                                        <label class="form-check-label" for="monitoringAutoUpdate">{{ __('monitoring.auto_update') }}</label>
+                                    </div>
+                                    <div class="form-text">{{ __('monitoring.auto_update_help', ['version' => \App\Support\AgentInstall::version()]) }}</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary" @disabled(! $canManageSettings)><i class="ri-save-line me-1"></i>{{ __('common.save') }}</button>
+                            </form>
                         </div>
                     </div>
                 </div>

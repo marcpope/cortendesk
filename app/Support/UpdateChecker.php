@@ -7,14 +7,18 @@ use Illuminate\Support\Facades\Http;
 
 /**
  * Compares the running version (the VERSION file, via config) against the
- * VERSION file on GitHub's default branch. Cached so a page load never waits
- * on the network more than once every few hours.
+ * VERSION file on GitHub's default branch. A pre-release install (a beta)
+ * also reads the beta branch, so testers hear about the next beta; stable
+ * installs never see betas, which live only on that branch. Cached so a page
+ * load never waits on the network more than once every few hours.
  */
 class UpdateChecker
 {
     private const CACHE_KEY = 'cortendesk.latest_version';
 
     private const VERSION_URL = 'https://raw.githubusercontent.com/marcpope/cortendesk/main/VERSION';
+
+    private const BETA_VERSION_URL = 'https://raw.githubusercontent.com/marcpope/cortendesk/beta/VERSION';
 
     /** Release page for a version: what changed, plus the pull lines. */
     public static function releaseNotesUrl(string $version): string
@@ -53,16 +57,41 @@ class UpdateChecker
             return Cache::get(self::CACHE_KEY) ?: null;
         }
 
-        $value = Cache::remember(self::CACHE_KEY, now()->addHours(6), function () {
-            try {
-                $resp = Http::timeout(4)->get(self::VERSION_URL);
-
-                return $resp->ok() ? trim($resp->body()) : '';
-            } catch (\Throwable) {
-                return ''; // cache the failure briefly; avoids hammering GitHub
-            }
-        });
+        $value = Cache::remember(self::CACHE_KEY, now()->addHours(6), fn () => self::fetch());
 
         return $value ?: null;
+    }
+
+    /**
+     * The highest VERSION published on main, plus the beta branch when this
+     * install runs a pre-release. "" when nothing could be read.
+     */
+    public static function fetch(): string
+    {
+        $urls = [self::VERSION_URL];
+        if (self::isPrerelease((string) config('cortendesk.api_version'))) {
+            $urls[] = self::BETA_VERSION_URL;
+        }
+
+        $found = '';
+        foreach ($urls as $url) {
+            try {
+                $resp = Http::timeout(4)->get($url);
+                $version = $resp->ok() ? trim($resp->body()) : '';
+            } catch (\Throwable) {
+                $version = ''; // cache the failure briefly; avoids hammering GitHub
+            }
+            if ($version !== '' && ($found === '' || version_compare($version, $found, '>'))) {
+                $found = $version;
+            }
+        }
+
+        return $found;
+    }
+
+    /** "2.0.0-beta.1" is a pre-release; "1.23.0" is not. */
+    public static function isPrerelease(string $version): bool
+    {
+        return str_contains(trim($version), '-');
     }
 }

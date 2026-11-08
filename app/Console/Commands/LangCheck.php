@@ -112,7 +112,7 @@ class LangCheck extends Command
      */
     private function isDynamic(string $key): bool
     {
-        foreach (['validation.', 'labels.', 'devices.col_', 'diagnostics.status_', 'webclient.', 'pagination.'] as $prefix) {
+        foreach (['validation.', 'labels.', 'devices.col_', 'diagnostics.status_', 'monitoring.col_', 'monitoring.install_hint_', 'monitoring.range_', 'monitoring.svc_', 'webclient.', 'pagination.'] as $prefix) {
             if (str_starts_with($key, $prefix)) {
                 return true;
             }

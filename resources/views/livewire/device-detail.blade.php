@@ -122,6 +122,9 @@
             'activity' => ['ri-pulse-line', __('devices.tab_activity')],
             'details' => ['ri-information-line', __('devices.tab_details')],
         ];
+        if ($agent) {
+            $tabs['monitoring'] = ['ri-dashboard-3-line', __('monitoring.monitoring')];
+        }
     @endphp
     <div class="rd-dd-tabs">
         <ul class="nav nav-tabs nav-bordered rd-tabbar">
@@ -468,6 +471,13 @@
             </div>
         @endif
     </div>
+
+    {{-- ============================= MONITORING ============================ --}}
+    @if ($agent)
+        <div @class(['rd-dd-pane', 'd-none' => $tab !== 'monitoring'])>
+            @livewire(App\Livewire\AgentDetail::class, ['agentId' => $agent->id, 'embedded' => true], key('device-agent-'.$agent->id))
+        </div>
+    @endif
 
     {{-- ============================== DETAILS ============================== --}}
     <div @class(['rd-dd-pane', 'd-none' => $tab !== 'details'])>

@@ -211,4 +211,15 @@ return [
     | not call out or that get their updates from a packager.
     */
     'update_check' => filter_var(env('CORTENDESK_UPDATE_CHECK', true), FILTER_VALIDATE_BOOL),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Agent manifest override
+    |--------------------------------------------------------------------------
+    | Path to a manifest.json used instead of resources/agent/manifest.json:
+    | the agent build installs and self-updates use. For testing agent builds
+    | and for mirrors on networks without GitHub access. Agents still refuse
+    | any build not signed with the release key.
+    */
+    'agent_manifest' => env('CORTENDESK_AGENT_MANIFEST'),
 ];

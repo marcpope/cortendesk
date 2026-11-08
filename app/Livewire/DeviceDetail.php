@@ -6,6 +6,7 @@ use App\Livewire\Concerns\AuthorizesConsole;
 use App\Livewire\Concerns\DeletesDevices;
 use App\Livewire\Concerns\EditsDevices;
 use App\Models\AddressBook;
+use App\Models\Agent;
 use App\Models\AlarmLog;
 use App\Models\AuditConnection;
 use App\Models\AuditFileTransfer;
@@ -16,6 +17,7 @@ use App\Models\NotificationDelivery;
 use App\Services\DeviceAddressBooks;
 use App\Services\DuplicateDevices;
 use App\Services\ReleaseId;
+use App\Support\Monitoring;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Url;
@@ -32,7 +34,7 @@ class DeviceDetail extends Component
 {
     use AuthorizesConsole, DeletesDevices, EditsDevices;
 
-    public const TABS = ['overview', 'connections', 'activity', 'details'];
+    public const TABS = ['overview', 'connections', 'activity', 'details', 'monitoring'];
 
     public int $deviceId;
 
@@ -72,7 +74,7 @@ class DeviceDetail extends Component
         if (request()->boolean('share')) {
             $this->tab = 'details';
         }
-        if (! in_array($this->tab, self::TABS, true)) {
+        if (! in_array($this->tab, self::TABS, true) || ($this->tab === 'monitoring' && ! $this->monitoringAgent())) {
             $this->tab = 'overview';
         }
     }
@@ -80,6 +82,22 @@ class DeviceDetail extends Component
     public function setTab(string $tab): void
     {
         $this->tab = in_array($tab, self::TABS, true) ? $tab : 'overview';
+        if ($this->tab === 'monitoring' && ! $this->monitoringAgent()) {
+            $this->tab = 'overview';
+        }
+    }
+
+    /**
+     * The agent linked to this device, when Monitoring is on and the viewer
+     * may see it. Null hides the tab, so the page is unchanged otherwise.
+     */
+    private function monitoringAgent(): ?Agent
+    {
+        if (! Monitoring::enabled() || ! auth()->user()?->consoleAllows('monitoring')) {
+            return null;
+        }
+
+        return Agent::query()->where('device_id', $this->deviceId)->first();
     }
 
     /** The Note tile on the overview: edit it where it lives. */
@@ -372,6 +390,7 @@ class DeviceDetail extends Component
                 : collect(),
             'notifications' => $canAudit ? $this->notifications($device) : collect(),
             'hardware' => self::hardware($device),
+            'agent' => $this->monitoringAgent(),
         ]);
     }
 

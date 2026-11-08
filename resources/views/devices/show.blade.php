@@ -9,3 +9,10 @@
     </div>
     @livewire(App\Livewire\DeviceDetail::class, ['deviceId' => $device], key('device-detail-'.$device))
 @endsection
+
+@if (\App\Support\Monitoring::enabled())
+    @push('scripts')
+    <script src="{{ \App\Support\Asset::url('assets/vendor/apexcharts/apexcharts.min.js') }}"></script>
+    <script src="{{ \App\Support\Asset::url('assets/js/monitoring.js') }}"></script>
+    @endpush
+@endif

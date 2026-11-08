@@ -28,6 +28,9 @@ Schedule::command('cortendesk:prune-logs')->dailyAt('04:10');
 // from prune-logs, which no-ops when log retention is 0.
 Schedule::command('cortendesk:prune-invitations')->dailyAt('04:20');
 
+// Monitoring report history (docs/monitoring), by its own retention setting.
+Schedule::command('cortendesk:prune-agent-samples')->dailyAt('04:30')->withoutOverlapping(30, $releaseOnSignals);
+
 // Sessions on devices that have gone silent (issue #10). Frequent, not nightly:
 // this drives what the dashboard reports as happening right now.
 Schedule::command('cortendesk:close-stale-sessions')->everyFiveMinutes()->withoutOverlapping(30, $releaseOnSignals);
