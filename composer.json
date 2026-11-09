@@ -12,6 +12,7 @@
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.3",
+        "shuchkin/simplexlsxgen": "^1.5",
         "spomky-labs/otphp": "^11.5"
     },
     "require-dev": {

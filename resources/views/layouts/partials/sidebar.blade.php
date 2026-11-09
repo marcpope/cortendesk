@@ -128,6 +128,7 @@
                     </a>
                     <div class="collapse {{ request()->routeIs('logs.*') ? 'show' : '' }}" id="sidebarLogs">
                         <ul class="rd-nav-sub">
+                            <li class="{{ request()->routeIs('logs.connection-report') ? 'rd-current' : '' }}"><a href="{{ route('logs.connection-report') }}">{{ __('report.title') }}</a></li>
                             <li class="{{ request()->routeIs('logs.connections') ? 'rd-current' : '' }}"><a href="{{ route('logs.connections') }}">{{ __('common.connections') }}</a></li>
                             <li class="{{ request()->routeIs('logs.file-transfers') ? 'rd-current' : '' }}"><a href="{{ route('logs.file-transfers') }}">{{ __('nav.file_transfers') }}</a></li>
                             <li class="{{ request()->routeIs('logs.alarms') ? 'rd-current' : '' }}"><a href="{{ route('logs.alarms') }}">{{ __('common.alarms') }}</a></li>

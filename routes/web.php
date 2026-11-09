@@ -131,6 +131,7 @@ Route::middleware('auth')->group(function () {
     // Operational logs — the baseline every user has always had.
     Route::middleware('console-can:audit,r')->group(function () {
         Route::view('/logs/connections', 'logs.connections')->name('logs.connections');
+        Route::view('/logs/connection-report', 'logs.connection-report')->name('logs.connection-report');
         Route::view('/logs/file-transfers', 'logs.file-transfers')->name('logs.file-transfers');
         Route::view('/logs/alarms', 'logs.alarms')->name('logs.alarms');
     });
