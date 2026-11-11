@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'new_last_24_hours' => 'Novos em 24 horas',
+    'registered_last_24_hours' => 'Registrado pela primeira vez nas últimas 24 horas',
+    'new_device_badge' => 'Novo',
+
     'add_count_device_to_address' => 'Adicionar :count dispositivo a uma lista de endereços|Adicionar :count dispositivos a uma lista de endereços',
     'add_device' => 'Adicionar dispositivo',
     'add_note' => 'Adicionar nota',

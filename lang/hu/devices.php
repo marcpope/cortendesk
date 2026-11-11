@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'new_last_24_hours' => 'Új az elmúlt 24 órában',
+    'registered_last_24_hours' => 'Először regisztrálva az elmúlt 24 órában',
+    'new_device_badge' => 'Új',
+
     'add_count_device_to_address' => ':count eszköz hozzáadása címjegyzékhez|:count eszköz hozzáadása címjegyzékhez',
     'add_device' => 'Új eszköz',
     'add_note' => 'Megjegyzés hozzáadása',

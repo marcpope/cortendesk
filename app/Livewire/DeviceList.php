@@ -123,7 +123,10 @@ class DeviceList extends Component
     public string $status = 'all';
 
     #[Url(except: 0)]
-    public int $group = 0;
+    public int $group = 0; // 0 = any, -1 = no group, >0 = group id
+
+    #[Url(except: false)]
+    public bool $newOnly = false;
 
     #[Url(except: 0)]
     public int $owner = 0; // 0 = any, -1 = unassigned, >0 = user id
@@ -265,6 +268,21 @@ class DeviceList extends Component
         $this->clearSelection();
     }
 
+    public function toggleNewDevices(): void
+    {
+        $this->newOnly = ! $this->newOnly;
+        $this->trashed = false;
+        $this->pendingTab = false;
+        $this->resetPage();
+        $this->clearSelection();
+    }
+
+    public function updatedNewOnly(): void
+    {
+        $this->resetPage();
+        $this->clearSelection();
+    }
+
     public function updatedGroup(): void
     {
         $this->resetPage();
@@ -301,7 +319,7 @@ class DeviceList extends Component
 
     public function resetFilters(): void
     {
-        $this->reset('search', 'status', 'group', 'owner', 'trashed');
+        $this->reset('search', 'status', 'group', 'owner', 'trashed', 'newOnly');
         $this->resetPage();
         $this->clearSelection();
     }
@@ -670,6 +688,7 @@ class DeviceList extends Component
             'users' => User::orderBy('username')->get(['id', 'username']),
             'deleteState' => $this->deleteConfirmState(),
             'totalCount' => Device::visibleTo($user)->count(),
+            'newCount' => Device::visibleTo($user)->newlyRegistered()->count(),
             'onlineCount' => Device::visibleTo($user)->online()->count(),
             'trashedCount' => Device::visibleWithTrashed($user)->onlyTrashed()->count(),
             'pendingCount' => $pendingCount,
@@ -702,6 +721,8 @@ class DeviceList extends Component
             ->when(! $this->trashed && $this->status === 'online', fn ($q) => $q->online())
             ->when(! $this->trashed && $this->status === 'offline', fn ($q) => $q->offline())
             ->when($this->duplicatesMode(), fn ($q) => $q->whereIn('devices.id', $this->duplicates()->ids()))
+            ->when($this->newOnly, fn ($q) => $q->newlyRegistered())
+            ->when($this->group === -1, fn ($q) => $q->whereNull('device_group_id'))
             ->when($this->group > 0, fn ($q) => $q->where('device_group_id', $this->group))
             ->when($this->owner === -1, fn ($q) => $q->whereNull('user_id'))
             ->when($this->owner > 0, fn ($q) => $q->where('user_id', $this->owner));

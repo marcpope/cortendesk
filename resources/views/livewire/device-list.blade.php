@@ -22,6 +22,12 @@
             <span class="rd-chip-value">{{ $totalCount - $onlineCount }}</span>
             <span class="rd-chip-label">{{ __('devices.offline') }}</span>
         </button>
+        <button type="button" class="rd-chip rd-chip-btn rd-tone-amber @if(! $trashed && ! $pendingTab && $newOnly) rd-chip-active @endif"
+                wire:click="toggleNewDevices" aria-pressed="{{ $newOnly ? 'true' : 'false' }}" title="{{ __('devices.registered_last_24_hours') }}">
+            <i class="ri-sparkling-line rd-chip-icon"></i>
+            <span class="rd-chip-value">{{ $newCount }}</span>
+            <span class="rd-chip-label">{{ __('devices.new_last_24_hours') }}</span>
+        </button>
         @if ($duplicates && ($duplicates->count() > 0 || $status === 'duplicates'))
             <button type="button" class="rd-chip rd-chip-btn rd-tone-amber @if(! $trashed && ! $pendingTab && $status === 'duplicates') rd-chip-active @endif"
                     wire:click="filterByChip('duplicates')" title="{{ __('devices.devices_that_look_like_another') }}">
@@ -59,6 +65,7 @@
             </select>
             <select class="form-select rd-toolbar-filter" wire:model.live="group">
                 <option value="0">{{ __('devices.all_groups') }}</option>
+                <option value="-1">{{ __('devices.no_group') }}</option>
                 @foreach ($groups as $g)
                     <option value="{{ $g->id }}">{{ $g->name }}</option>
                 @endforeach
@@ -253,6 +260,9 @@
                                 <a href="{{ \App\Support\ClientLink::to($device->rustdesk_id) }}" class="fw-semibold"
                                    title="{{ __('common.connect_with_rustdesk') }}">{{ $device->rustdesk_id }}</a>
                             @endif
+                                @if (! $trashed && $device->isNewlyRegistered())
+                                    <span class="badge bg-warning-subtle text-warning ms-1" title="{{ __('devices.registered_last_24_hours') }}">{{ __('devices.new_device_badge') }}</span>
+                                @endif
                         </td>
                         @if ($cols['device'])
                             <td>
@@ -433,6 +443,9 @@
                                 @else
                                     <a href="{{ \App\Support\ClientLink::to($device->rustdesk_id) }}" class="rd-mini-title text-truncate"
                                        title="{{ __('common.connect_with_rustdesk') }}">{{ $device->rustdesk_id }}</a>
+                                @endif
+                                @if (! $trashed && $device->isNewlyRegistered())
+                                    <span class="badge bg-warning-subtle text-warning ms-1" title="{{ __('devices.registered_last_24_hours') }}">{{ __('devices.new_device_badge') }}</span>
                                 @endif
                                 @if ($trashed)
                                     <span class="rd-mini-sub text-truncate">{{ $device->alias ?: $device->hostname }}</span>
