@@ -45,7 +45,11 @@
                         <td class="text-nowrap">
                             <span title="{{ $transfer->created_at }}">{{ $transfer->created_at?->diffForHumans() }}</span>
                         </td>
-                        <td><span class="fw-semibold">{{ $transfer->rustdesk_id }}</span></td>
+                        <td><span class="fw-semibold">{{ $transfer->rustdesk_id }}</span>
+                            @if ($transfer->controlledDevice?->alias)
+                                <span class="rd-cell-sub">{{ $transfer->controlledDevice->alias }}</span>
+                            @endif
+                        </td>
                         <td>
                             <span class="rd-cell-title">{{ $transfer->from_peer ?: '—' }}</span>
                             <span class="rd-cell-sub">{{ $transfer->from_name }}</span>
@@ -92,6 +96,9 @@
                     <div class="rd-mini-head">
                         <div class="min-width-0">
                             <span class="rd-mini-title">{{ $transfer->rustdesk_id }}</span>
+                            @if ($transfer->controlledDevice?->alias)
+                                <span class="rd-cell-sub">{{ $transfer->controlledDevice->alias }}</span>
+                            @endif
                             <span class="rd-mini-sub">
                                 {{ __('logs.from_peer', ['peer' => $transfer->from_peer ?: '—']) }}@if ($transfer->from_name) ({{ $transfer->from_name }})@endif
                             </span>

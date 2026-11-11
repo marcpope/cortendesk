@@ -132,7 +132,7 @@ class ConnectionLog extends Component
     public function render()
     {
         return view('livewire.connection-log', [
-            'connections' => $this->query()->with(['noteUser', 'relaySession'])->paginate($this->perPage),
+            'connections' => $this->query()->with(['controlledDevice' => fn ($q) => $q->visibleTo(auth()->user())->select('rustdesk_id', 'alias')])->with(['noteUser', 'relaySession'])->paginate($this->perPage),
         ]);
     }
 }

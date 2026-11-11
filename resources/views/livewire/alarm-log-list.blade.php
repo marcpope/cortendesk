@@ -56,6 +56,9 @@
                                 <span class="fw-semibold">
                                 {{ $alarm->rustdesk_id === \App\Models\AlarmLog::CONSOLE_SOURCE ? __('common.console') : $alarm->rustdesk_id }}
                             </span>
+                                @if ($alarm->controlledDevice?->alias)
+                                    <span class="rd-cell-sub">{{ $alarm->controlledDevice->alias }}</span>
+                                @endif
                             @endif
                         </td>
                         <td>
@@ -100,6 +103,9 @@
                 <div class="rd-mini" wire:key="ma{{ $alarm->id }}">
                     <div class="rd-mini-head">
                         <span class="rd-mini-title">{{ $alarm->rustdesk_id }}</span>
+                        @if ($alarm->rustdesk_id !== \App\Models\AlarmLog::CONSOLE_SOURCE && $alarm->controlledDevice?->alias)
+                            <span class="rd-cell-sub">{{ $alarm->controlledDevice->alias }}</span>
+                        @endif
                         <span class="badge bg-{{ $alarm->typeSeverity() }}-subtle text-{{ $alarm->typeSeverity() }}">
                             {{ $alarm->typeLabel() }}
                         </span>
