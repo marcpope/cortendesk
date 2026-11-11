@@ -114,6 +114,7 @@ return [
     'no_devices_match_your_filters' => 'Geen apparaten die aan uw filters voldoen.',
     'no_file_transfers_recorded' => 'Geen bestandsoverdrachten vastgelegd.',
     'no_group' => 'Geen groep',
+    'create_new_group' => '+ Nieuwe groep…',
     'no_note' => 'Geen opmerking.',
     'no_notifications_sent_for_this' => 'Geen meldingen verzonden voor dit apparaat.',
     'no_strategy' => 'Geen strategie',

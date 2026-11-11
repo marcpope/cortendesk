@@ -114,6 +114,7 @@ return [
     'no_devices_match_your_filters' => 'Нет устройств, соответствующих фильтрам.',
     'no_file_transfers_recorded' => 'Передач файлов не зафиксировано.',
     'no_group' => 'Без группы',
+    'create_new_group' => '+ Новая группа…',
     'no_note' => 'Нет заметки.',
     'no_notifications_sent_for_this' => 'Для этого устройства уведомления не отправлялись.',
     'no_strategy' => 'Без стратегии',

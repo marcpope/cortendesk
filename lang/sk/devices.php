@@ -114,6 +114,7 @@ return [
     'no_devices_match_your_filters' => 'Žiadne zariadenie nezodpovedá filtrom.',
     'no_file_transfers_recorded' => 'Neboli zaznamenané žiadne prenosy súborov.',
     'no_group' => 'Bez skupiny',
+    'create_new_group' => '+ Nová skupina…',
     'no_note' => 'Bez poznámky.',
     'no_notifications_sent_for_this' => 'Pre toto zariadenie nebolo odoslané žiadne upozornenie.',
     'no_strategy' => 'Bez stratégie',

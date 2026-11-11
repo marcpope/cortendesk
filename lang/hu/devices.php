@@ -114,6 +114,7 @@ return [
     'no_devices_match_your_filters' => 'Egy eszköz sem felel meg a szűrőknek.',
     'no_file_transfers_recorded' => 'Nincs rögzített fájlátvitel.',
     'no_group' => 'Nincs csoport',
+    'create_new_group' => '+ Új csoport…',
     'no_note' => 'Nincs megjegyzés.',
     'no_notifications_sent_for_this' => 'Ehhez az eszközhöz nem küldtünk értesítést.',
     'no_strategy' => 'Nincs stratégia',

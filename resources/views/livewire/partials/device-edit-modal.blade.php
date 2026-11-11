@@ -1,6 +1,6 @@
 {{-- Add / Edit device modal. Driven by App\Livewire\Concerns\EditsDevices;
      the host passes editorViewData(). --}}
-@if ($editingId !== null)
+@if ($editingId !== null && ! $newGroupDialogOpen)
     {{-- Scrollable: with the strategy inspector open this form is taller than a
          390px screen, and an unbounded body puts "Save Changes" out of reach. --}}
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.6);" wire:keydown.escape="closeModal">
@@ -28,10 +28,13 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">{{ __('common.group') }}</label>
-                                <select class="form-select" wire:model="formGroupId">
-                                    <option value="0">{{ __('devices.no_group') }}</option>
+                                <select class="form-select" wire:change="selectEditorGroup($event.target.value)">
+                                    <option value="0" @selected($formGroupId === 0)>{{ __('devices.no_group') }}</option>
+                                    @if (auth()->user()?->consoleAllows('group', 'rw'))
+                                        <option value="-1">{{ __('devices.create_new_group') }}</option>
+                                    @endif
                                     @foreach ($editorGroups as $g)
-                                        <option value="{{ $g->id }}">{{ $g->name }}</option>
+                                        <option value="{{ $g->id }}" @selected($formGroupId === $g->id)>{{ $g->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -134,4 +137,8 @@
             </div>
         </div>
     </div>
+@endif
+
+@if ($editingId !== null && $newGroupDialogOpen)
+    @livewire(App\Livewire\GroupList::class, ['deviceEditor' => true, 'editorToken' => $groupCreationToken], key('device-editor-group-'.$groupCreationToken))
 @endif
