@@ -4,10 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['rustdesk_id', 'from_peer', 'from_name', 'path', 'info', 'is_file', 'direction', 'file_count', 'ip', 'uuid'])]
 class AuditFileTransfer extends Model
 {
+    /** Current target identity; missing or deleted devices leave the audit ID intact. */
+    public function controlledDevice(): BelongsTo
+    {
+        return $this->belongsTo(Device::class, 'rustdesk_id', 'rustdesk_id');
+    }
+
     /**
      * The files the client listed in `info.files`: up to the 10 largest, as
      * [name, size] pairs (docs/client-api.md §21). A single-file job lists

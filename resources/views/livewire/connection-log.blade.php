@@ -53,7 +53,11 @@
                         <td>
                             <span title="{{ $conn->created_at }}">{{ $conn->created_at?->diffForHumans() }}</span>
                         </td>
-                        <td><span class="fw-semibold">{{ $conn->rustdesk_id }}</span></td>
+                        <td><span class="fw-semibold">{{ $conn->rustdesk_id }}</span>
+                            @if ($conn->controlledDevice?->alias)
+                                <span class="rd-cell-sub">{{ $conn->controlledDevice->alias }}</span>
+                            @endif
+                        </td>
                         <td>
                             <span class="rd-cell-title">{{ $conn->from_peer ?: '—' }}</span>
                             <span class="rd-cell-sub">{{ $conn->from_name }}</span>
@@ -106,6 +110,9 @@
                     <div class="rd-mini-head">
                         <div class="min-width-0">
                             <span class="rd-mini-title">{{ $conn->rustdesk_id }}</span>
+                            @if ($conn->controlledDevice?->alias)
+                                <span class="rd-cell-sub">{{ $conn->controlledDevice->alias }}</span>
+                            @endif
                             <span class="rd-mini-sub">
                                 {{ __('logs.from_peer', ['peer' => $conn->from_peer ?: '—']) }}@if ($conn->from_name) ({{ $conn->from_name }})@endif
                             </span>

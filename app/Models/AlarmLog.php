@@ -5,10 +5,17 @@ namespace App\Models;
 use App\Support\Label;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['rustdesk_id', 'uuid', 'typ', 'info', 'conn_id'])]
 class AlarmLog extends Model
 {
+    /** Current target identity; missing or deleted devices leave the audit ID intact. */
+    public function controlledDevice(): BelongsTo
+    {
+        return $this->belongsTo(Device::class, 'rustdesk_id', 'rustdesk_id');
+    }
+
     /**
      * Alarm types posted by the client to POST /api/audit/alarm.
      * Enumerated in docs/client-api.md §21 (derived from the client's audit

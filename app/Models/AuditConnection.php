@@ -13,6 +13,12 @@ use Illuminate\Support\Str;
 #[Fillable(['action', 'conn_id', 'rustdesk_id', 'from_peer', 'from_name', 'ip', 'session_id', 'conn_type', 'path', 'uuid', 'closed_at', 'guid', 'note', 'note_user_id', 'noted_at'])]
 class AuditConnection extends Model
 {
+    /** Current target identity; missing or deleted devices leave the audit ID intact. */
+    public function controlledDevice(): BelongsTo
+    {
+        return $this->belongsTo(Device::class, 'rustdesk_id', 'rustdesk_id');
+    }
+
     /** Longest end-of-session note kept. The Flutter client caps its field at 256. */
     public const NOTE_MAX_LENGTH = 2000;
 
