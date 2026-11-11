@@ -154,6 +154,18 @@ class Device extends Model
         return $query->where('status', self::STATUS_PENDING);
     }
 
+    /** First registration, not presence: reconnecting does not make a device new. */
+    public function scopeNewlyRegistered(Builder $query): Builder
+    {
+        return $query->whereBetween('devices.created_at', [now()->subHours(24), now()]);
+    }
+
+    public function isNewlyRegistered(): bool
+    {
+        return $this->created_at !== null
+            && $this->created_at->betweenIncluded(now()->subHours(24), now());
+    }
+
     public function isOnline(): bool
     {
         return $this->last_online_at !== null

@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'new_last_24_hours' => 'Nieuw in 24 uur',
+    'registered_last_24_hours' => 'Voor het eerst geregistreerd in de afgelopen 24 uur',
+    'new_device_badge' => 'Nieuw',
+
     'add_count_device_to_address' => ':count apparaat aan een adresboek toevoegen|:count apparaten aan een adresboek toevoegen',
     'add_device' => 'Apparaat toevoegen',
     'add_note' => 'Notitie toevoegen',

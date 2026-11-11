@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'new_last_24_hours' => 'Nové za 24 hodín',
+    'registered_last_24_hours' => 'Prvýkrát zaregistrované za posledných 24 hodín',
+    'new_device_badge' => 'Nové',
+
     'add_count_device_to_address' => 'Pridať :count zariadenie do adresára|Pridať :count zariadenia do adresára|Pridať :count zariadení do adresára',
     'add_device' => 'Pridať zariadenie',
     'add_note' => 'Pridať poznámku',

@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'new_last_24_hours' => '24 小时内新增',
+    'registered_last_24_hours' => '在过去 24 小时内首次注册',
+    'new_device_badge' => '新增',
+
     'add_count_device_to_address' => '将 :count 台设备添加到地址簿',
     'add_device' => '添加设备',
     'add_note' => '添加备注',
