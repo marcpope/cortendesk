@@ -114,6 +114,7 @@ return [
     'no_devices_match_your_filters' => 'No devices match your filters.',
     'no_file_transfers_recorded' => 'No file transfers recorded.',
     'no_group' => 'No group',
+    'create_new_group' => '+ New group…',
     'no_note' => 'No note.',
     'no_notifications_sent_for_this' => 'No notifications sent for this device.',
     'no_strategy' => 'No strategy',

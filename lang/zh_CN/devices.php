@@ -114,6 +114,7 @@ return [
     'no_devices_match_your_filters' => '没有符合筛选条件的设备。',
     'no_file_transfers_recorded' => '没有文件传输记录。',
     'no_group' => '无组',
+    'create_new_group' => '+ 新建组…',
     'no_note' => '无备注。',
     'no_notifications_sent_for_this' => '尚未为此设备发送任何通知。',
     'no_strategy' => '无策略',

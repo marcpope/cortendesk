@@ -7,6 +7,9 @@ use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\Strategy;
 use App\Models\User;
+use Illuminate\Support\Str;
+use Livewire\Attributes\Locked;
+use Livewire\Attributes\On;
 
 /**
  * The Add / Edit device modal, shared by the device list and the device
@@ -18,6 +21,49 @@ trait EditsDevices
 {
     /** Device id being edited, 0 = creating, null = modal closed. */
     public ?int $editingId = null;
+
+    #[Locked]
+    public bool $newGroupDialogOpen = false;
+
+    #[Locked]
+    public string $groupCreationToken = '';
+
+    /** Groups created by this editor, without changing visibility grants. */
+    #[Locked]
+    public array $createdEditorGroupIds = [];
+
+    public function selectEditorGroup(int $id): void
+    {
+        $this->authorizeConsole('device', 'rw');
+        if ($id !== -1) {
+            $this->formGroupId = $id;
+
+            return;
+        }
+        $this->authorizeConsole('group', 'rw');
+        abort_if($this->editingId === null, 403);
+        $this->groupCreationToken = (string) Str::uuid();
+        $this->newGroupDialogOpen = true;
+    }
+
+    #[On('device-editor-group-closed')]
+    public function finishEditorGroup(string $token): void
+    {
+        $this->authorizeConsole('device', 'rw');
+        if (! $this->newGroupDialogOpen || ! hash_equals($this->groupCreationToken, $token)) {
+            return;
+        }
+        $id = session()->pull('device-editor-groups.'.$token);
+        if ($id !== null) {
+            $this->authorizeConsole('group', 'rw');
+            if (DeviceGroup::whereKey($id)->exists()) {
+                $this->createdEditorGroupIds[] = (int) $id;
+                $this->formGroupId = (int) $id;
+            }
+        }
+        $this->newGroupDialogOpen = false;
+        $this->groupCreationToken = '';
+    }
 
     public string $formRustdeskId = '';
 
@@ -119,6 +165,7 @@ trait EditsDevices
         }
 
         $this->editingId = null;
+        $this->reset('newGroupDialogOpen', 'groupCreationToken', 'createdEditorGroupIds');
     }
 
     /**
@@ -158,6 +205,7 @@ trait EditsDevices
     public function closeModal(): void
     {
         $this->editingId = null;
+        $this->reset('newGroupDialogOpen', 'groupCreationToken', 'createdEditorGroupIds');
     }
 
     /** Device groups this actor may see and therefore may choose. */
@@ -166,7 +214,7 @@ trait EditsDevices
         $user = auth()->user();
 
         return DeviceGroup::orderBy('name')
-            ->when(! $user->seesAllDevices(), fn ($q) => $q->whereIn('id', $user->accessibleDeviceGroupIds() ?: [0]))
+            ->when(! $user->seesAllDevices(), fn ($q) => $q->whereIn('id', array_merge($user->accessibleDeviceGroupIds(), $this->createdEditorGroupIds) ?: [0]))
             ->get();
     }
 

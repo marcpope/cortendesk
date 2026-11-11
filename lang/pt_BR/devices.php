@@ -114,6 +114,7 @@ return [
     'no_devices_match_your_filters' => 'Nenhum dispositivo corresponde aos seus filtros.',
     'no_file_transfers_recorded' => 'Nenhuma transferência de arquivos registrada.',
     'no_group' => 'Sem grupo',
+    'create_new_group' => '+ Novo grupo…',
     'no_note' => 'Sem anotação.',
     'no_notifications_sent_for_this' => 'Nenhuma notificação enviada para este dispositivo.',
     'no_strategy' => 'Sem estratégia',

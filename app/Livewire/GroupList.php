@@ -9,12 +9,19 @@ use App\Models\DeviceGroup;
 use App\Models\GroupAccess;
 use App\Models\UserGroup;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class GroupList extends Component
 {
     use AuthorizesConsole;
+
+    #[Locked]
+    public bool $deviceEditor = false;
+
+    #[Locked]
+    public string $editorToken = '';
 
     #[Url(except: 'devices')]
     public string $tab = 'devices';
@@ -43,9 +50,15 @@ class GroupList extends Component
      * Groups needs "View" to open (PLAN D4). The `group` area covers BOTH
      * device groups and user groups, exactly as the API-token matrix does.
      */
-    public function mount(): void
+    public function mount(bool $deviceEditor = false, string $editorToken = ''): void
     {
         $this->authorizeConsole('group', 'r');
+        if ($deviceEditor) {
+            $this->authorizeConsole('device', 'rw');
+            $this->deviceEditor = true;
+            $this->editorToken = $editorToken;
+            $this->create('devices');
+        }
     }
 
     public function setTab(string $tab): void
@@ -87,6 +100,11 @@ class GroupList extends Component
     public function save(): void
     {
         $this->authorizeConsole('group', 'rw');
+        if ($this->deviceEditor) {
+            $this->authorizeConsole('device', 'rw');
+            $this->modalType = 'devices';
+            $this->editing = null;
+        }
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -159,6 +177,10 @@ class GroupList extends Component
             $group->name,
         );
 
+        if ($this->deviceEditor) {
+            session()->put('device-editor-groups.'.$this->editorToken, $group->id);
+        }
+
         $this->closeModal();
     }
 
@@ -190,6 +212,9 @@ class GroupList extends Component
 
     public function closeModal(): void
     {
+        if ($this->deviceEditor) {
+            $this->dispatch('device-editor-group-closed', token: $this->editorToken);
+        }
         $this->showModal = false;
         $this->resetForm();
     }
@@ -213,7 +238,7 @@ class GroupList extends Component
 
     public function render()
     {
-        return view('livewire.group-list', [
+        return view($this->deviceEditor ? 'livewire.device-editor-group' : 'livewire.group-list', [
             'deviceGroups' => DeviceGroup::withCount('devices')->orderBy('name')->get(),
             'userGroups' => UserGroup::withCount('users')->with('deviceGroups')->orderBy('name')->get(),
             // The folder picker inside the editor offers only what save() would
