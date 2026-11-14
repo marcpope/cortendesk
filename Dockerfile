@@ -42,7 +42,10 @@ RUN php -r 'exit(version_compare(PHP_VERSION, "8.5.12", ">=") ? 0 : 1);' \
 # not ship it. Built standalone it has no TLS unless --with-ftp-ssl is given
 # (issue #100), hence the configure step and openssl-dev at build time.
 # OPcache is built into PHP 8.5, so it is not in this list.
-RUN apk add --no-cache nginx supervisor icu-libs gettext \
+# apk upgrade takes Alpine's security fixes: the base image keeps the package
+# versions it was built with (musl, curl, expat and so on).
+RUN apk upgrade --no-cache \
+    && apk add --no-cache nginx supervisor icu-libs gettext \
     && apk add --no-cache --virtual .build icu-dev openssl-dev \
     && docker-php-ext-configure ftp --with-ftp-ssl \
     && docker-php-ext-install -j"$(nproc)" pdo_mysql bcmath intl ftp \

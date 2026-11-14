@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Relay-server',
     'relay_server_hbbr' => 'Relay-server (hbbr)',
     'relay_servers' => 'Relay-servers',
+    'relay_servers_live' => 'De meegeleverde ID-server geeft door:',
     'remember_verified_browser_for_days' => 'Geverifieerde browser onthouden gedurende (dagen)',
     'remove_relay' => 'Relay verwijderen',
     'require_device_approval' => 'Apparaatgoedkeuring vereisen',

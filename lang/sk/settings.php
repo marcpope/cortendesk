@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Prenosový server',
     'relay_server_hbbr' => 'Prenosový server (hbbr)',
     'relay_servers' => 'Prenosové servery',
+    'relay_servers_live' => 'Pribalený ID server odovzdáva:',
     'remember_verified_browser_for_days' => 'Zapamätať overený prehliadač na (dni)',
     'remove_relay' => 'Odstrániť prenosový server',
     'require_device_approval' => 'Vyžadovať schválenie zariadenia',

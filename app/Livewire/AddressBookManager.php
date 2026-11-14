@@ -55,6 +55,8 @@ class AddressBookManager extends Component
 
     public string $entryAlias = '';
 
+    public string $entryNote = '';
+
     /** Filters the entry list. Matches the machine name, not just the ID (#5). */
     public string $entrySearch = '';
 
@@ -201,7 +203,7 @@ class AddressBookManager extends Component
 
     public function openAddEntry(): void
     {
-        $this->reset('entryId', 'entryRustdeskId', 'entryAlias', 'entryTagIds');
+        $this->reset('entryId', 'entryRustdeskId', 'entryAlias', 'entryNote', 'entryTagIds');
         $this->resetValidation();
         $this->modal = 'entry';
     }
@@ -212,6 +214,7 @@ class AddressBookManager extends Component
         $this->entryId = $entry->id;
         $this->entryRustdeskId = $entry->rustdesk_id;
         $this->entryAlias = (string) $entry->alias;
+        $this->entryNote = (string) $entry->note;
         $this->entryTagIds = array_map('strval', $entry->tag_ids ?? []);
         $this->resetValidation();
         $this->modal = 'entry';
@@ -387,9 +390,13 @@ class AddressBookManager extends Component
 
         if ($this->entryId !== null) {
             $entry = $book->entries()->findOrFail($this->entryId);
-            $this->validate(['entryAlias' => 'nullable|string|max:255'], [], ['entryAlias' => 'alias']);
+            $this->validate([
+                'entryAlias' => 'nullable|string|max:255',
+                'entryNote' => 'nullable|string|max:'.AddressBookEntry::NOTE_MAX,
+            ]);
             $entry->update([
                 'alias' => $this->entryAlias !== '' ? trim($this->entryAlias) : null,
+                'note' => AddressBookEntry::cleanNote($this->entryNote),
                 'tag_ids' => $tagIds,
             ]);
 
@@ -401,11 +408,13 @@ class AddressBookManager extends Component
                     Rule::unique('address_book_entries', 'rustdesk_id')->where('address_book_id', $book->id),
                 ],
                 'entryAlias' => 'nullable|string|max:255',
+                'entryNote' => 'nullable|string|max:'.AddressBookEntry::NOTE_MAX,
             ]);
 
             $entry = $book->entries()->create([
                 'rustdesk_id' => trim($this->entryRustdeskId),
                 'alias' => $this->entryAlias !== '' ? trim($this->entryAlias) : null,
+                'note' => AddressBookEntry::cleanNote($this->entryNote),
                 'tag_ids' => $tagIds,
             ]);
 

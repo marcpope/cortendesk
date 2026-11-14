@@ -44,9 +44,9 @@ class AuditController extends Controller
     public function connection(Request $request): Response|JsonResponse
     {
         $action = $request->input('action');
-        $id = (string) $request->input('id', '');
+        $id = $this->clip((string) $request->input('id', ''));
         $connId = (int) $request->input('conn_id', 0);
-        $sessionId = $this->sessionId($request);
+        $sessionId = $this->clip($this->sessionId($request));
 
         if ($request->has('note') && ! $request->has('conn_id')) {
             return $this->once($request, 'note', $id, fn () => $this->legacyNote($id, $sessionId, $request->input('note')));
@@ -63,9 +63,9 @@ class AuditController extends Controller
                         'action' => 'new',
                         'conn_id' => $connId,
                         'rustdesk_id' => $id,
-                        'ip' => (string) $request->input('ip', $request->ip()),
+                        'ip' => $this->clip((string) $request->input('ip', $request->ip()), 45),
                         'session_id' => $sessionId,
-                        'uuid' => (string) $request->input('uuid', ''),
+                        'uuid' => $this->clip((string) $request->input('uuid', '')),
                         // How hbbs set it up, echoed by 1.5+ devices (issue #130).
                         'path' => ConnectionPath::fromTag($request->input('conn_audit_ref')),
                     ]);
@@ -94,8 +94,8 @@ class AuditController extends Controller
             $peer = (array) $request->input('peer', []);
             $attributes = [
                 'action' => 'authorized',
-                'from_peer' => (string) ($peer[0] ?? ''),
-                'from_name' => (string) ($peer[1] ?? ''),
+                'from_peer' => $this->clip((string) ($peer[0] ?? '')),
+                'from_name' => $this->clip((string) ($peer[1] ?? '')),
                 'conn_type' => (int) $request->input('type', 0),
             ];
 
@@ -111,7 +111,7 @@ class AuditController extends Controller
                     'conn_id' => $connId,
                     'rustdesk_id' => $id,
                     'session_id' => $sessionId,
-                    'uuid' => (string) $request->input('uuid', ''),
+                    'uuid' => $this->clip((string) $request->input('uuid', '')),
                     'ip' => $request->ip(),
                 ]);
             }
@@ -122,7 +122,7 @@ class AuditController extends Controller
     /** POST /api/audit/file — spec §21. `info` is a JSON-encoded string. */
     public function file(Request $request): Response|JsonResponse
     {
-        $id = (string) $request->input('id', '');
+        $id = $this->clip((string) $request->input('id', ''));
         if ($id === '') {
             return $this->stored();
         }
@@ -133,22 +133,22 @@ class AuditController extends Controller
 
         return $this->once($request, 'file', $id, fn () => AuditFileTransfer::create([
             'rustdesk_id' => $id,
-            'from_peer' => (string) $request->input('peer_id', ''),
-            'from_name' => (string) ($decoded['name'] ?? ''),
-            'path' => (string) $request->input('path', ''),
-            'info' => $info,
+            'from_peer' => $this->clip((string) $request->input('peer_id', '')),
+            'from_name' => $this->clip((string) ($decoded['name'] ?? '')),
+            'path' => $this->clipText((string) $request->input('path', '')),
+            'info' => $this->clipText($info),
             'is_file' => (bool) $request->input('is_file', false),
             'direction' => (int) $request->input('type', 0),
             'file_count' => (int) ($decoded['num'] ?? 0),
-            'ip' => (string) ($decoded['ip'] ?? $request->ip()),
-            'uuid' => (string) $request->input('uuid', ''),
+            'ip' => $this->clip((string) ($decoded['ip'] ?? $request->ip()), 45),
+            'uuid' => $this->clip((string) $request->input('uuid', '')),
         ]));
     }
 
     /** POST /api/audit/alarm — spec §21. */
     public function alarm(Request $request): Response|JsonResponse
     {
-        $id = (string) $request->input('id', '');
+        $id = $this->clip((string) $request->input('id', ''));
         if ($id === '') {
             return $this->stored();
         }
@@ -157,9 +157,9 @@ class AuditController extends Controller
         $response = $this->once($request, 'alarm', $id, function () use ($request, $id, &$alarm) {
             $alarm = AlarmLog::create([
                 'rustdesk_id' => $id,
-                'uuid' => (string) $request->input('uuid', ''),
+                'uuid' => $this->clip((string) $request->input('uuid', '')),
                 'typ' => (int) $request->input('typ', 0),
-                'info' => (string) $request->input('info', ''),
+                'info' => $this->clipText((string) $request->input('info', '')),
                 'conn_id' => (int) $request->input('conn_id', 0) ?: null,
             ]);
         });
@@ -392,6 +392,21 @@ class AuditController extends Controller
         $token = $request->attributes->get('client_token');
 
         return $token instanceof ClientToken ? (string) $token->device_id : '';
+    }
+
+    /**
+     * A client string cut to what its column holds. MySQL in strict mode
+     * rejects a longer one, and the whole record would be lost.
+     */
+    private function clip(string $value, int $chars = 255): string
+    {
+        return mb_substr($value, 0, $chars);
+    }
+
+    /** The same for a TEXT column, which is sized in bytes. */
+    private function clipText(string $value): string
+    {
+        return mb_strcut($value, 0, 65535);
     }
 
     /** Trimmed and capped; null when there is nothing to keep. */

@@ -63,14 +63,22 @@ class AuditConnection extends Model
         ." WHEN path IN ('punch', 'punch-webrtc') THEN 'direct'"
         ." ELSE 'unknown' END";
 
-    /** Narrow a query to one of relay, direct, lan, unknown. */
+    /**
+     * Narrow a query to one of relay, direct, lan, unknown. Like the Overview
+     * count, only sessions that logged in have a path; an attempt that lost
+     * the race (no peer) stays out of every one (issue #169).
+     */
     public static function whereTransport(Builder $query, string $transport): Builder
     {
+        $query->whereNotNull('from_peer')->where('from_peer', '!=', '');
+
         return match ($transport) {
             'relay' => $query->where(fn (Builder $q) => $q->whereNotNull('relay_session_id')->orWhere('path', 'relay')),
             'lan' => $query->whereNull('relay_session_id')->where('path', 'lan'),
             'direct' => $query->whereNull('relay_session_id')->whereIn('path', ['punch', 'punch-webrtc']),
-            'unknown' => $query->whereNull('relay_session_id')->whereNull('path'),
+            // The ELSE of TRANSPORT_SQL: no path, or one it does not know.
+            'unknown' => $query->whereNull('relay_session_id')->where(fn (Builder $q) => $q->whereNull('path')
+                ->orWhereNotIn('path', ['relay', 'lan', 'punch', 'punch-webrtc'])),
             default => $query,
         };
     }

@@ -126,6 +126,7 @@ return [
         'email' => 'email',
         'emailTrustedDeviceDays' => 'giorni browser attendibile',
         'entryAlias' => 'alias',
+        'entryNote' => 'nota',
         'entryRustdeskId' => 'ID RustDesk',
         'expiresDays' => 'scadenza (giorni)',
         'file' => 'file',

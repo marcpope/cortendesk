@@ -201,8 +201,7 @@ class DeviceCliController extends Controller
 
     /**
      * Upsert the device as a peer in the given address book, applying the
-     * address_book_* display fields. address_book_note has no column in our
-     * schema and is accepted-and-ignored.
+     * address_book_* display fields.
      */
     private function applyAddressBook(Request $request, AddressBook $book, Device $device): void
     {
@@ -217,6 +216,9 @@ class DeviceCliController extends Controller
 
         if ($request->filled('address_book_alias')) {
             $entry->alias = (string) $request->input('address_book_alias');
+        }
+        if ($request->filled('address_book_note')) {
+            $entry->note = AddressBookEntry::cleanNote($request->input('address_book_note'));
         }
         if ($request->filled('address_book_password')) {
             $entry->password_enc = Crypt::encryptString((string) $request->input('address_book_password'));

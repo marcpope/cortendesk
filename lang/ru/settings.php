@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Ретранслятор',
     'relay_server_hbbr' => 'Ретранслятор (hbbr)',
     'relay_servers' => 'Ретрансляторы',
+    'relay_servers_live' => 'Встроенный ID-сервер выдаёт:',
     'remember_verified_browser_for_days' => 'Запоминать проверенный браузер на (дней)',
     'remove_relay' => 'Удалить ретранслятор',
     'require_device_approval' => 'Требовать одобрение устройств',

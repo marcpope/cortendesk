@@ -28,12 +28,13 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">{{ __('common.group') }}</label>
-                                <select class="form-select" wire:model="formGroupId">
+                                <select class="form-select @error('formGroupId') is-invalid @enderror" wire:model="formGroupId">
                                     <option value="0">{{ __('devices.no_group') }}</option>
                                     @foreach ($editorGroups as $g)
                                         <option value="{{ $g->id }}">{{ $g->name }}</option>
                                     @endforeach
                                 </select>
+                                @error('formGroupId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">{{ __('devices.owner') }}</label>

@@ -123,6 +123,7 @@ class AddressBookController extends Controller
         $book->entries()->create([
             'rustdesk_id' => $id,
             'alias' => $alias,
+            'note' => AddressBookEntry::cleanNote($request->input('note', '')),
             'username' => (string) $request->input('username', ''),
             'hostname' => (string) $request->input('hostname', ''),
             'platform' => (string) $request->input('platform', ''),
@@ -154,6 +155,9 @@ class AddressBookController extends Controller
             if ($request->has($field)) {
                 $updates[$field] = (string) $request->input($field);
             }
+        }
+        if ($request->has('note')) {
+            $updates['note'] = AddressBookEntry::cleanNote($request->input('note'));
         }
         if ($request->has('tags')) {
             $updates['tag_ids'] = $this->tagNamesToIds($book, (array) $request->input('tags'));
@@ -282,6 +286,7 @@ class AddressBookController extends Controller
                 'hostname' => (string) $e->hostname,
                 'platform' => (string) $e->platform,
                 'alias' => (string) $e->alias,
+                'note' => (string) $e->note,
                 'tags' => $tags->whereIn('id', $e->tag_ids ?? [])->pluck('name')->values()->all(),
                 'hash' => (string) $e->hash,
             ];
@@ -335,6 +340,7 @@ class AddressBookController extends Controller
                 'hostname' => (string) ($peer['hostname'] ?? ''),
                 'platform' => (string) ($peer['platform'] ?? ''),
                 'alias' => (string) ($peer['alias'] ?? ''),
+                'note' => AddressBookEntry::cleanNote($peer['note'] ?? ''),
                 'hash' => (string) ($peer['hash'] ?? ''),
                 'tag_ids' => array_values(array_filter(array_map(
                     fn ($n) => $tagIdByName[$n] ?? null,
@@ -428,6 +434,7 @@ class AddressBookController extends Controller
             'hostname' => (string) $e->hostname,
             'platform' => (string) $e->platform,
             'alias' => (string) $e->alias,
+            'note' => (string) $e->note,
             'tags' => $book->tags->whereIn('id', $e->tag_ids ?? [])->pluck('name')->values()->all(),
             'forceAlwaysRelay' => $e->force_always_relay ? 'true' : 'false',
             'rdpPort' => (string) $e->rdp_port,

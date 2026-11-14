@@ -126,6 +126,7 @@ return [
         'email' => 'email',
         'emailTrustedDeviceDays' => 'дни доверия браузеру',
         'entryAlias' => 'псевдоним',
+        'entryNote' => 'заметка',
         'entryRustdeskId' => 'RustDesk ID',
         'expiresDays' => 'срок действия (дней)',
         'file' => 'файл',

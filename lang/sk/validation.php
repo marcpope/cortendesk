@@ -126,6 +126,7 @@ return [
         'email' => 'e-mail',
         'emailTrustedDeviceDays' => 'počet dní dôveryhodnosti prehliadača',
         'entryAlias' => 'názov',
+        'entryNote' => 'poznámka',
         'entryRustdeskId' => 'RustDesk ID',
         'expiresDays' => 'platnosť v dňoch',
         'file' => 'súbor',

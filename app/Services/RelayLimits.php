@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\RelayConsole;
 use App\Models\Setting;
+use App\Support\ServerEnvFile;
 
 /**
  * Bandwidth limits of the relay (hbbr) bundled in the container (#128).
@@ -22,8 +23,6 @@ use App\Models\Setting;
 class RelayLimits
 {
     public const SETTING = 'relay_limits';
-
-    public const ENV_FILE = '.env';
 
     /** Ten years: hbbr has no switch for the slowdown, only a start time. */
     private const NEVER_SECONDS = 315_360_000;
@@ -171,32 +170,11 @@ class RelayLimits
      */
     private function writeEnvFile(array $limits): void
     {
-        $dir = (string) config('cortendesk.rustdesk_dir');
-        if ($dir === '' || ! is_dir($dir)) {
-            return;
-        }
-
-        $path = $dir.'/'.self::ENV_FILE;
-        $ours = array_column(self::FIELDS, 1);
-        $kept = [];
-        if (is_file($path)) {
-            foreach (file($path, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
-                $name = strtoupper(trim(strtok($line, '=') ?: ''));
-                if (! in_array(str_replace('-', '_', $name), $ours, true)) {
-                    $kept[] = $line;
-                }
-            }
-        }
-        while ($kept !== [] && trim(end($kept)) === '') {
-            array_pop($kept);
-        }
-
-        $lines = $kept;
+        $values = [];
         foreach (self::hbbrValues($limits) as $field => $value) {
-            $lines[] = self::FIELDS[$field][1].'='.$value;
+            $values[self::FIELDS[$field][1]] = $value;
         }
 
-        file_put_contents($path.'.tmp', implode("\n", $lines)."\n");
-        rename($path.'.tmp', $path);
+        ServerEnvFile::write(array_column(self::FIELDS, 1), $values);
     }
 }

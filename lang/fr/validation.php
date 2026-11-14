@@ -126,6 +126,7 @@ return [
         'email' => 'e-mail',
         'emailTrustedDeviceDays' => 'jours de confiance du navigateur',
         'entryAlias' => 'alias',
+        'entryNote' => 'note',
         'entryRustdeskId' => 'ID RustDesk',
         'expiresDays' => 'expiration (jours)',
         'file' => 'fichier',

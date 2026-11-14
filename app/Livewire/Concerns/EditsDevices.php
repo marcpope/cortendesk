@@ -76,6 +76,19 @@ trait EditsDevices
             'formCanInitiate' => 'boolean',
         ]);
 
+        // The select only lists groups this user may reach, but the value is
+        // posted by the browser. Keeping the group the device is already in is
+        // allowed: a device the user owns can sit in a group they cannot see.
+        $groupId = (int) $data['formGroupId'];
+        $currentGroupId = $this->editingId
+            ? (int) $this->scopedDevice((int) $this->editingId)->device_group_id
+            : 0;
+        if ($groupId !== 0 && $groupId !== $currentGroupId && ! $this->accessibleDeviceGroups()->contains('id', $groupId)) {
+            $this->addError('formGroupId', __('messages.pick_accessible_group'));
+
+            return;
+        }
+
         $attributes = [
             'alias' => $data['formAlias'] ?: null,
             'note' => $data['formNote'] ?: null,

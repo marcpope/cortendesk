@@ -1934,6 +1934,19 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     min-width: 0;
 }
 
+/* A search that follows a heading: capped on a wide screen, and on a phone a
+   row of its own, as wide as the action button under it (#165). */
+.rd-toolbar-search-row {
+    max-width: 320px;
+}
+
+@media (max-width: 575.98px) {
+    .rd-toolbar-search-row {
+        flex-basis: 100%;
+        max-width: none;
+    }
+}
+
 .rd-toolbar-filter {
     flex: 0 1 156px;
     width: auto;

@@ -126,6 +126,7 @@ return [
         'email' => 'E-Mail-Adresse',
         'emailTrustedDeviceDays' => 'Tage für vertrauenswürdigen Browser',
         'entryAlias' => 'Alias',
+        'entryNote' => 'Notiz',
         'entryRustdeskId' => 'RustDesk-ID',
         'expiresDays' => 'Ablauf (Tage)',
         'file' => 'Datei',

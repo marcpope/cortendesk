@@ -129,6 +129,7 @@ return [
     'relay_server' => '中继服务器',
     'relay_server_hbbr' => '中继服务器（hbbr）',
     'relay_servers' => '中继服务器',
+    'relay_servers_live' => '内置 ID 服务器当前下发：',
     'remember_verified_browser_for_days' => '记住已验证浏览器的天数',
     'remove_relay' => '移除中继',
     'require_device_approval' => '要求设备审批',
