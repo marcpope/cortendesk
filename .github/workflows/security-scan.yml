@@ -1,12 +1,12 @@
 # Actions are pinned to commit SHAs (tag in the trailing comment); bump by hand.
 name: Security scan
 
-# composer audit, npm audit and gitleaks fail the build. Semgrep only
-# reports: its findings go to the repository's code scanning tab, which only
-# people with write access can see.
+# composer audit, npm audit, gitleaks and the image scans fail the build.
+# Semgrep only reports: its findings go to the repository's code scanning tab,
+# which only people with write access can see.
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
   pull_request:
   schedule:
     - cron: '17 6 * * 1'   # weekly, to catch new advisories for locked dependencies
@@ -56,6 +56,40 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.28.0 \
             git /repo --config /repo/.gitleaks.toml --no-banner --redact --exit-code 1
+
+  # Trivy, pinned by digest (0.76.2). Only HIGH and CRITICAL findings that have
+  # a fix fail the job; the Dockerfile's `apk upgrade` normally clears them on
+  # the next build.
+  image-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker build -t cortendesk:scan .
+      - name: Scan the image built from this commit
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            ghcr.io/aquasecurity/trivy@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb \
+            image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 cortendesk:scan
+
+  # The images people run today. A failure here means the tag needs a new
+  # release to pick up fixed packages.
+  published-image-scan:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [latest, beta]
+    steps:
+      - name: Scan ghcr.io/${{ github.repository }}:${{ matrix.tag }}
+        run: |
+          docker pull --quiet "ghcr.io/${{ github.repository }}:${{ matrix.tag }}"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            ghcr.io/aquasecurity/trivy@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb \
+            image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+            "ghcr.io/${{ github.repository }}:${{ matrix.tag }}"
 
   semgrep:
     runs-on: ubuntu-latest

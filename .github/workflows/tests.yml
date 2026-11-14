@@ -1,0 +1,92 @@
+# Actions are pinned to commit SHAs (tag in the trailing comment); bump by hand.
+name: Tests
+
+# The Pest suite on MySQL and on MariaDB, the translation check, and the web
+# client's type check and unit tests. Any failure fails the build.
+on:
+  push:
+    branches: [main, beta]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  console:
+    name: Console (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # MariaDB 10.6 is the oldest release still supported and the strictest
+        # about timestamp defaults.
+        db: ['mysql:8.4', 'mariadb:10.6']
+    services:
+      db:
+        image: ${{ matrix.db }}
+        env:
+          # Both images read the MYSQL_ names.
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: cortendesk_test
+          MYSQL_USER: cortendesk_test
+          MYSQL_PASSWORD: cortendesk_test
+        ports:
+          - 3306:3306
+    env:
+      # phpunit.xml has the same login; the database name is set here because
+      # the two release lines use different names locally.
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: cortendesk_test
+      DB_USERNAME: cortendesk_test
+      DB_PASSWORD: cortendesk_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: pdo_mysql, bcmath, intl, ftp, mbstring, sodium, zip
+          coverage: none
+          tools: composer
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+      - name: Wait for the database
+        run: |
+          for _ in $(seq 60); do
+            php -r 'new PDO("mysql:host=127.0.0.1;port=3306;dbname=cortendesk_test", "cortendesk_test", "cortendesk_test");' 2>/dev/null && exit 0
+            sleep 2
+          done
+          echo "The database did not start" >&2
+          exit 1
+      - run: php artisan test
+      - run: php artisan lang:check
+
+  webclient:
+    name: Web client
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: webclient
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

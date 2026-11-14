@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Serwer pośredniczący',
     'relay_server_hbbr' => 'Serwer pośredniczący (hbbr)',
     'relay_servers' => 'Serwery pośredniczące',
+    'relay_servers_live' => 'Wbudowany serwer ID przekazuje:',
     'remember_verified_browser_for_days' => 'Zapamiętuj zweryfikowaną przeglądarkę przez (dni)',
     'remove_relay' => 'Usuń serwer',
     'require_device_approval' => 'Wymagaj zatwierdzania urządzeń',

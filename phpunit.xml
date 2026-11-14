@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <!-- The full suite peaks above PHP's default 128M. -->
+        <ini name="memory_limit" value="512M"/>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <!-- Pinned: TrustedProxyTest proves the forwarded header (not config) upgrades the scheme. -->
+        <env name="APP_URL" value="http://localhost"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <!-- MySQL/MariaDB only. The database is wiped on every run; tests/TestCase.php refuses a name that does not end in _test. -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <!-- A test-only login, the same here and in the tests workflow. Create it once:
+             CREATE DATABASE cortendesk_test;
+             CREATE USER 'cortendesk_test'@'localhost' IDENTIFIED BY 'cortendesk_test';
+             GRANT ALL ON cortendesk_test.* TO 'cortendesk_test'@'localhost';
+             A shell variable (DB_PORT=3307 php artisan test) overrides a value below. -->
+        <env name="DB_DATABASE" value="cortendesk_test"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_USERNAME" value="cortendesk_test"/>
+        <env name="DB_PASSWORD" value="cortendesk_test"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

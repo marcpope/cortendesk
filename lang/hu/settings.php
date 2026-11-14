@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Továbbító-kiszolgáló',
     'relay_server_hbbr' => 'Továbbító-kiszolgáló (hbbr)',
     'relay_servers' => 'Továbbító-kiszolgálók',
+    'relay_servers_live' => 'A beépített ID-szerver ezt adja ki:',
     'remember_verified_browser_for_days' => 'Ellenőrzött böngésző megjegyzése (nap)',
     'remove_relay' => 'Továbbító eltávolítása',
     'require_device_approval' => 'Eszköz-jóváhagyás megkövetelése',

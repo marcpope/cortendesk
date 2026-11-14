@@ -124,7 +124,7 @@
                         <ul class="rd-pathlist">
                             @foreach ($pathMix as $key => $count)
                                 <li class="{{ $pathTones[$key] }}">
-                                    <a href="{{ route('logs.connections', ['path' => $key]) }}" class="rd-pathlist-row">
+                                    <a href="{{ route('logs.connections', ['path' => $key, 'dateFrom' => $pathFrom]) }}" class="rd-pathlist-row">
                                         <span class="rd-avatar rd-avatar-lg"><i class="{{ $pathIcons[$key] }}"></i></span>
                                         <span class="rd-pathlist-body">
                                             <span class="rd-barlist-head">

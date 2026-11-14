@@ -179,9 +179,20 @@
                             @endif
                         </div>
 
-                        {{-- Entries toolbar --}}
+                        {{-- Entries toolbar. The filter matches machine name as well as
+                             id, since an entry with no alias is otherwise just a number
+                             (#5). It sits inside the toolbar so it gets the toolbar's
+                             padding, and its own full-width row on a phone (#165). --}}
                         <div class="rd-toolbar">
                             <h4 class="header-title">{{ __('address_books.entries') }}</h4>
+                            <div class="rd-toolbar-search rd-toolbar-search-row">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="ri-search-line"></i></span>
+                                    <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control"
+                                           placeholder="{{ \App\Support\SearchHint::placeholder(__('address_books.search_device_id_or_alias')) }}"
+                                           wire:model.live.debounce.300ms="entrySearch">
+                                </div>
+                            </div>
                             @if ($canWriteEntries)
                                 <div class="rd-toolbar-actions">
                                     <button type="button" class="btn btn-primary" wire:click="openAddEntry">
@@ -189,17 +200,6 @@
                                     </button>
                                 </div>
                             @endif
-                        </div>
-
-                        {{-- Filter: matches machine name as well as id, since an entry
-                             with no alias is otherwise just a number (#5). --}}
-                        <div class="mb-3">
-                            <div class="input-group" style="max-width: 320px;">
-                                <span class="input-group-text"><i class="ri-search-line"></i></span>
-                                <input type="search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" class="form-control"
-                                       placeholder="{{ \App\Support\SearchHint::placeholder(__('address_books.search_device_id_or_alias')) }}"
-                                       wire:model.live.debounce.300ms="entrySearch">
-                            </div>
                         </div>
 
                         {{-- Desktop entries table (md and up) --}}
@@ -236,7 +236,12 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>{{ $entry->alias ?: '—' }}</td>
+                                        <td>
+                                            {{ $entry->alias ?: '—' }}
+                                            @if ($entry->note)
+                                                <span class="rd-cell-sub text-truncate" style="max-width: 260px;" title="{{ $entry->note }}">{{ $entry->note }}</span>
+                                            @endif
+                                        </td>
                                         <td>{{ $entry->username ?: '—' }}</td>
                                         <td>
                                             @forelse (collect($entry->tag_ids ?? [])->map(fn ($id) => $tagMap->get((int) $id))->filter() as $t)
@@ -305,6 +310,9 @@
                                                 </div>
                                             @endif
                                         </div>
+                                        @if ($entry->note)
+                                            <div class="rd-cell-sub mt-2">{{ $entry->note }}</div>
+                                        @endif
                                         <div class="mt-2 d-flex flex-wrap gap-1 align-items-center">
                                             @foreach (collect($entry->tag_ids ?? [])->map(fn ($id) => $tagMap->get((int) $id))->filter() as $t)
                                                 @php $hex = ABM::colorToHex($t->color); @endphp
@@ -498,6 +506,12 @@
                                 <input type="text" id="ab-entry-alias" class="form-control @error('entryAlias') is-invalid @enderror"
                                        wire:model="entryAlias">
                                 @error('entryAlias') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="ab-entry-note">{{ __('common.note') }} <span class="text-muted">{{ __('address_books.optional') }}</span></label>
+                                <textarea id="ab-entry-note" rows="2" class="form-control @error('entryNote') is-invalid @enderror"
+                                          wire:model="entryNote"></textarea>
+                                @error('entryNote') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="mb-0">
                                 <label class="form-label d-block">{{ __('address_books.tags') }}</label>

@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Relay-Server',
     'relay_server_hbbr' => 'Relay-Server (hbbr)',
     'relay_servers' => 'Relay-Server',
+    'relay_servers_live' => 'Der mitgelieferte ID-Server gibt aus:',
     'remember_verified_browser_for_days' => 'Bestätigten Browser merken für (Tage)',
     'remove_relay' => 'Relay entfernen',
     'require_device_approval' => 'Gerätegenehmigung verlangen',

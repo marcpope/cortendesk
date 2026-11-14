@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Relay Server',
     'relay_server_hbbr' => 'Relay Server (hbbr)',
     'relay_servers' => 'Relay Servers',
+    'relay_servers_live' => 'The bundled ID server is handing out:',
     'remember_verified_browser_for_days' => 'Remember a verified browser for (days)',
     'remove_relay' => 'Remove relay',
     'require_device_approval' => 'Require device approval',

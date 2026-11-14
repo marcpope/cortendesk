@@ -206,6 +206,9 @@
                         </div>
                         <div class="card-body">
                             <p class="text-muted fs-13 mb-3">{{ __('settings.relay_pool_hbbr_your_rendezvous') }} <code>relay-servers</code> {{ __('settings.config_geo_tags_are_for') }} <strong>{{ __('settings.relay_server_hbbr') }}</strong> {{ __('settings.above_as_fallback') }}</p>
+                            @if ($relaysLive)
+                                <p class="fs-13 mb-3"><i class="ri-router-line me-1"></i>{{ __('settings.relay_servers_live') }} <code>{{ implode(', ', $relaysLive) }}</code></p>
+                            @endif
 
                             <form wire:submit="save">
                                 {{-- Address takes the whole first line on a phone; the geo tag and

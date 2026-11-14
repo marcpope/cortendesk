@@ -126,6 +126,7 @@ return [
         'email' => 'e-mail',
         'emailTrustedDeviceDays' => 'megbízható böngésző napjai',
         'entryAlias' => 'álnév',
+        'entryNote' => 'megjegyzés',
         'entryRustdeskId' => 'RustDesk-azonosító',
         'expiresDays' => 'lejárat (nap)',
         'file' => 'fájl',

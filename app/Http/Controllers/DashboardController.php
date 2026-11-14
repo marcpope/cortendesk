@@ -40,6 +40,8 @@ class DashboardController extends Controller
             'ranges' => self::RANGES,
             'connectionSeries' => $canAudit ? $this->connectionSeries($visibleIds, $range) : null,
             'pathMix' => $canAudit ? $this->pathMix($visibleIds, $range) : null,
+            // The log filter the path rows open, so its rows match the count.
+            'pathFrom' => now()->subDays($range - 1)->toDateString(),
             'platformMix' => $this->platformMix($user),
             'versionCounts' => $this->versionCounts($user),
             // Alarm detail is an audit screen; the count tile is fleet-level but

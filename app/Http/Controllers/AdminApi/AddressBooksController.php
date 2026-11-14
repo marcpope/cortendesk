@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\AdminApi;
 
+use App\Livewire\AddressBookManager;
 use App\Models\AddressBook;
 use App\Models\AddressBookEntry;
 use App\Models\AddressBookRule;
 use App\Models\ConsoleAudit;
-use App\Livewire\AddressBookManager;
 use App\Models\Tag;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -315,6 +315,7 @@ class AddressBooksController extends AdminApiController
             'password' => ['sometimes', 'nullable', 'string', 'max:255'],
             'rustdesk_id' => [$req, 'string', 'max:255'],
             'alias' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:'.AddressBookEntry::NOTE_MAX],
             'hostname' => ['nullable', 'string', 'max:255'],
             'platform' => ['nullable', 'string', 'max:64'],
             'username' => ['nullable', 'string', 'max:255'],
@@ -347,6 +348,7 @@ class AddressBooksController extends AdminApiController
             'id' => $e->id,
             'rustdesk_id' => $e->rustdesk_id,
             'alias' => $e->alias,
+            'note' => $e->note,
             'hostname' => $e->hostname,
             'platform' => $e->platform,
             'username' => $e->username,

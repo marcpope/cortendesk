@@ -1,0 +1,11 @@
+{
+    "version": "0.1.0",
+    "base_url": "https://github.com/marcpope/cortendesk-agent/releases/download/v0.1.0",
+    "files": {
+        "windows-amd64": { "name": "cortendesk-agent_windows_amd64.exe", "sha256": "" },
+        "windows-arm64": { "name": "cortendesk-agent_windows_arm64.exe", "sha256": "" },
+        "darwin-universal": { "name": "cortendesk-agent_darwin_universal", "sha256": "" },
+        "linux-amd64": { "name": "cortendesk-agent_linux_amd64", "sha256": "" },
+        "linux-arm64": { "name": "cortendesk-agent_linux_arm64", "sha256": "" }
+    }
+}

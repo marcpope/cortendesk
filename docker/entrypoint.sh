@@ -370,6 +370,13 @@ done
 # First boot: create the admin account (no-op once any user exists).
 php artisan db:seed --class=Database\\Seeders\\DockerSeeder --force --no-interaction
 
+# The relay list saved on Settings -> Server, for hbbs (see rustdesk-server.conf).
+# Written as root here; the console rewrites the file as www-data on a save.
+if [ "$EMBEDDED" = 1 ]; then
+    php artisan cortendesk:relay-servers --no-interaction || echo "[cortendesk] WARNING: could not read the saved relay list; hbbs uses $RUSTDESK_RELAY_ADVERTISED"
+    if [ -f "$RD_DIR/.env" ]; then chown www-data:www-data "$RD_DIR/.env"; fi
+fi
+
 # --- nginx: point the ws bridge at the RustDesk server ------------------------
 # RUSTDESK_WS_HOST > host part of CORTENDESK_ID_SERVER > localhost.
 if [ -z "${RUSTDESK_WS_HOST:-}" ]; then

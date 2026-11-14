@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Server relay',
     'relay_server_hbbr' => 'Server relay (hbbr)',
     'relay_servers' => 'Server relay',
+    'relay_servers_live' => 'Il server ID incluso distribuisce:',
     'remember_verified_browser_for_days' => 'Ricorda un browser verificato per (giorni)',
     'remove_relay' => 'Rimuovi relay',
     'require_device_approval' => 'Richiedi approvazione dispositivi',

@@ -17,6 +17,8 @@ http {
     default_type application/octet-stream;
     access_log off;
     sendfile on;
+    # "Server: nginx" without the version.
+    server_tokens off;
     # Everything except the installer upload endpoint (below) keeps a small
     # body limit, so no other route buffers a large anonymous POST.
     client_max_body_size 32m;
@@ -119,7 +121,11 @@ http {
             add_header X-Content-Type-Options nosniff always;
         }
 
+        # Static files get these two headers here. Responses from PHP get
+        # them from the SecurityHeaders middleware; keep the lists the same.
         location / {
+            add_header X-Content-Type-Options nosniff always;
+            add_header Permissions-Policy "accelerometer=(), bluetooth=(), camera=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), midi=(), payment=(), serial=(), usb=()" always;
             try_files $uri $uri/ /index.php?$query_string;
         }
 

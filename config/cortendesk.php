@@ -222,4 +222,14 @@ return [
     | any build not signed with the release key.
     */
     'agent_manifest' => env('CORTENDESK_AGENT_MANIFEST'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Framing
+    |--------------------------------------------------------------------------
+    | The console sends X-Frame-Options: SAMEORIGIN, so another site cannot
+    | show it in a frame. CORTENDESK_ALLOW_FRAMING=true drops the header, for
+    | a dashboard on another host name that embeds the console.
+    */
+    'allow_framing' => filter_var(env('CORTENDESK_ALLOW_FRAMING', false), FILTER_VALIDATE_BOOL),
 ];

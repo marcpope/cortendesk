@@ -11,6 +11,7 @@ use App\Models\DevicePresenceSnooze;
 use App\Models\NotificationDelivery;
 use App\Models\Setting;
 use App\Models\UserGroup;
+use App\Services\AdvertisedRelays;
 use App\Services\AppriseNotifications;
 use App\Services\DeviceEnrollment;
 use App\Services\MailSettings;
@@ -79,6 +80,9 @@ class SettingsPage extends Component
 
     /** @var array<int, array{address: string, geo: string}> */
     public array $relayServers = [];
+
+    /** Relays the bundled ID server hands to clients now (#181); null when it does not answer or runs elsewhere. */
+    public ?array $relaysLive = null;
 
     /** Bandwidth limits of the bundled relay (#128), in Mb/s, minutes and percent. */
     public array $relayLimits = RelayLimits::DEFAULTS;
@@ -313,6 +317,7 @@ class SettingsPage extends Component
         }
 
         $this->loadRelayLimits();
+        $this->relaysLive = AdvertisedRelays::available() ? app(AdvertisedRelays::class)->live() : null;
 
         $stored = json_decode(Setting::get('relay_servers', '') ?: '[]', true);
         $this->relayServers = is_array($stored) ? array_values(array_map(fn ($r) => [
@@ -519,7 +524,17 @@ class SettingsPage extends Component
         Setting::put('relay_servers', json_encode($relays));
 
         Setting::put('id_server', trim($this->idServer));
-        Setting::put('relay_server', trim($this->relayServer));
+        // The field shows the environment's address until one is saved. Left
+        // as it was, it stays unsaved: the bundled ID server hands a saved
+        // address to clients (#181), and a copy of the environment's would go
+        // stale the day CORTENDESK_RELAY_SERVER or APP_URL changes.
+        $relayServer = trim($this->relayServer);
+        Setting::put('relay_server', $relayServer === trim((string) config('cortendesk.relay_server')) ? '' : $relayServer);
+        if (AdvertisedRelays::available()) {
+            $relayService = app(AdvertisedRelays::class);
+            // hbbs swaps the list a moment after the command, so show what was sent.
+            $this->relaysLive = $relayService->apply() ? $relayService->addresses() : $relayService->live();
+        }
         // Pasting a key through an editor commonly drags in a trailing newline
         // or space. The comparison is exact, so an untrimmed key fails exactly
         // like a wrong one and there is nothing on screen to hint at why.

@@ -9,6 +9,7 @@ use App\Http\Middleware\MonitoringEnabled;
 use App\Http\Middleware\RequireEmailAddress;
 use App\Http\Middleware\RequireMailHealthy;
 use App\Http\Middleware\RequireTwoFactor;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SessionCookieFollowsScheme;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\ThrottleHealthProbe;
@@ -50,6 +51,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'health-probe' => ThrottleHealthProbe::class,
             'monitoring' => MonitoringEnabled::class,
         ]);
+        // Every response, the API and the health probes included.
+        $middleware->append(SecurityHeaders::class);
         $middleware->prependToGroup('web', SessionCookieFollowsScheme::class);
         $middleware->appendToGroup('web', SetLocale::class);
         $middleware->appendToGroup('web', EnsureUserIsActive::class);

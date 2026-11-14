@@ -1628,6 +1628,18 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     }
 }
 
+/* Four tiles (connection report): two across, then four. */
+@media (min-width: 992px) {
+    .rd-stat-grid.rd-stat-grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+/* Its labels are long ("Time without overlaps per operator"): wrap, don't cut. */
+.rd-stat-grid-4 .rd-stat-label {
+    white-space: normal;
+}
+
 .rd-stat-grid > .card {
     margin-bottom: 0;
     height: 100%;
@@ -1932,6 +1944,19 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
 .rd-toolbar-search {
     flex: 1 1 220px;
     min-width: 0;
+}
+
+/* A search that follows a heading: capped on a wide screen, and on a phone a
+   row of its own, as wide as the action button under it (#165). */
+.rd-toolbar-search-row {
+    max-width: 320px;
+}
+
+@media (max-width: 575.98px) {
+    .rd-toolbar-search-row {
+        flex-basis: 100%;
+        max-width: none;
+    }
 }
 
 .rd-toolbar-filter {

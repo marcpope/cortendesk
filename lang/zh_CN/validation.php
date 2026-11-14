@@ -126,6 +126,7 @@ return [
         'email' => '邮箱',
         'emailTrustedDeviceDays' => '浏览器信任天数',
         'entryAlias' => '别名',
+        'entryNote' => '备注',
         'entryRustdeskId' => 'RustDesk ID',
         'expiresDays' => '有效期（天）',
         'file' => '文件',

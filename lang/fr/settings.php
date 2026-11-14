@@ -129,6 +129,7 @@ return [
     'relay_server' => 'Serveur relais',
     'relay_server_hbbr' => 'Serveur relais (hbbr)',
     'relay_servers' => 'Serveurs relais',
+    'relay_servers_live' => 'Le serveur d\'ID intégré distribue :',
     'remember_verified_browser_for_days' => 'Mémoriser un navigateur vérifié pendant (jours)',
     'remove_relay' => 'Retirer le relais',
     'require_device_approval' => 'Exiger l’approbation des appareils',

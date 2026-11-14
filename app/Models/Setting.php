@@ -65,11 +65,12 @@ class Setting extends Model
     /**
      * The configured relay pool as an ordered list of ['address' => …, 'geo' => …].
      *
-     * Relay membership/selection is owned by the rendezvous server (hbbs), not the
-     * console — see docs/relay-protocol.md. These rows document/manage the hbbs
-     * `relay-servers` list; the console does not push them to clients. When no list
-     * is configured we fall back to the single `relay_server` env/setting so existing
-     * single-relay deployments keep working.
+     * The rendezvous server (hbbs) picks the relay for each session, not the
+     * console — see docs/relay-protocol.md. The bundled hbbs is given these rows
+     * as its `relay-servers` list (AdvertisedRelays); an hbbs that runs elsewhere
+     * has to be configured by hand. When no list is configured we fall back to
+     * the single `relay_server` env/setting so existing single-relay deployments
+     * keep working.
      *
      * @return array<int, array{address: string, geo: string}>
      */

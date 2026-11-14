@@ -126,6 +126,7 @@ return [
         'email' => 'e-mailadres',
         'emailTrustedDeviceDays' => 'dagen vertrouwde browser',
         'entryAlias' => 'alias',
+        'entryNote' => 'opmerking',
         'entryRustdeskId' => 'RustDesk-ID',
         'expiresDays' => 'geldigheid (dagen)',
         'file' => 'bestand',

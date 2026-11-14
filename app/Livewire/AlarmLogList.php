@@ -119,7 +119,7 @@ class AlarmLogList extends Component
     public function render()
     {
         return view('livewire.alarm-log-list', [
-            'alarms' => $this->query()->paginate($this->perPage),
+            'alarms' => $this->query()->with(['controlledDevice' => fn ($q) => $q->visibleTo(auth()->user())->select('rustdesk_id', 'alias')])->paginate($this->perPage),
             'types' => AlarmLog::TYPES,
         ]);
     }

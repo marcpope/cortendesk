@@ -120,7 +120,7 @@ class FileTransferLog extends Component
     public function render()
     {
         return view('livewire.file-transfer-log', [
-            'transfers' => $this->query()->paginate($this->perPage),
+            'transfers' => $this->query()->with(['controlledDevice' => fn ($q) => $q->visibleTo(auth()->user())->select('rustdesk_id', 'alias')])->paginate($this->perPage),
         ]);
     }
 }
