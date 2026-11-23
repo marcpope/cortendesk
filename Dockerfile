@@ -33,10 +33,11 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
 FROM php:8.5-fpm-alpine
 
 # Refuse a base image older than the last PHP security fix, so a stale cached
-# base fails the build instead of shipping. 8.5.12 fixes CVE-2026-109618 and
-# CVE-2026-109619 (unauthenticated RCE). Raise this with each PHP advisory.
-RUN php -r 'exit(version_compare(PHP_VERSION, "8.5.12", ">=") ? 0 : 1);' \
-    || { echo "PHP $(php -r 'echo PHP_VERSION;') is older than 8.5.12; pull a newer base" >&2; exit 1; }
+# base fails the build instead of shipping. 8.5.13 is the 2026-11-19 security
+# release (issue #188); 8.5.12 fixed CVE-2026-109618 and CVE-2026-109619.
+# Raise this with each PHP advisory.
+RUN php -r 'exit(version_compare(PHP_VERSION, "8.5.13", ">=") ? 0 : 1);' \
+    || { echo "PHP $(php -r 'echo PHP_VERSION;') is older than 8.5.13; pull a newer base" >&2; exit 1; }
 
 # ftp is the off-site backup copy in Settings -> Backups; the base image does
 # not ship it. Built standalone it has no TLS unless --with-ftp-ssl is given
@@ -50,6 +51,15 @@ RUN apk upgrade --no-cache \
     && docker-php-ext-configure ftp --with-ftp-ssl \
     && docker-php-ext-install -j"$(nproc)" pdo_mysql bcmath intl ftp \
     && apk del .build
+
+# Same guard for nginx, which comes from the Alpine repos. 1.30.7 fixes
+# CVE-2026-113425, CVE-2026-118899, CVE-2026-120967, CVE-2026-120993,
+# CVE-2026-121810, CVE-2026-123007, CVE-2026-123633, CVE-2026-123634,
+# CVE-2026-123640 and CVE-2026-125283 (issue #188). Raise this with each
+# nginx advisory.
+RUN v="$(nginx -v 2>&1 | sed 's|.*nginx/||')" \
+    && [ "$(apk version -t "$v" 1.30.7)" != "<" ] \
+    || { echo "nginx $v is older than 1.30.7; pull a newer base" >&2; exit 1; }
 
 WORKDIR /app
 COPY --from=deps /app /app
