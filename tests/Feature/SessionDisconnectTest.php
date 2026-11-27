@@ -113,3 +113,21 @@ it('refuses a disconnect on a device outside the operator scope', function () {
 
     expect($session->fresh()->disconnect_requested_at)->toBeNull();
 });
+
+it('renders the sessions as a table and as a card list, switched by the card width (#182)', function () {
+    liveSession();
+
+    $html = Livewire::actingAs(User::factory()->create(['is_admin' => true]))
+        ->test(ActiveSessions::class)
+        ->html();
+
+    // No viewport classes: the card's own width decides (a container query),
+    // because the Overview column can be narrow on a wide screen.
+    expect($html)->toContain('rd-sessions-wide')
+        ->toContain('rd-sessions-narrow')
+        ->not->toContain('d-md-none');
+
+    expect(file_get_contents(public_path('assets/css/cortendesk.css')))
+        ->toContain('.rd-sessions {')
+        ->toContain('@container (min-width: 700px)');
+});

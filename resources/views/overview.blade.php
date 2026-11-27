@@ -153,12 +153,12 @@
     @endphp
     <div class="row rd-row-equal">
         @if ($hasAudit)
-        <div class="{{ $hasAlerts ? 'col-xl-5' : 'col-xl-7' }}">
+        <div class="{{ $hasAlerts ? 'col-xl-6' : 'col-xl-7' }}">
             @livewire(App\Livewire\ActiveSessions::class)
         </div>
         @endif
 
-        <div class="{{ ! $hasAudit ? 'col-12' : ($hasAlerts ? 'col-xl-4' : 'col-xl-5') }}">
+        <div class="{{ ! $hasAudit ? 'col-12' : ($hasAlerts ? 'col-xl-3' : 'col-xl-5') }}">
             @php
                 $versionTotal = array_sum($versionCounts['values']);
                 $versionMax = $versionCounts['values'] ? max($versionCounts['values']) : 0;

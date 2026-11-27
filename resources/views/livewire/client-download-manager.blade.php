@@ -170,13 +170,33 @@
                                     {{ $editing ? __('downloads.pick_file_only_to_replace') : '' }}
                                     {{ __('downloads.up_to_mb_mb_platform', ['mb' => round($maxKb / 1024)]) }}
                                 </div>
-                                <div wire:loading wire:target="file" class="form-text">{{ __('common.uploading') }}</div>
-                                {{-- Livewire validates the temporary upload at its own endpoint,
-                                     before the component sees it. A rejection there (or a 413 from
-                                     nginx) never re-renders anything, so without this the operator
-                                     picks a too-large file and watches nothing happen. --}}
-                                <div class="invalid-feedback d-block" style="display: none;" data-cd-upload-error>
-                                    {{ __('downloads.that_file_was_rejected_before', ['mb' => round($maxKb / 1024)]) }}
+                                {{-- Upload feedback, driven by the script at the foot of this view.
+                                     wire:ignore: Livewire re-renders the modal while a file is in
+                                     flight and would otherwise reset the bar and hide the message.
+
+                                     A wrong type or an oversize file is refused in the browser,
+                                     before a byte is sent; nobody should wait out a 3 GB upload to
+                                     be told it was never going to be accepted (issue #192). The
+                                     server checks both again on Save.
+
+                                     The last message covers what the browser cannot foresee:
+                                     Livewire validates the temporary upload at its own endpoint,
+                                     and a rejection there (or a 413 from a proxy) never re-renders
+                                     anything. --}}
+                                <div wire:ignore data-cd-upload
+                                     data-extensions="{{ implode(',', \App\Support\ClientPlatform::allowedExtensions()) }}"
+                                     data-max-bytes="{{ $maxKb * 1024 }}"
+                                     data-msg-type="{{ __('messages.file_type_not_allowed', ['allowed' => implode(', ', \App\Support\ClientPlatform::allowedExtensions())]) }}"
+                                     data-msg-size="{{ __('messages.build_too_large', ['mb' => round($maxKb / 1024)]) }}"
+                                     data-msg-rejected="{{ __('downloads.that_file_was_rejected_before', ['mb' => round($maxKb / 1024)]) }}">
+                                    <div class="mt-2" style="display: none;" data-cd-upload-progress>
+                                        <div class="progress" role="progressbar" aria-label="{{ __('common.uploading') }}"
+                                             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                            <div class="progress-bar" style="width: 0;"></div>
+                                        </div>
+                                        <div class="form-text">{{ __('common.uploading') }} <span data-cd-upload-percent>0%</span></div>
+                                    </div>
+                                    <div class="invalid-feedback" style="display: none;" data-cd-upload-error></div>
                                 </div>
                             </div>
 
@@ -242,15 +262,64 @@
     <script>
         // Registered once per component, on document, so it still fires for the
         // modal markup Livewire adds and removes on each open/close.
-        const cdUploadError = (show) => {
-            const box = document.querySelector('[data-cd-upload-error]');
-            if (box) {
-                box.style.display = show ? 'block' : 'none';
+        const cdBox = () => document.querySelector('[data-cd-upload]');
+
+        const cdError = (message) => {
+            const el = cdBox()?.querySelector('[data-cd-upload-error]');
+            if (el) {
+                el.textContent = message;
+                el.style.display = message ? 'block' : 'none';
             }
         };
 
-        document.addEventListener('livewire-upload-start', () => cdUploadError(false));
-        document.addEventListener('livewire-upload-error', () => cdUploadError(true));
+        // null hides the bar.
+        const cdProgress = (percent) => {
+            const el = cdBox()?.querySelector('[data-cd-upload-progress]');
+            if (! el) {
+                return;
+            }
+            el.style.display = percent === null ? 'none' : 'block';
+            el.querySelector('.progress').setAttribute('aria-valuenow', percent ?? 0);
+            el.querySelector('.progress-bar').style.width = (percent ?? 0) + '%';
+            el.querySelector('[data-cd-upload-percent]').textContent = (percent ?? 0) + '%';
+        };
+
+        // Capture phase: this runs before Livewire's own change listener on the
+        // input, so stopping the event here means the upload never starts.
+        document.addEventListener('change', (event) => {
+            const box = cdBox();
+            const file = event.target.id === 'cd-file' ? event.target.files[0] : null;
+            if (! box || ! file) {
+                return;
+            }
+
+            const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+            let message = '';
+            if (! box.dataset.extensions.split(',').includes(extension)) {
+                message = box.dataset.msgType;
+            } else if (file.size > Number(box.dataset.maxBytes)) {
+                message = box.dataset.msgSize;
+            }
+
+            if (message) {
+                event.stopPropagation();
+                event.target.value = '';
+                // Drop a file staged by an earlier pick, so Save cannot store
+                // one the operator no longer sees in the field.
+                $wire.set('file', null);
+                cdProgress(null);
+            }
+            cdError(message);
+        }, true);
+
+        document.addEventListener('livewire-upload-start', () => { cdError(''); cdProgress(0); });
+        document.addEventListener('livewire-upload-progress', (event) => cdProgress(event.detail.progress));
+        document.addEventListener('livewire-upload-finish', () => cdProgress(null));
+        document.addEventListener('livewire-upload-cancel', () => cdProgress(null));
+        document.addEventListener('livewire-upload-error', () => {
+            cdProgress(null);
+            cdError(cdBox()?.dataset.msgRejected ?? '');
+        });
     </script>
     @endscript
 </div>

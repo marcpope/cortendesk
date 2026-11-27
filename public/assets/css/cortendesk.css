@@ -2082,6 +2082,28 @@ html[data-rd-sidebar="condensed"] .rd-nav .rd-current > .rd-nav-link::before {
     padding: 14px 16px;
 }
 
+/* A table / card-list pair that switches on the width of its own card rather
+   than the viewport. Active Sessions sits in an Overview column that can be
+   500px wide on a 1400px screen; there the table would scroll sideways and
+   hide its last columns, so it gives way to the card list. */
+.rd-sessions {
+    container-type: inline-size;
+}
+
+.rd-sessions-wide {
+    display: none;
+}
+
+@container (min-width: 700px) {
+    .rd-sessions-wide {
+        display: block;
+    }
+
+    .rd-sessions-narrow {
+        display: none;
+    }
+}
+
 /* One row of a card list: a recessed block, not a nested card — a card on a
    card is the same colour twice and reads as nothing at all. */
 .rd-mini {
