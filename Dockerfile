@@ -33,10 +33,11 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
 FROM php:8.5-fpm-alpine
 
 # Refuse a base image older than the last PHP security fix, so a stale cached
-# base fails the build instead of shipping. 8.5.12 fixes CVE-2026-109618 and
-# CVE-2026-109619 (unauthenticated RCE). Raise this with each PHP advisory.
-RUN php -r 'exit(version_compare(PHP_VERSION, "8.5.12", ">=") ? 0 : 1);' \
-    || { echo "PHP $(php -r 'echo PHP_VERSION;') is older than 8.5.12; pull a newer base" >&2; exit 1; }
+# base fails the build instead of shipping. 8.5.13 is the 2026-11-19 security
+# release (issue #188); 8.5.12 fixed CVE-2026-109618 and CVE-2026-109619.
+# Raise this with each PHP advisory.
+RUN php -r 'exit(version_compare(PHP_VERSION, "8.5.13", ">=") ? 0 : 1);' \
+    || { echo "PHP $(php -r 'echo PHP_VERSION;') is older than 8.5.13; pull a newer base" >&2; exit 1; }
 
 # ftp is the off-site backup copy in Settings -> Backups; the base image does
 # not ship it. Built standalone it has no TLS unless --with-ftp-ssl is given
@@ -45,11 +46,20 @@ RUN php -r 'exit(version_compare(PHP_VERSION, "8.5.12", ">=") ? 0 : 1);' \
 # apk upgrade takes Alpine's security fixes: the base image keeps the package
 # versions it was built with (musl, curl, expat and so on).
 RUN apk upgrade --no-cache \
-    && apk add --no-cache nginx supervisor icu-libs gettext \
+    && apk add --no-cache nginx supervisor icu-libs gettext curl \
     && apk add --no-cache --virtual .build icu-dev openssl-dev \
     && docker-php-ext-configure ftp --with-ftp-ssl \
     && docker-php-ext-install -j"$(nproc)" pdo_mysql bcmath intl ftp \
     && apk del .build
+
+# Same guard for nginx, which comes from the Alpine repos. 1.30.7 fixes
+# CVE-2026-113425, CVE-2026-118899, CVE-2026-120967, CVE-2026-120993,
+# CVE-2026-121810, CVE-2026-123007, CVE-2026-123633, CVE-2026-123634,
+# CVE-2026-123640 and CVE-2026-125283 (issue #188). Raise this with each
+# nginx advisory.
+RUN v="$(nginx -v 2>&1 | sed 's|.*nginx/||')" \
+    && [ "$(apk version -t "$v" 1.30.7)" != "<" ] \
+    || { echo "nginx $v is older than 1.30.7; pull a newer base" >&2; exit 1; }
 
 WORKDIR /app
 COPY --from=deps /app /app
@@ -95,7 +105,10 @@ VOLUME /data
 # servers a relay outage would mark the console unhealthy and restart-loop it.
 # The container check answers "is the app up"; point monitoring at
 # /health/ready for the full dependency picture.
+# curl with --noproxy: the probe is a loopback request and must never go to
+# a proxy. BusyBox wget sends it to http_proxy even when no_proxy lists
+# 127.0.0.1 (issue #186).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
-    CMD wget -q -O /dev/null "http://127.0.0.1:${CORTENDESK_HTTP_PORT:-8080}/health/live" || exit 1
+    CMD curl -fsS --noproxy '*' -o /dev/null "http://127.0.0.1:${CORTENDESK_HTTP_PORT:-8080}/health/live" || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

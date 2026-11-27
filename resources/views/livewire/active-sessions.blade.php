@@ -25,8 +25,12 @@
                     <a href="{{ route('logs.connections') }}" class="btn btn-sm btn-outline-light">{{ __('overview.view_connection_log_2') }}</a>
                 </div>
             @else
-                {{-- Desktop table (md and up) --}}
-                <div class="table-responsive d-none d-md-block">
+                {{-- The card sits in an Overview column whose width has little to do
+                     with the viewport, so the switch between table and card list
+                     follows the card's own width (.rd-sessions, a container query).
+                     The table needs about 700px (issue #182). --}}
+                <div class="rd-sessions">
+                <div class="table-responsive rd-sessions-wide">
                     <table class="table table-hover table-centered align-middle mb-0">
                         <thead>
                         <tr>
@@ -66,12 +70,12 @@
                                 <td>
                                     <x-conn-type :type="$s->conn_type"/>
                                 </td>
-                                <td>
+                                <td class="text-nowrap">
                                     <span class="rd-cell-title fw-normal"><i class="rd-dot text-success"></i><span
                                             title="{{ $s->created_at }}">{{ $s->created_at->diffForHumans(short: true) }}</span></span>
                                 </td>
                                 @if ($canDisconnect)
-                                    <td class="text-end">
+                                    <td class="text-end text-nowrap">
                                         @if ($s->isDisconnecting())
                                             {{-- The console cannot close the session itself; it waits for
                                                  the device's next heartbeat to carry the instruction. --}}
@@ -88,11 +92,11 @@
                     </table>
                 </div>
 
-                {{-- Mobile card list (below md). Same .rd-cardlist / .rd-mini object
+                {{-- Card list for a narrow card. Same .rd-cardlist / .rd-mini object
                      as every other list screen, so it inherits the phone wrap guards;
                      p-0 because this list sits inside a card body rather than flush
                      against the panel edges. --}}
-                <div class="d-md-none rd-cardlist p-0">
+                <div class="rd-cardlist p-0 rd-sessions-narrow">
                     @foreach ($sessions as $s)
                         @php
                             $who = $s->from_name ?: ($devices[$s->from_peer]->alias ?? null) ?: $s->from_peer;
@@ -129,6 +133,7 @@
                             </div>
                         </div>
                     @endforeach
+                </div>
                 </div>
             @endif
         </div>

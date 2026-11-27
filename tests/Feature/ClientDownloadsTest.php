@@ -181,3 +181,52 @@ it('names the configured limit when a build is too large (#84)', function () {
 
     expect(ClientDownload::count())->toBe(0);
 });
+
+it('hands the browser what it needs to refuse a file before uploading it (#192)', function () {
+    config(['cortendesk.downloads_max_kb' => 2048]);
+
+    Livewire::actingAs(User::factory()->admin()->create())
+        ->test(ClientDownloadManager::class)
+        ->call('create')
+        ->assertSeeHtml('data-max-bytes="'.(2048 * 1024).'"')
+        ->assertSeeHtml('data-extensions="'.implode(',', ClientPlatform::allowedExtensions()).'"')
+        ->assertSee('That file type is not an installer')
+        ->assertSee('larger than the 2 MB upload limit');
+});
+
+it('still refuses a wrong file type on the server (#192)', function () {
+    Storage::fake(ClientDownload::DISK);
+
+    Livewire::actingAs(User::factory()->admin()->create())
+        ->test(ClientDownloadManager::class)
+        ->call('create')
+        ->set('file', UploadedFile::fake()->create('debian.iso', 100))
+        ->set('label', 'Debian')
+        ->call('save')
+        ->assertHasErrors('file');
+
+    expect(ClientDownload::count())->toBe(0);
+});
+
+it('keeps the upload URL valid for longer as the limit grows (#192)', function () {
+    $minutes = function (array $env): int {
+        foreach ($env as $key => $value) {
+            putenv($key.'='.$value);
+            $_ENV[$key] = $_SERVER[$key] = $value;
+        }
+
+        try {
+            return (require config_path('livewire.php'))['temporary_file_upload']['max_upload_time'];
+        } finally {
+            foreach (array_keys($env) as $key) {
+                putenv($key);
+                unset($_ENV[$key], $_SERVER[$key]);
+            }
+        }
+    };
+
+    expect(config('livewire.temporary_file_upload.max_upload_time'))->toBe(60)
+        ->and($minutes(['CORTENDESK_DOWNLOADS_MAX_MB' => '100']))->toBe(60)
+        ->and($minutes(['CORTENDESK_DOWNLOADS_MAX_MB' => '10240']))->toBe(1200)
+        ->and($minutes(['CORTENDESK_DOWNLOADS_MAX_MB' => '102400']))->toBe(1440);
+});

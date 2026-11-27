@@ -32,18 +32,20 @@
 | the operator gets a broken page instead of a validation error.
 */
 
+// Same env expression as config/cortendesk.php (downloads_max_kb).
+$downloadsMaxKb = is_numeric(env('CORTENDESK_DOWNLOADS_MAX_MB'))
+    ? (int) env('CORTENDESK_DOWNLOADS_MAX_MB') * 1024
+    : (int) env('CORTENDESK_DOWNLOADS_MAX_KB', 512 * 1024);
+
 return [
 
     'temporary_file_upload' => [
         'disk' => env('LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK'),
-        // Deliberately 1 MB looser than cortendesk.downloads_max_kb (same env
-        // expression as config/cortendesk.php): a file just over the limit
-        // then reaches the component, and the operator gets CortenDesk's own
-        // message naming the limit instead of Livewire's silent 422 at the
-        // upload endpoint.
-        'rules' => ['required', 'file', 'max:'.(1024 + (is_numeric(env('CORTENDESK_DOWNLOADS_MAX_MB'))
-            ? (int) env('CORTENDESK_DOWNLOADS_MAX_MB') * 1024
-            : (int) env('CORTENDESK_DOWNLOADS_MAX_KB', 512 * 1024)))],
+        // Deliberately 1 MB looser than cortendesk.downloads_max_kb: a file
+        // just over the limit then reaches the component, and the operator
+        // gets CortenDesk's own message naming the limit instead of Livewire's
+        // silent 422 at the upload endpoint.
+        'rules' => ['required', 'file', 'max:'.(1024 + $downloadsMaxKb)],
         'directory' => null,
         'middleware' => null,
         'preview_mimes' => [
@@ -54,8 +56,10 @@ return [
         // Minutes the signed upload URL stays valid. The signature is checked
         // when PHP receives the request, which is after nginx has buffered the
         // whole body, so this must cover the full transfer: 512 MB takes about
-        // 35 minutes at 2 Mbit/s.
-        'max_upload_time' => 60,
+        // 35 minutes at 2 Mbit/s. It grows with the limit (an hour per 512 MB,
+        // capped at a day); at a fixed hour a multi-gigabyte upload on a slow
+        // line finished sending and was then refused (issue #192).
+        'max_upload_time' => (int) min(1440, max(60, ceil($downloadsMaxKb / (512 * 1024) * 60))),
         'cleanup' => true,
     ],
 

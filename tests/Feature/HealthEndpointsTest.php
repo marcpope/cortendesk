@@ -104,3 +104,22 @@ it('keeps the container healthcheck on liveness, not readiness', function () {
         ->toContain('http://127.0.0.1:${CORTENDESK_HTTP_PORT:-8080}/health/live')
         ->not->toContain('8080}/health/ready');
 });
+
+it('probes the container health without a proxy (#186)', function () {
+    // BusyBox wget sends a loopback request to http_proxy even when no_proxy
+    // lists 127.0.0.1, so the probe uses curl and opts out of proxies.
+    $dockerfile = file_get_contents(base_path('Dockerfile'));
+    preg_match('/^HEALTHCHECK.*\n\s+CMD (.*)$/m', $dockerfile, $m);
+
+    expect($m[1] ?? '')->toStartWith('curl ')
+        ->toContain("--noproxy '*'")
+        ->and($dockerfile)->toMatch('/apk add --no-cache [^\n]*\bcurl\b/');
+});
+
+it('refuses to build on a PHP or nginx older than the last security release (#188)', function () {
+    $dockerfile = file_get_contents(base_path('Dockerfile'));
+
+    expect($dockerfile)
+        ->toContain('version_compare(PHP_VERSION, "8.5.13", ">=")')
+        ->toContain('apk version -t "$v" 1.30.7');
+});
